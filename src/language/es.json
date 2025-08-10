@@ -1,0 +1,12 @@
+{
+  "notFound": {
+    "notFoundPage": "404 - Página no encontrada",
+    "pageDoesNoExist": "La página que buscas no existe.",
+    "goToHomepage": "Ir a la página de inicio"
+  },
+  "header": {
+    "greeting": "Hola",
+    "configuration": "Configuración",
+    "logout": "Salir"
+  }
+}
