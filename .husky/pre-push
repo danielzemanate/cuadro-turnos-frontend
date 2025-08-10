@@ -1,0 +1,7 @@
+#!/usr/bin/env sh
+
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+if [ "$BRANCH" = "main" ]; then
+  echo "No se permite push directo a main"
+  exit 1
+fi

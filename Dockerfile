@@ -4,11 +4,15 @@ WORKDIR /app
 
 # Instala dependencias solo cuando cambien los manifests
 COPY package.json package-lock.json* pnpm-lock.yaml* yarn.lock* ./
-RUN \
+
+# Usamos caché de npm para acelerar builds
+RUN --mount=type=cache,target=/root/.npm \
   if [ -f pnpm-lock.yaml ]; then npm i -g pnpm && pnpm i --frozen-lockfile; \
   elif [ -f yarn.lock ]; then yarn install --frozen-lockfile; \
   else npm ci; \
-  fi
+  fi \
+  # 👇 Fix Rollup en Alpine (musl)
+  && npm i -D @rollup/rollup-linux-x64-musl
 
 # Copia el resto del código y construye
 COPY . .
