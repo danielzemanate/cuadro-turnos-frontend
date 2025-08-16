@@ -1,12 +1,17 @@
-import styled from 'styled-components';
+import styled from "styled-components";
 
 export const Header = styled.header`
   background-color: #ffffff;
   padding: 1rem 2rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -2px rgba(0, 0, 0, 0.1); // sombra solo inferior
   display: flex;
   justify-content: space-between;
   align-items: center;
+  position: sticky; /* opcional, para que quede fijo arriba */
+  top: 0;
+  z-index: 50;
 `;
 
 export const LogoSection = styled.div`

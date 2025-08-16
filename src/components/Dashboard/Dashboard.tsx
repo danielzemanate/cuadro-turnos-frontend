@@ -1,9 +1,9 @@
-import React, { FC } from 'react';
-import { useNavigate, useLocation, Outlet } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
-import { User } from '../../types/types';
-import { MODULES } from '../../config/modules';
-import { filterModulesByRole } from '../../utils/permissions';
+import React, { FC } from "react";
+import { useNavigate, useLocation, Outlet } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
+import { User } from "../../types/types";
+import { MODULES } from "../../config/modules";
+import { filterModulesByRole } from "../../utils/permissions";
 import {
   DashboardContainer,
   MainContent,
@@ -13,7 +13,7 @@ import {
   ModuleName,
   BackButtonContainer,
   BackButton,
-} from './DashboardStyles';
+} from "./DashboardStyles";
 
 interface DashboardProps {
   user: User;
@@ -24,9 +24,9 @@ const Dashboard: FC<DashboardProps> = ({ user }) => {
   const location = useLocation();
 
   const allowedModules = filterModulesByRole(MODULES, user.rol);
-  const isOnDashboardHome = location.pathname === '/dashboard';
+  const isOnDashboardHome = location.pathname === "/dashboard";
 
-  const handleModuleClick = (moduleId: string) => {
+  const handleModuleClick = (moduleId: number) => {
     const module = MODULES.find((m) => m.id === moduleId);
     if (module?.path) {
       navigate(module.path);
@@ -34,7 +34,7 @@ const Dashboard: FC<DashboardProps> = ({ user }) => {
   };
 
   const handleBackToDashboard = () => {
-    navigate('/dashboard');
+    navigate("/dashboard");
   };
 
   if (!isOnDashboardHome) {
@@ -57,7 +57,12 @@ const Dashboard: FC<DashboardProps> = ({ user }) => {
       <MainContent>
         <ModulesGrid>
           {allowedModules.map((module) => (
-            <ModuleCard key={module.id} onClick={() => handleModuleClick(module.id)}>
+            <ModuleCard
+              key={module.id}
+              bgColor={module.bgColor}
+              hoverColor={module.hoverColor}
+              onClick={() => handleModuleClick(module.id)}
+            >
               <ModuleIcon>{React.createElement(module.icon)}</ModuleIcon>
               <ModuleName>{module.name}</ModuleName>
             </ModuleCard>
