@@ -184,12 +184,12 @@ const ScheduleViewer: React.FC = () => {
     return (
       <Wrapper>
         <Card>
-          <Title>{t("scheduleViewer.title")}</Title>
+          <Title>{t("scheduleViewer.title").toUpperCase()}</Title>
           <Subtitle>{t("scheduleViewer.subtitle")}</Subtitle>
 
           <ControlsRow>
             <Select
-              aria-label={t("scheduleViewer.title")}
+              aria-label={t("scheduleViewer.title").toUpperCase()}
               value={monthIndex}
               onChange={(e) => setMonthIndex(parseInt(e.target.value, 10))}
             >
@@ -200,7 +200,9 @@ const ScheduleViewer: React.FC = () => {
               ))}
             </Select>
 
-            <Button onClick={handleSelect}>{t("scheduleViewer.select")}</Button>
+            <Button onClick={handleSelect}>
+              {t("scheduleViewer.select").toUpperCase()}
+            </Button>
           </ControlsRow>
         </Card>
       </Wrapper>
@@ -221,13 +223,15 @@ const ScheduleViewer: React.FC = () => {
       <TableWrapper>
         <TopActions>
           <TableTitle style={{ textAlign: "center", width: "100%" }}>
-            {t("scheduleViewer.tableHeader", { site: MOCK_SCHEDULE.site })}{" "}
+            {t("scheduleViewer.tableHeader", {
+              site: MOCK_SCHEDULE.site,
+            }).toUpperCase()}
             <span>{MONTHS[monthIndex]}</span>
           </TableTitle>
 
           <DownloadButton onClick={handleDownload}>
             <Download size={18} />
-            {t("scheduleViewer.download")}
+            {t("scheduleViewer.download").toUpperCase()}
           </DownloadButton>
         </TopActions>
 
@@ -286,7 +290,9 @@ const ScheduleViewer: React.FC = () => {
 
                 {/* Fila Nº DE HORAS por profesional */}
                 <HoursRow>
-                  <StaffCell>{t("scheduleViewer.rowHours")}</StaffCell>
+                  <StaffCell>
+                    {t("scheduleViewer.rowHours").toUpperCase()}
+                  </StaffCell>
                   {days.map((d) => (
                     <Td key={`h-${s.name}-${d}`} $center>
                       {s.shifts[d] ? MOCK_SCHEDULE.hoursPerShift : 0}
@@ -302,7 +308,9 @@ const ScheduleViewer: React.FC = () => {
                       <StaffCell
                         style={{ background: "#fef2f2", color: "#dc2626" }}
                       >
-                        JUSTIFICACIONES NOVEDADES
+                        {t(
+                          "scheduleViewer.justificationsUpdates",
+                        ).toUpperCase()}
                       </StaffCell>
                       {days.map((d) => (
                         <Td key={`jn-${s.name}-${d}`} $center>
@@ -316,7 +324,7 @@ const ScheduleViewer: React.FC = () => {
                       <StaffCell
                         style={{ background: "#fef2f2", color: "#dc2626" }}
                       >
-                        HORAS NOVEDADES
+                        {t("scheduleViewer.hoursUpdates").toUpperCase()}
                       </StaffCell>
                       {days.map((d) => (
                         <Td key={`hn-${s.name}-${d}`} $center>
@@ -331,7 +339,9 @@ const ScheduleViewer: React.FC = () => {
 
             {/* Fila TOTAL HORAS (suma de todos) */}
             <TotalRow>
-              <StaffCell>{t("scheduleViewer.rowTotalHours")}</StaffCell>
+              <StaffCell>
+                {t("scheduleViewer.rowTotalHours").toUpperCase()}
+              </StaffCell>
               {days.map((d) => {
                 const sum = MOCK_SCHEDULE.staff.reduce(
                   (acc, s) =>
