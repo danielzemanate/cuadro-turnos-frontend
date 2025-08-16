@@ -305,9 +305,7 @@ const ScheduleViewer: React.FC = () => {
                   <>
                     {/* Fila JUSTIFICACIONES NOVEDADES */}
                     <tr style={{ background: "#fff5f5" }}>
-                      <StaffCell
-                        style={{ background: "#fef2f2", color: "#dc2626" }}
-                      >
+                      <StaffCell>
                         {t(
                           "scheduleViewer.justificationsUpdates",
                         ).toUpperCase()}
@@ -321,9 +319,7 @@ const ScheduleViewer: React.FC = () => {
 
                     {/* Fila HORAS NOVEDADES */}
                     <HoursRow style={{ background: "#fff1f2" }}>
-                      <StaffCell
-                        style={{ background: "#fef2f2", color: "#dc2626" }}
-                      >
+                      <StaffCell>
                         {t("scheduleViewer.hoursUpdates").toUpperCase()}
                       </StaffCell>
                       {days.map((d) => (
