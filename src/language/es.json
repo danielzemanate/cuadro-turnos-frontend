@@ -7,7 +7,9 @@
   "header": {
     "greeting": "Hola",
     "configuration": "Configuración",
-    "logout": "Salir"
+    "logout": "Salir",
+    "switchToLight": "Cambiar a claro",
+    "switchToDark": "Cambiar a oscuro"
   },
   "scheduleViewer": {
     "title": "Visualizar Turnos",
