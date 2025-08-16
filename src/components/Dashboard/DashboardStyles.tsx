@@ -1,7 +1,7 @@
 import styled from "styled-components";
 
 export const DashboardContainer = styled.div`
-  min-height: 100vh;
+  min-height: 80vh;
   background-color: #f9fafb;
 `;
 
