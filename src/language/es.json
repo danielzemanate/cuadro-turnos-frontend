@@ -8,5 +8,31 @@
     "greeting": "Hola",
     "configuration": "Configuración",
     "logout": "Salir"
+  },
+  "scheduleViewer": {
+    "title": "VISUALIZAR TURNOS",
+    "subtitle": "Por favor seleccione el mes que desea visualizar",
+    "select": "SELECCIONAR",
+    "download": "DESCARGAR",
+    "news": "NOVEDADES",
+    "tableHeader": "TURNOS MÉDICOS {{site}}",
+    "columnProfessional": "Profesional",
+    "rowHours": "N° DE HORAS",
+    "rowTotalHours": "TOTAL HORAS",
+    "csvFilename": "turnos_{{month}}_{{year}}.csv",
+    "months": [
+      "ENERO",
+      "FEBRERO",
+      "MARZO",
+      "ABRIL",
+      "MAYO",
+      "JUNIO",
+      "JULIO",
+      "AGOSTO",
+      "SEPTIEMBRE",
+      "OCTUBRE",
+      "NOVIEMBRE",
+      "DICIEMBRE"
+    ]
   }
 }
