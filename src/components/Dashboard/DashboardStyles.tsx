@@ -1,4 +1,4 @@
-import styled from 'styled-components';
+import styled from "styled-components";
 
 export const DashboardContainer = styled.div`
   min-height: 100vh;
@@ -17,8 +17,8 @@ export const ModulesGrid = styled.div`
   margin: 0 auto;
 `;
 
-export const ModuleCard = styled.div`
-  background-color: #ffffff;
+export const ModuleCard = styled.div<{ bgColor?: string; hoverColor?: string }>`
+  background-color: ${({ bgColor }) => bgColor || "#ffffff"};
   padding: 2rem;
   border-radius: 1rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
@@ -30,7 +30,7 @@ export const ModuleCard = styled.div`
   &:hover {
     transform: translateY(-2px);
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
-    border-color: #3b82f6;
+    border-color: ${({ hoverColor }) => hoverColor || "#3b82f6"};
   }
 `;
 

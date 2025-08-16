@@ -1,46 +1,38 @@
-import { Clock, BarChart3, Users, Settings, Shield } from 'lucide-react';
-import { Module } from '../types/types';
-import AppointmentList from '../components/AppointmentList/AppointmentList';
+import { CalendarDays, Edit3, FileBarChart } from "lucide-react";
+import { Module } from "../types/types";
+import ScheduleViewer from "../components/ScheduleViewer/ScheduleViewer";
+import ScheduleManagement from "../components/ScheduleManagement/ScheduleManagement";
+import Reports from "../components/Reports/Reports";
 
 export const MODULES: Module[] = [
   {
-    id: 'turnos',
-    name: 'Turnos',
-    icon: Clock,
-    allowedRoles: ['Médico', 'Supervisor'],
-    component: AppointmentList,
-    path: '/dashboard/turnos',
+    id: 1,
+    name: "Visualización Turnos",
+    icon: CalendarDays,
+    allowedRoles: ["Coordinador"],
+    component: ScheduleViewer,
+    path: "/dashboard/vizualizacion-turnos",
+    bgColor: "#DBEAFE", // azul claro
+    hoverColor: "#2563EB", // azul fuerte
   },
   {
-    id: 'reportes',
-    name: 'Reportes',
-    icon: BarChart3,
-    allowedRoles: ['Admin', 'Supervisor', 'Medico'],
-    component: AppointmentList,
-    path: '/dashboard/reportes',
+    id: 2,
+    name: "Editar Turnos y Novedades",
+    icon: Edit3,
+    allowedRoles: ["Coordinador"],
+    component: ScheduleManagement,
+    path: "/dashboard/gestion-turnos",
+    bgColor: "#FDE68A", // amarillo claro
+    hoverColor: "#F59E0B", // ámbar
   },
   {
-    id: 'usuarios',
-    name: 'Usuarios',
-    icon: Users,
-    allowedRoles: ['Admin'],
-    component: AppointmentList,
-    path: '/dashboard/usuarios',
-  },
-  {
-    id: 'configuracion',
-    name: 'Configuración',
-    icon: Settings,
-    allowedRoles: ['Admin', 'Supervisor', 'Médico'],
-    component: AppointmentList,
-    path: '/dashboard/configuracion',
-  },
-  {
-    id: 'permisos',
-    name: 'Permisos',
-    icon: Shield,
-    allowedRoles: ['Admin', 'Supervisor', 'Médico'],
-    component: AppointmentList,
-    path: '/dashboard/permisos',
+    id: 3,
+    name: "Generar Reporte",
+    icon: FileBarChart,
+    allowedRoles: ["Coordinador"],
+    component: Reports,
+    path: "/dashboard/reportes",
+    bgColor: "#D1FAE5", // verde menta
+    hoverColor: "#10B981", // verde fuerte
   },
 ];

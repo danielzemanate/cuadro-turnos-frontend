@@ -1,4 +1,5 @@
-import { ReactNode } from 'react';
+import { ReactNode } from "react";
+import { AppointmentStatus } from "../types/types";
 
 export interface IChildrenProps {
   children: ReactNode;
@@ -69,4 +70,24 @@ export interface Theme {
 
 export interface IPrivateRoute extends IChildrenProps {
   isAllowed: boolean;
+}
+
+export interface Appointment {
+  id: string;
+  date: string;
+  patient: string;
+  service: string;
+  doctor?: string;
+  status: AppointmentStatus;
+  notes?: string;
+}
+
+export interface AppointmentResponse {
+  data: Appointment[];
+  page: number;
+  perPage: number;
+  total: number;
+  success: boolean;
+  message: string;
+  key?: string;
 }
