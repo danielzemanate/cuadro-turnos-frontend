@@ -1,4 +1,4 @@
-import styled from 'styled-components';
+import styled from "styled-components";
 
 export const LoginContainer = styled.div`
   display: flex;
@@ -82,14 +82,20 @@ export const LoginButton = styled.button`
   border-radius: 0.5rem;
   cursor: pointer;
   margin-top: 0.5rem;
+  transition:
+    background-color 0.2s ease,
+    opacity 0.2s ease;
 
   &:hover {
     background-color: rgba(25, 67, 181, 1);
   }
 
   &:disabled {
-    background-color: #9ca3af;
+    background-color: #9ca3af; /* gris */
+    color: #f3f4f6; /* aclarar el texto */
     cursor: not-allowed;
+    opacity: 0.7; /* un poco traslúcido */
+    pointer-events: none; /* evita interacciones */
   }
 `;
 

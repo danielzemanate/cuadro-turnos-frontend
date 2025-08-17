@@ -3,6 +3,7 @@ import { Content, Layout } from "./LayoutStyled";
 import { IChildrenProps } from "../interfaces/shared";
 import HeaderComponent from "../components/Header/Header";
 import { useLocation } from "react-router-dom";
+import Toast from "../components/Shared/Toast/Toast";
 
 const MainLayout: FC<IChildrenProps> = ({ children }) => {
   const location = useLocation();
@@ -33,6 +34,7 @@ const MainLayout: FC<IChildrenProps> = ({ children }) => {
         />
       )}
       <Content>{children}</Content>
+      <Toast />
     </Layout>
   );
 };

@@ -1,4 +1,7 @@
-import React, { FC, useState } from "react";
+// src/components/Login/Login.tsx
+import React, { FC, useEffect, useState } from "react";
+import { useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import { User, Lock, Eye, EyeOff } from "lucide-react";
 import loginLogo from "../../assets/images/loginLogo.png";
 import {
@@ -10,100 +13,90 @@ import {
   InputIcon,
   PasswordToggle,
   LoginButton,
-  ErrorMessage,
+  // ErrorMessage, // 👈 ya no lo usamos; los errores van por toast global
 } from "./LoginStyles";
 import LoadingSpinner from "../Shared/LoadingSpinner/LoadingSpinner";
+import { ISignInValues } from "../../interfaces/signIn";
+import { AppState } from "../../redux/reducers/rootReducer";
+import { useAppDispatchThunk } from "../../hooks/storeHooks";
+import { loginUser } from "../../redux/actions/userActions";
 
 const Login: FC = () => {
-  const [username, setUsername] = useState("");
+  const dispatchThunk = useAppDispatchThunk();
+  const navigate = useNavigate();
+
+  // campos del formulario
+  const [correo, setCorreo] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const { loading } = useSelector((state: AppState) => state.helpers);
+  const { user } = useSelector((state: AppState) => state.user);
 
-  // Usuario quemado para validación
-  const validUser = {
-    id: 1,
-    nombre: "Coordinador Test",
-    rol: "Coordinador",
-    username: "coordinador.admin",
-    password: "123456",
-  };
-
-  const handleLogin = () => {
-    setError("");
-    setIsLoading(true);
-
-    // Simular delay de autenticación
-    setTimeout(() => {
-      if (username === validUser.username && password === validUser.password) {
-        // Login exitoso - redirigir a dashboard
-        console.log("Login exitoso:", validUser);
-        window.location.href = "/dashboard";
-      } else {
-        console.log("Credenciales incorrectas");
-        setError("Usuario o contraseña incorrectos");
-        setIsLoading(false);
-      }
-    }, 1500);
-  };
-
-  const togglePasswordVisibility = () => {
-    setShowPassword(!showPassword);
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      handleLogin();
+  // si ya hay sesión, redirige
+  useEffect(() => {
+    if (user?.access_token) {
+      navigate("/dashboard");
     }
+  }, [user, navigate]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const payload: ISignInValues = { correo, password };
+    dispatchThunk(loginUser(payload));
   };
+
+  const togglePasswordVisibility = () => setShowPassword((v) => !v);
 
   return (
     <LoginContainer>
       <LoginCard>
         <LoginLogo src={loginLogo} alt="Logo E.S.E Suroccidente" />
 
-        <InputContainer>
-          <InputIcon>
-            <User size={20} color="#6b7280" />
-          </InputIcon>
-          <LoginInput
-            type="text"
-            placeholder="Usuario"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            onKeyPress={handleKeyPress}
-          />
-        </InputContainer>
+        <form onSubmit={handleSubmit}>
+          <InputContainer>
+            <InputIcon>
+              <User size={20} color="#6b7280" />
+            </InputIcon>
+            <LoginInput
+              type="text"
+              placeholder="Correo"
+              value={correo}
+              onChange={(e) => setCorreo(e.target.value)}
+              autoComplete="username"
+            />
+          </InputContainer>
 
-        <InputContainer>
-          <InputIcon>
-            <Lock size={20} color="#6b7280" />
-          </InputIcon>
-          <LoginInput
-            type={showPassword ? "text" : "password"}
-            placeholder="Contraseña"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            onKeyPress={handleKeyPress}
-          />
-          <PasswordToggle type="button" onClick={togglePasswordVisibility}>
-            {showPassword ? (
-              <EyeOff size={20} color="#6b7280" />
-            ) : (
-              <Eye size={20} color="#6b7280" />
-            )}
-          </PasswordToggle>
-        </InputContainer>
+          <InputContainer>
+            <InputIcon>
+              <Lock size={20} color="#6b7280" />
+            </InputIcon>
+            <LoginInput
+              type={showPassword ? "text" : "password"}
+              placeholder="Contraseña"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+            />
+            <PasswordToggle
+              type="button"
+              onClick={togglePasswordVisibility}
+              aria-label="Mostrar/ocultar contraseña"
+            >
+              {showPassword ? (
+                <EyeOff size={20} color="#6b7280" />
+              ) : (
+                <Eye size={20} color="#6b7280" />
+              )}
+            </PasswordToggle>
+          </InputContainer>
 
-        {error && <ErrorMessage>{error}</ErrorMessage>}
+          <LoginButton type="submit" disabled={loading || !correo || !password}>
+            {loading ? <LoadingSpinner /> : "Ingresar"}
+          </LoginButton>
+        </form>
 
-        <LoginButton onClick={handleLogin} disabled={isLoading}>
-          {isLoading ? <LoadingSpinner /> : "Ingresar"}
-        </LoginButton>
-
-        {/* Información de prueba */}
-        <div
+        {/* Bloque informativo opcional: elimínalo si ya no usas credenciales de prueba */}
+        {/* <div
           style={{
             marginTop: "1.5rem",
             padding: "1rem",
@@ -118,7 +111,7 @@ const Login: FC = () => {
           Usuario: coordinador.admin
           <br />
           Contraseña: 123456
-        </div>
+        </div> */}
       </LoginCard>
     </LoginContainer>
   );
