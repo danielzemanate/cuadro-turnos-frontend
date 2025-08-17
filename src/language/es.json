@@ -38,5 +38,8 @@
       "NOVIEMBRE",
       "DICIEMBRE"
     ]
+  },
+  "alerts": {
+    "credentialsError": "Credenciales no validas"
   }
 }
