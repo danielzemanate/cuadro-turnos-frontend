@@ -1,7 +1,7 @@
-import { FC, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { User, Settings, ChevronDown, LogOut } from 'lucide-react';
-import loginLogo from '../../assets/images/loginLogo.png';
+import { FC, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { User, Settings, ChevronDown, LogOut } from "lucide-react";
+import loginLogo from "../../assets/images/loginLogo.png";
 import {
   Header,
   LogoSection,
@@ -17,8 +17,8 @@ import {
   ConfigButton,
   DropdownMenu,
   DropdownItem,
-} from './HeaderStyles';
-import { useNavigate } from 'react-router-dom';
+} from "./HeaderStyles";
+import { useNavigate } from "react-router-dom";
 
 interface HeaderProps {
   userName: string;
@@ -32,14 +32,14 @@ const HeaderComponent: FC<HeaderProps> = ({ userName, userRole, onLogout }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const handleLogout = () => {
-    console.log('Ejecutando logout...');
+    console.log("Ejecutando logout...");
     setIsDropdownOpen(false);
 
     if (onLogout) {
       onLogout();
     }
 
-    navigate('/');
+    navigate("/");
   };
 
   const toggleDropdown = () => {
@@ -48,7 +48,10 @@ const HeaderComponent: FC<HeaderProps> = ({ userName, userRole, onLogout }) => {
 
   return (
     <Header>
-      <LogoSection onClick={() => navigate('/dashboard')} style={{ cursor: 'pointer' }}>
+      <LogoSection
+        onClick={() => navigate("/dashboard")}
+        style={{ cursor: "pointer" }}
+      >
         <img src={loginLogo} alt="Logo E.S.E Suroccidente" />
       </LogoSection>
 
@@ -58,7 +61,7 @@ const HeaderComponent: FC<HeaderProps> = ({ userName, userRole, onLogout }) => {
             <User size={25} color="#ffffff" />
           </UserIcon>
           <UserDetails>
-            <Greeting>{t('header.greeting')}</Greeting>
+            <Greeting>{t("header.greeting")}</Greeting>
             <UserName>{userName}</UserName>
             <UserRole>{userRole}</UserRole>
           </UserDetails>
@@ -69,13 +72,13 @@ const HeaderComponent: FC<HeaderProps> = ({ userName, userRole, onLogout }) => {
         <ConfigSection>
           <ConfigButton onClick={toggleDropdown}>
             <Settings size={16} color="#6b7280" />
-            {t('header.configuration')}
+            {t("header.configuration")}
             <ChevronDown
               size={16}
               color="#6b7280"
               style={{
-                transform: isDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                transition: 'transform 0.2s ease',
+                transform: isDropdownOpen ? "rotate(180deg)" : "rotate(0deg)",
+                transition: "transform 0.2s ease",
               }}
             />
           </ConfigButton>
@@ -83,7 +86,7 @@ const HeaderComponent: FC<HeaderProps> = ({ userName, userRole, onLogout }) => {
             <DropdownMenu>
               <DropdownItem onClick={handleLogout}>
                 <LogOut size={16} color="#011e62" />
-                {t('header.logout')}
+                {t("header.logout")}
               </DropdownItem>
             </DropdownMenu>
           )}
