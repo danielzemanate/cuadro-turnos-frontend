@@ -1,4 +1,3 @@
-// src/components/Login/Login.tsx
 import React, { FC, useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
@@ -13,7 +12,6 @@ import {
   InputIcon,
   PasswordToggle,
   LoginButton,
-  // ErrorMessage, // 👈 ya no lo usamos; los errores van por toast global
 } from "./LoginStyles";
 import LoadingSpinner from "../Shared/LoadingSpinner/LoadingSpinner";
 import { ISignInValues } from "../../interfaces/signIn";
@@ -30,14 +28,14 @@ const Login: FC = () => {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const { loading } = useSelector((state: AppState) => state.helpers);
-  const { user } = useSelector((state: AppState) => state.user);
+  const { userData } = useSelector((state: AppState) => state.user);
 
   // si ya hay sesión, redirige
   useEffect(() => {
-    if (user?.access_token) {
+    if (userData?.access_token) {
       navigate("/dashboard");
     }
-  }, [user, navigate]);
+  }, [userData, navigate]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

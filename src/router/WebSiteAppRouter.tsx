@@ -6,40 +6,53 @@ import ProtectedRoute from "./ProtectedRoute";
 import { MODULES } from "../config/modules";
 import { Module } from "../types/types";
 import HomePage from "../pages/HomePage/HomePage";
+import { useSelector } from "react-redux";
+import { AppState } from "../redux/reducers/rootReducer";
 
 const getModuleRoutes = (modules: Module[]): (ReactNode | null)[] => {
   return modules.map((module, key) => {
     if (!module.component || !module.path) return null;
-
     const Component = module.component;
     const path = module.path.replace("/dashboard/", "");
-
     return <Route key={key} path={path} element={<Component />} />;
   });
 };
-const user = { id: 1, nombre: "Coodinador Test", rol: "Coordinador" };
+
 const WebSiteAppRouter = () => {
+  const { userData } = useSelector((state: AppState) => state.user);
+  const isAuth = !!userData?.access_token;
+
+  const headerUser = {
+    id: userData?.user?.id ?? 0,
+    nombre:
+      `${userData?.user?.nombre ?? ""} ${userData?.user?.apellidos ?? ""}`.trim(),
+    rol: userData?.roles?.[0] ?? "Coordinador",
+  };
+
   return (
     <MainLayout>
       <Routes>
+        {/* Login público */}
         <Route path="/" element={<Login />} />
+
+        {/* Zona protegida */}
         <Route
           path="/dashboard/*"
           element={
-            <ProtectedRoute isAllowed={!!user}>
-              <HomePage user={user} />
+            <ProtectedRoute isAllowed={isAuth}>
+              <HomePage user={headerUser} />
             </ProtectedRoute>
           }
         >
-          <Route index element={<HomePage user={user} />} />
+          <Route index element={<HomePage user={headerUser} />} />
           {getModuleRoutes(MODULES)}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Route>
 
-        {/* Si ponen una ruta no existente */}
+        {/* Fallback */}
         <Route
           path="*"
-          element={<Navigate to={user ? "/dashboard" : "/"} replace />}
+          element={<Navigate to={isAuth ? "/dashboard" : "/"} replace />}
         />
       </Routes>
     </MainLayout>

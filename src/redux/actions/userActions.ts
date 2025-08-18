@@ -2,6 +2,7 @@ import { ISignInValues } from "../../interfaces/signIn";
 import { IUserInfo } from "../../interfaces/user";
 import AuthService from "../../services/auth/auth";
 import { constants, ThunkResult } from "../../types/types";
+import { persistor } from "../store/store";
 import {
   setLoading,
   setMessageToast,
@@ -23,8 +24,8 @@ export const loginUser =
     } catch (error) {
       dispatch(setOpenToast(true));
       dispatch(setVariantToast("error"));
-      dispatch(setMessageToast(t(`alerts.credentialsError`)));
-      console.log(error.message);
+      dispatch(setMessageToast(t("alerts.credentialsError")));
+      console.log(error?.message || error);
     } finally {
       dispatch(setLoading(false));
     }
@@ -34,3 +35,17 @@ export const setUserInfo = (user: IUserInfo | null) => ({
   type: constants.setUserInfo,
   payload: user,
 });
+
+// Logout
+export const logoutUser = (): ThunkResult<void> => async (dispatch) => {
+  try {
+    dispatch({ type: constants.logoutUser });
+
+    // opcional: limpia TODO el persist store
+    await persistor.purge();
+  } catch (error) {
+    console.log(error?.message || error);
+    // Si falla algo, limpia el slice
+    dispatch({ type: constants.logoutUser });
+  }
+};

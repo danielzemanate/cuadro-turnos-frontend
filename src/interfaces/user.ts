@@ -6,7 +6,7 @@ export interface IUserActions {
 }
 
 export interface IUserState {
-  user: IUserInfo | null;
+  userData: IUserInfo | null;
 }
 
 export interface IUserInfo {

@@ -2,7 +2,7 @@ import { IUserActions, IUserInfo, IUserState } from "../../interfaces/user";
 import { constants } from "../../types/types";
 
 const initialState: IUserState = {
-  user: null,
+  userData: null,
 };
 
 export const userReducer = (
@@ -12,10 +12,9 @@ export const userReducer = (
   const { type, payload } = action;
   switch (type) {
     case constants.setUserInfo:
-      return {
-        ...state,
-        user: payload as IUserInfo | null,
-      };
+      return { ...state, userData: payload as IUserInfo | null };
+    case constants.logoutUser:
+      return initialState;
     default:
       return state;
   }
