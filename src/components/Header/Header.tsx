@@ -1,5 +1,6 @@
 import { FC, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useSelector } from "react-redux";
 import { User, Settings, ChevronDown, LogOut } from "lucide-react";
 import loginLogo from "../../assets/images/loginLogo.png";
 import {
@@ -19,32 +20,29 @@ import {
   DropdownItem,
 } from "./HeaderStyles";
 import { useNavigate } from "react-router-dom";
+import { logoutUser } from "../../redux/actions/userActions";
+import { AppState } from "../../redux/reducers/rootReducer";
+import { useAppDispatchThunk } from "../../hooks/storeHooks";
 
-interface HeaderProps {
-  userName: string;
-  userRole: string;
-  onLogout?: () => void;
-}
-
-const HeaderComponent: FC<HeaderProps> = ({ userName, userRole, onLogout }) => {
+const HeaderComponent: FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const dispatchThunk = useAppDispatchThunk();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-  const handleLogout = () => {
-    console.log("Ejecutando logout...");
+  // toma el user desde Redux
+  const { userData } = useSelector((state: AppState) => state.user);
+  const userName =
+    `${userData?.user?.nombre ?? ""} ${userData?.user?.apellidos ?? ""}`.trim();
+  const userRole = userData?.roles?.[0] ?? "Coordinador"; // TODO: Ajustar para roles
+
+  const handleLogout = async () => {
     setIsDropdownOpen(false);
-
-    if (onLogout) {
-      onLogout();
-    }
-
-    navigate("/");
+    await dispatchThunk(logoutUser());
+    navigate("/"); // vuelve al login
   };
 
-  const toggleDropdown = () => {
-    setIsDropdownOpen(!isDropdownOpen);
-  };
+  const toggleDropdown = () => setIsDropdownOpen((v) => !v);
 
   return (
     <Header>
@@ -62,7 +60,7 @@ const HeaderComponent: FC<HeaderProps> = ({ userName, userRole, onLogout }) => {
           </UserIcon>
           <UserDetails>
             <Greeting>{t("header.greeting")}</Greeting>
-            <UserName>{userName}</UserName>
+            <UserName>{userName || "—"}</UserName>
             <UserRole>{userRole}</UserRole>
           </UserDetails>
         </UserInfo>

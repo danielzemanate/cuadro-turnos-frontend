@@ -12,6 +12,7 @@ export interface User {
 
 export const constants = {
   setUserInfo: "[USER] set user info",
+  logoutUser: "[USER] logout",
   setLoading: "[HELPERS] set loading",
   setOpenToast: "[HELPERS] set open toast",
   setMessageToast: "[HELPERS] set message toast",
