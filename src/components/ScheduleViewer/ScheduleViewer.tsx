@@ -1,5 +1,16 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useSelector } from "react-redux";
+import { Download, ArrowLeft } from "lucide-react";
+
+import LoadingSpinner from "../Shared/LoadingSpinner/LoadingSpinner";
+import {
+  FormState,
+  IScheduleMonthParams,
+  Periodo,
+  PersonalDeSalud,
+} from "../../interfaces/schedule";
+
 import {
   Wrapper,
   Card,
@@ -12,6 +23,7 @@ import {
   TableTitle,
   TopActions,
   DownloadButton,
+  BackButton,
   CheckboxRow,
   Table,
   Th,
@@ -19,167 +31,336 @@ import {
   StaffCell,
   HoursRow,
   TotalRow,
+  TableLoadingOverlay,
 } from "./ScheduleViewerStyles";
-import { Download } from "lucide-react";
 
-type ShiftCode = "CE" | ""; // amplía cuando se agregue más tipos
-
-const year = 2025;
-
-// Función para obtener la abreviación del día de la semana
-const getDayAbbreviation = (day: number, month: number, year: number) => {
-  const date = new Date(year, month, day);
-  const dayOfWeek = date.getDay(); // 0 = Domingo, 1 = Lunes, etc.
-  const abbreviations = ["D", "L", "M", "M", "J", "V", "S"]; // Dom, Lun, Mar, Mié, Jue, Vie, Sáb
-  return abbreviations[dayOfWeek];
-};
-
-/** 🔹 Datos quemados (mock) */
-const MOCK_SCHEDULE = {
-  site: "BOLÍVAR",
-  hoursPerShift: 8,
-  staff: [
-    {
-      name: "PABLO SAMIR MAFLA MARTÍNEZ",
-      shifts: {
-        3: "CE",
-        5: "CE",
-        10: "CE",
-        12: "CE",
-        17: "CE",
-        19: "CE",
-        24: "CE",
-        27: "CE",
-      } as Record<number, ShiftCode>,
-      // Datos de novedades - justificaciones
-      noveltyJustifications: {
-        5: "CE",
-        12: "CE",
-        19: "CE",
-      } as Record<number, ShiftCode>,
-      // Datos de novedades - horas
-      noveltyHours: {
-        5: 8,
-        12: 8,
-        19: 8,
-      } as Record<number, number>,
-    },
-    {
-      name: "NILSA ALEJANDRA CHACUA",
-      shifts: {} as Record<number, ShiftCode>,
-      noveltyJustifications: {
-        8: "CE",
-        15: "CE",
-      } as Record<number, ShiftCode>,
-      noveltyHours: {
-        8: 8,
-        15: 8,
-      } as Record<number, number>,
-    },
-  ],
-};
-
-const daysInMonth = (y: number, mIndex: number) =>
-  new Date(y, mIndex + 1, 0).getDate();
-
-const toCSV = (data: {
-  monthIndex: number;
-  days: number[];
-  staff: {
-    name: string;
-    shifts: Record<number, ShiftCode>;
-    noveltyJustifications?: Record<number, ShiftCode>;
-    noveltyHours?: Record<number, number>;
-  }[];
-  hoursPerShift: number;
-  months: string[];
-  filenameTmpl: string; // i18n template e.g. "turnos_{{month}}_{{year}}.csv"
-  showNovedades: boolean;
-}) => {
-  const headers = [
-    "Profesional",
-    ...data.days.map((d) => `${d}`),
-    "Total Horas",
-  ];
-
-  const rows: (string | number)[][] = [];
-
-  data.staff.forEach((s) => {
-    // Fila principal del profesional
-    const values = data.days.map((d) => (s.shifts[d] ? s.shifts[d] : ""));
-    const total = data.days.reduce(
-      (acc, d) => acc + (s.shifts[d] ? data.hoursPerShift : 0),
-      0,
-    );
-    rows.push([s.name, ...values, total]);
-
-    // Fila de horas
-    const hoursValues = data.days.map((d) =>
-      s.shifts[d] ? data.hoursPerShift : 0,
-    );
-    rows.push(["Nº DE HORAS", ...hoursValues, total]);
-
-    // Filas de novedades si están activadas
-    if (data.showNovedades) {
-      const noveltyJustValues = data.days.map(
-        (d) => s.noveltyJustifications?.[d] || "",
-      );
-      rows.push(["JUSTIFICACIONES NOVEDADES", ...noveltyJustValues, ""]);
-
-      const noveltyHoursValues = data.days.map((d) => s.noveltyHours?.[d] || 0);
-      const noveltyHoursTotal = data.days.reduce(
-        (acc, d) => acc + (s.noveltyHours?.[d] || 0),
-        0,
-      );
-      rows.push(["HORAS NOVEDADES", ...noveltyHoursValues, noveltyHoursTotal]);
-    }
-  });
-
-  const csv = [headers, ...rows]
-    .map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
-    .join("\n");
-
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  const monthName =
-    data.months[data.monthIndex]?.toLowerCase?.() ?? `${data.monthIndex + 1}`;
-  a.href = url;
-  a.download = data.filenameTmpl
-    .replace("{{month}}", monthName)
-    .replace("{{year}}", String(year));
-  a.click();
-  URL.revokeObjectURL(url);
-};
+import { AppState } from "../../redux/reducers/rootReducer";
+import {
+  fetchScheduleByMonth,
+  fetchScheduleOptions,
+  clearScheduleMonth,
+  clearScheduleOptions,
+} from "../../redux/actions/scheduleActions";
+import { useAppDispatchThunk } from "../../hooks/storeHooks";
+import {
+  getDayAbbreviation,
+  daysInMonth,
+  generateDaysArray,
+  sumUserDay,
+  createDayBuckets,
+  generateCSVContent,
+  downloadCSV,
+  isValidFormState,
+  formatPersonName,
+  getNoveltyJustifications,
+  sumNoveltyHours,
+  sortPeriodos,
+  findPeriodo,
+} from "../../helpers/ScheduleHelper";
 
 const ScheduleViewer: React.FC = () => {
   const { t } = useTranslation();
-  const MONTHS = t("scheduleViewer.months", {
-    returnObjects: true,
-  }) as string[];
-  const [monthIndex, setMonthIndex] = useState<number>(new Date().getMonth());
+  const dispatchThunk = useAppDispatchThunk();
+
+  const { loading } = useSelector((state: AppState) => state.helpers);
+  const { options, monthData } = useSelector(
+    (state: AppState) => state.schedule,
+  );
+
+  // Form state
+  const [formState, setFormState] = useState<FormState>({
+    selectedPeriodo: null,
+    selectedTipo: null,
+    selectedMunicipio: null,
+  });
+
+  // UI state
   const [showTable, setShowTable] = useState<boolean>(false);
   const [showNovedades, setShowNovedades] = useState<boolean>(false);
 
-  const totalDays = useMemo(() => daysInMonth(year, monthIndex), [monthIndex]);
-  const days = useMemo(
-    () => Array.from({ length: totalDays }, (_, i) => i + 1),
-    [totalDays],
+  // Memoized values
+  const MONTHS = useMemo(
+    () => t("scheduleViewer.months", { returnObjects: true }) as string[],
+    [t],
   );
 
-  const handleSelect = () => setShowTable(true);
+  const sortedPeriodos = useMemo(() => {
+    if (!options?.periodos) return [];
+    return sortPeriodos(options.periodos);
+  }, [options?.periodos]);
 
-  const handleDownload = () =>
-    toCSV({
-      monthIndex,
-      days,
-      staff: MOCK_SCHEDULE.staff,
-      hoursPerShift: MOCK_SCHEDULE.hoursPerShift,
-      months: MONTHS,
-      filenameTmpl: t("scheduleViewer.csvFilename") as string,
-      showNovedades,
+  const { year, monthIndex0, days } = useMemo(() => {
+    const currentYear =
+      formState.selectedPeriodo?.anio ?? new Date().getFullYear();
+    const currentMonthIndex =
+      (formState.selectedPeriodo?.mes ?? new Date().getMonth() + 1) - 1;
+    const totalDays = daysInMonth(currentYear, currentMonthIndex);
+    const currentDays = generateDaysArray(totalDays);
+
+    return {
+      year: currentYear,
+      monthIndex0: currentMonthIndex,
+      days: currentDays,
+    };
+  }, [formState.selectedPeriodo]);
+
+  const isFormValid = useMemo(
+    () =>
+      isValidFormState(
+        formState.selectedPeriodo,
+        formState.selectedTipo,
+        formState.selectedMunicipio,
+      ),
+    [formState],
+  );
+
+  // Load options on mount
+  useEffect(() => {
+    dispatchThunk(fetchScheduleOptions());
+  }, [dispatchThunk]);
+
+  // Set default values when options are loaded
+  useEffect(() => {
+    if (!options) return;
+
+    setFormState((prev) => ({
+      ...prev,
+      selectedPeriodo: prev.selectedPeriodo || sortedPeriodos[0] || null,
+      selectedTipo:
+        prev.selectedTipo || options.tipos_personal_salud?.[0]?.id || null,
+      selectedMunicipio:
+        prev.selectedMunicipio || options.municipios?.[0]?.id || null,
+    }));
+  }, [options, sortedPeriodos]);
+
+  // Event handlers
+  const handlePeriodoChange = useCallback(
+    (field: "mes" | "anio", value: number) => {
+      if (!sortedPeriodos.length) return;
+
+      const currentPeriodo = formState.selectedPeriodo;
+      let foundPeriodo: Periodo | null = null;
+
+      if (field === "mes") {
+        foundPeriodo = findPeriodo(
+          sortedPeriodos,
+          currentPeriodo?.anio ?? sortedPeriodos[0].anio,
+          value,
+          undefined,
+          value,
+        );
+      } else {
+        foundPeriodo = findPeriodo(
+          sortedPeriodos,
+          value,
+          currentPeriodo?.mes ?? sortedPeriodos[0].mes,
+          value,
+          undefined,
+        );
+      }
+
+      setFormState((prev) => ({ ...prev, selectedPeriodo: foundPeriodo }));
+    },
+    [sortedPeriodos, formState.selectedPeriodo],
+  );
+
+  const handleConsultar = useCallback(() => {
+    if (!isFormValid) return;
+
+    const params: IScheduleMonthParams = {
+      anio: formState.selectedPeriodo!.anio,
+      mes: formState.selectedPeriodo!.mes,
+      id_tipo_personal_salud: formState.selectedTipo!,
+      id_municipio: formState.selectedMunicipio!,
+    };
+
+    dispatchThunk(fetchScheduleByMonth(params));
+    setShowTable(true);
+  }, [dispatchThunk, formState, isFormValid]);
+
+  const handleBack = useCallback(() => {
+    // Clear Redux state
+    dispatchThunk(clearScheduleMonth());
+    dispatchThunk(clearScheduleOptions());
+
+    // Reset local state
+    setFormState({
+      selectedPeriodo: null,
+      selectedTipo: null,
+      selectedMunicipio: null,
     });
+    setShowNovedades(false);
+    setShowTable(false);
 
+    // Reload options
+    dispatchThunk(fetchScheduleOptions());
+  }, [dispatchThunk]);
+
+  const generateCSVData = useCallback(
+    (personal: PersonalDeSalud[]) => {
+      const headers = ["Profesional", ...days.map(String), "Total Horas"];
+      const rows: (string | number)[][] = [];
+
+      personal.forEach((person) => {
+        const dayBuckets = createDayBuckets(person.dias);
+
+        // Main row with attention types
+        const attentionValues = days.map(
+          (day) => dayBuckets[day]?.normal?.tipo_atencion || "",
+        );
+
+        const totalHours = days.reduce((total, day) => {
+          const normal = dayBuckets[day]?.normal?.horas || 0;
+          const novelties = sumNoveltyHours(dayBuckets[day]?.novedades || []);
+          return total + (showNovedades ? normal + novelties : normal);
+        }, 0);
+
+        rows.push([
+          formatPersonName(person.nombre, person.apellidos),
+          ...attentionValues,
+          totalHours,
+        ]);
+
+        // Hours row
+        const hoursValues = days.map(
+          (day) => dayBuckets[day]?.normal?.horas || 0,
+        );
+        rows.push(["Nº DE HORAS", ...hoursValues, totalHours]);
+
+        // Novelty rows if enabled
+        if (showNovedades) {
+          const noveltyJustifications = days.map((day) =>
+            getNoveltyJustifications(dayBuckets[day]?.novedades || []),
+          );
+          rows.push([
+            "JUSTIFICACIONES NOVEDADES",
+            ...noveltyJustifications,
+            "",
+          ]);
+
+          const noveltyHours = days.map((day) =>
+            sumNoveltyHours(dayBuckets[day]?.novedades || []),
+          );
+          const noveltyTotal = noveltyHours.reduce((a, b) => a + b, 0);
+          rows.push(["HORAS NOVEDADES", ...noveltyHours, noveltyTotal]);
+        }
+      });
+
+      return [headers, ...rows];
+    },
+    [days, showNovedades],
+  );
+
+  const handleDownload = useCallback(() => {
+    if (!monthData) return;
+
+    const csvData = generateCSVData(monthData.personal_de_salud);
+    const csvContent = generateCSVContent(csvData);
+
+    const monthName =
+      MONTHS[monthIndex0]?.toLowerCase() ?? String(monthIndex0 + 1);
+    const filename = (t("scheduleViewer.csvFilename") as string)
+      .replace("{{month}}", monthName)
+      .replace("{{year}}", String(year));
+
+    downloadCSV(csvContent, filename);
+  }, [monthData, generateCSVData, MONTHS, monthIndex0, year, t]);
+
+  const renderPersonRows = useCallback(
+    (person: PersonalDeSalud) => {
+      const dayBuckets = createDayBuckets(person.dias);
+
+      return (
+        <React.Fragment key={person.id_usuario}>
+          {/* Main attention row */}
+          <tr>
+            <StaffCell>
+              {formatPersonName(person.nombre, person.apellidos)}
+            </StaffCell>
+            {days.map((day) => (
+              <Td key={`${person.id_usuario}-${day}`} $center>
+                {dayBuckets[day]?.normal?.tipo_atencion || ""}
+              </Td>
+            ))}
+          </tr>
+
+          {/* Hours row */}
+          <HoursRow>
+            <StaffCell>{t("scheduleViewer.rowHours").toUpperCase()}</StaffCell>
+            {days.map((day) => (
+              <Td key={`hn-${person.id_usuario}-${day}`} $center>
+                {dayBuckets[day]?.normal?.horas || 0}
+              </Td>
+            ))}
+          </HoursRow>
+
+          {/* Novelty rows */}
+          {showNovedades && (
+            <>
+              <tr style={{ background: "#fff5f5" }}>
+                <StaffCell>
+                  {t("scheduleViewer.justificationsUpdates").toUpperCase()}
+                </StaffCell>
+                {days.map((day) => {
+                  const justifications = getNoveltyJustifications(
+                    dayBuckets[day]?.novedades || [],
+                  );
+
+                  return (
+                    <Td key={`jn-${person.id_usuario}-${day}`} $center>
+                      {justifications}
+                    </Td>
+                  );
+                })}
+              </tr>
+
+              <HoursRow style={{ background: "#fff1f2" }}>
+                <StaffCell>
+                  {t("scheduleViewer.hoursUpdates").toUpperCase()}
+                </StaffCell>
+                {days.map((day) => {
+                  const noveltyHours = sumNoveltyHours(
+                    dayBuckets[day]?.novedades || [],
+                  );
+
+                  return (
+                    <Td key={`hnv-${person.id_usuario}-${day}`} $center>
+                      {noveltyHours}
+                    </Td>
+                  );
+                })}
+              </HoursRow>
+            </>
+          )}
+        </React.Fragment>
+      );
+    },
+    [days, showNovedades, t],
+  );
+
+  const renderTotalRow = useCallback(
+    () => (
+      <TotalRow>
+        <StaffCell>{t("scheduleViewer.rowTotalHours").toUpperCase()}</StaffCell>
+        {days.map((day) => {
+          const totalHours = (monthData?.personal_de_salud || []).reduce(
+            (total, person) =>
+              total + sumUserDay(person.dias, day, showNovedades),
+            0,
+          );
+
+          return (
+            <Td key={`total-${day}`} $center>
+              {totalHours}
+            </Td>
+          );
+        })}
+      </TotalRow>
+    ),
+    [days, monthData?.personal_de_salud, showNovedades, t],
+  );
+
+  // Render selection screen
   if (!showTable) {
     return (
       <Wrapper>
@@ -189,19 +370,82 @@ const ScheduleViewer: React.FC = () => {
 
           <ControlsRow>
             <Select
-              aria-label={t("scheduleViewer.title").toUpperCase()}
-              value={monthIndex}
-              onChange={(e) => setMonthIndex(parseInt(e.target.value, 10))}
+              aria-label="Mes"
+              value={formState.selectedPeriodo?.mes ?? ""}
+              onChange={(e) =>
+                handlePeriodoChange("mes", parseInt(e.target.value, 10))
+              }
             >
-              {MONTHS.map((m, idx) => (
-                <option key={m} value={idx}>
-                  {m}
+              {sortedPeriodos.map((periodo) => (
+                <option
+                  key={`${periodo.anio}-${periodo.mes}`}
+                  value={periodo.mes}
+                >
+                  {MONTHS[(periodo.mes - 1 + 12) % 12]}
                 </option>
               ))}
             </Select>
 
-            <Button onClick={handleSelect}>
-              {t("scheduleViewer.select").toUpperCase()}
+            <Select
+              aria-label="Año"
+              value={formState.selectedPeriodo?.anio ?? ""}
+              onChange={(e) =>
+                handlePeriodoChange("anio", parseInt(e.target.value, 10))
+              }
+            >
+              {Array.from(new Set(sortedPeriodos.map((p) => p.anio))).map(
+                (anio) => (
+                  <option key={anio} value={anio}>
+                    {anio}
+                  </option>
+                ),
+              )}
+            </Select>
+
+            <Select
+              aria-label="Tipo de personal de salud"
+              value={formState.selectedTipo ?? ""}
+              onChange={(e) =>
+                setFormState((prev) => ({
+                  ...prev,
+                  selectedTipo: parseInt(e.target.value, 10),
+                }))
+              }
+            >
+              {(options?.tipos_personal_salud || []).map((tipo) => (
+                <option key={tipo.id} value={tipo.id}>
+                  {tipo.nombre}
+                </option>
+              ))}
+            </Select>
+
+            <Select
+              aria-label="Municipio"
+              value={formState.selectedMunicipio ?? ""}
+              onChange={(e) =>
+                setFormState((prev) => ({
+                  ...prev,
+                  selectedMunicipio: parseInt(e.target.value, 10),
+                }))
+              }
+            >
+              {(options?.municipios || []).map((municipio) => (
+                <option key={municipio.id} value={municipio.id}>
+                  {municipio.nombre}
+                </option>
+              ))}
+            </Select>
+
+            <Button
+              onClick={handleConsultar}
+              disabled={loading || !isFormValid}
+              aria-busy={loading}
+            >
+              {loading ? (
+                <LoadingSpinner />
+              ) : (
+                (t("scheduleViewer.select")?.toUpperCase() ?? "CONSULTAR")
+              )}
             </Button>
           </ControlsRow>
         </Card>
@@ -209,27 +453,27 @@ const ScheduleViewer: React.FC = () => {
     );
   }
 
-  // Cálculos de horas por persona y totales
-  // const perStaffHours = MOCK_SCHEDULE.staff.map((s) =>
-  //   days.reduce(
-  //     (acc, d) => acc + (s.shifts[d] ? MOCK_SCHEDULE.hoursPerShift : 0),
-  //     0
-  //   )
-  // );
-  // const totalHoursAll = perStaffHours.reduce((a, b) => a + b, 0); // disponible para mostrar un total global
+  // Render table screen
+  const siteHeader = monthData
+    ? t("scheduleViewer.tableHeader", {
+        site: monthData.municipio,
+      }).toUpperCase()
+    : "";
 
   return (
     <Wrapper>
       <TableWrapper>
         <TopActions>
+          <BackButton onClick={handleBack}>
+            <ArrowLeft size={18} />
+          </BackButton>
+
           <TableTitle style={{ textAlign: "center", width: "100%" }}>
-            {t("scheduleViewer.tableHeader", {
-              site: MOCK_SCHEDULE.site,
-            }).toUpperCase()}
-            <span>{MONTHS[monthIndex]}</span>
+            {siteHeader}
+            <span>{MONTHS[monthIndex0]}</span>
           </TableTitle>
 
-          <DownloadButton onClick={handleDownload}>
+          <DownloadButton onClick={handleDownload} disabled={!monthData}>
             <Download size={18} />
             {t("scheduleViewer.download").toUpperCase()}
           </DownloadButton>
@@ -246,113 +490,51 @@ const ScheduleViewer: React.FC = () => {
           </label>
         </CheckboxRow>
 
-        <Table>
-          <thead>
-            <tr>
-              <Th style={{ minWidth: 220 }}>{year}</Th>
-              {days.map((d) => (
-                <Th key={`h-${d}`}>
-                  <div>{d}</div>
-                  <div
-                    style={{
-                      fontSize: "0.75rem",
-                      fontWeight: "normal",
-                      color: "#6b7280",
-                    }}
-                  >
-                    {getDayAbbreviation(d, monthIndex, year)}
-                  </div>
-                </Th>
-              ))}
-            </tr>
-          </thead>
+        <div style={{ position: "relative" }}>
+          {loading && (
+            <TableLoadingOverlay>
+              <LoadingSpinner />
+            </TableLoadingOverlay>
+          )}
 
-          <tbody>
-            {/* Fila con el nombre del mes (tipo separador) */}
-            <tr>
-              <StaffCell>{MONTHS[monthIndex]}</StaffCell>
-              {days.map((d) => (
-                <Td key={`m-${d}`} />
-              ))}
-            </tr>
+          <Table aria-busy={loading}>
+            <thead>
+              <tr>
+                <Th style={{ minWidth: 220 }}>{year}</Th>
+                {days.map((day) => (
+                  <Th key={`h-${day}`}>
+                    <div>{day}</div>
+                    <div
+                      style={{
+                        fontSize: "0.75rem",
+                        fontWeight: "normal",
+                        color: "#6b7280",
+                      }}
+                    >
+                      {getDayAbbreviation(day, monthIndex0, year)}
+                    </div>
+                  </Th>
+                ))}
+              </tr>
+            </thead>
 
-            {/* Filas por profesional */}
-            {MOCK_SCHEDULE.staff.map((s) => (
-              <React.Fragment key={s.name}>
-                <tr>
-                  <StaffCell>{s.name}</StaffCell>
-                  {days.map((d) => (
-                    <Td key={`${s.name}-${d}`} $center>
-                      {s.shifts[d] || ""}
-                    </Td>
-                  ))}
-                </tr>
+            <tbody>
+              {/* Month separator */}
+              <tr>
+                <StaffCell>{MONTHS[monthIndex0]}</StaffCell>
+                {days.map((day) => (
+                  <Td key={`m-${day}`} />
+                ))}
+              </tr>
 
-                {/* Fila Nº DE HORAS por profesional */}
-                <HoursRow>
-                  <StaffCell>
-                    {t("scheduleViewer.rowHours").toUpperCase()}
-                  </StaffCell>
-                  {days.map((d) => (
-                    <Td key={`h-${s.name}-${d}`} $center>
-                      {s.shifts[d] ? MOCK_SCHEDULE.hoursPerShift : 0}
-                    </Td>
-                  ))}
-                </HoursRow>
+              {/* Person rows */}
+              {(monthData?.personal_de_salud || []).map(renderPersonRows)}
 
-                {/* Filas de novedades (solo si está activado el checkbox) */}
-                {showNovedades && (
-                  <>
-                    {/* Fila JUSTIFICACIONES NOVEDADES */}
-                    <tr style={{ background: "#fff5f5" }}>
-                      <StaffCell>
-                        {t(
-                          "scheduleViewer.justificationsUpdates",
-                        ).toUpperCase()}
-                      </StaffCell>
-                      {days.map((d) => (
-                        <Td key={`jn-${s.name}-${d}`} $center>
-                          {s.noveltyJustifications?.[d] || ""}
-                        </Td>
-                      ))}
-                    </tr>
-
-                    {/* Fila HORAS NOVEDADES */}
-                    <HoursRow style={{ background: "#fff1f2" }}>
-                      <StaffCell>
-                        {t("scheduleViewer.hoursUpdates").toUpperCase()}
-                      </StaffCell>
-                      {days.map((d) => (
-                        <Td key={`hn-${s.name}-${d}`} $center>
-                          {s.noveltyHours?.[d] || 0}
-                        </Td>
-                      ))}
-                    </HoursRow>
-                  </>
-                )}
-              </React.Fragment>
-            ))}
-
-            {/* Fila TOTAL HORAS (suma de todos) */}
-            <TotalRow>
-              <StaffCell>
-                {t("scheduleViewer.rowTotalHours").toUpperCase()}
-              </StaffCell>
-              {days.map((d) => {
-                const sum = MOCK_SCHEDULE.staff.reduce(
-                  (acc, s) =>
-                    acc + (s.shifts[d] ? MOCK_SCHEDULE.hoursPerShift : 0),
-                  0,
-                );
-                return (
-                  <Td key={`total-${d}`} $center>
-                    {sum}
-                  </Td>
-                );
-              })}
-            </TotalRow>
-          </tbody>
-        </Table>
+              {/* Total row */}
+              {renderTotalRow()}
+            </tbody>
+          </Table>
+        </div>
       </TableWrapper>
     </Wrapper>
   );

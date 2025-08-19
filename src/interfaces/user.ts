@@ -13,7 +13,12 @@ export interface IUserInfo {
   access_token: string;
   token_type: "bearer" | string;
   user: IUser;
-  roles: string[];
+  roles: IRoles;
+}
+
+export interface IRoles {
+  id: number;
+  nombre: string;
 }
 
 export interface IUser {
