@@ -1,7 +1,6 @@
-import React, { FC } from "react";
+import React from "react";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
-import { User } from "../../types/types";
+import { Home } from "lucide-react";
 import { MODULES } from "../../config/modules";
 import { filterModulesByRole } from "../../utils/permissions";
 import {
@@ -14,16 +13,15 @@ import {
   BackButtonContainer,
   BackButton,
 } from "./DashboardStyles";
+import { useSelector } from "react-redux";
+import { AppState } from "../../redux/reducers/rootReducer";
 
-interface DashboardProps {
-  user: User;
-}
-
-const Dashboard: FC<DashboardProps> = ({ user }) => {
+const Dashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { userData } = useSelector((state: AppState) => state.user);
 
-  const allowedModules = filterModulesByRole(MODULES, user.rol);
+  const allowedModules = filterModulesByRole(MODULES, userData.roles.id);
   const isOnDashboardHome = location.pathname === "/dashboard";
 
   const handleModuleClick = (moduleId: number) => {
@@ -43,7 +41,7 @@ const Dashboard: FC<DashboardProps> = ({ user }) => {
         <MainContent>
           <BackButtonContainer>
             <BackButton onClick={handleBackToDashboard}>
-              <ArrowLeft />
+              <Home />
             </BackButton>
           </BackButtonContainer>
           <Outlet />

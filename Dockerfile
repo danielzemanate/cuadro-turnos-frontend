@@ -18,6 +18,7 @@ RUN --mount=type=cache,target=/root/.npm \
 COPY . .
 # Si usas variables de entorno en build: VITE_API_URL, etc.
 # Ejemplo: RUN VITE_API_URL=https://api.midominio.com npm run build
+COPY .env.production ./
 RUN npm run build
 
 # 2) Runtime: sirve con Nginx

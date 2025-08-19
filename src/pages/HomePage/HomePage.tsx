@@ -1,13 +1,7 @@
-import { FC } from 'react';
-import Dashboard from '../../components/Dashboard/Dashboard';
-import { User } from '../../types/types';
+import Dashboard from "../../components/Dashboard/Dashboard";
 
-interface HomeProps {
-  user: User;
-}
-
-const HomePage: FC<HomeProps> = ({ user }) => {
-  return <Dashboard user={user} />;
+const HomePage = () => {
+  return <Dashboard />;
 };
 
 export default HomePage;

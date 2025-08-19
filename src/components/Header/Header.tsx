@@ -34,7 +34,7 @@ const HeaderComponent: FC = () => {
   const { userData } = useSelector((state: AppState) => state.user);
   const userName =
     `${userData?.user?.nombre ?? ""} ${userData?.user?.apellidos ?? ""}`.trim();
-  const userRole = userData?.roles?.[0] ?? "Coordinador"; // TODO: Ajustar para roles
+  const userRole = userData?.roles.nombre;
 
   const handleLogout = async () => {
     setIsDropdownOpen(false);

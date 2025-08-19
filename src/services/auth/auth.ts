@@ -4,7 +4,7 @@ import api from "../../lib/api";
 const AuthService = {
   login: async (data: ISignInValues) => {
     return await api.post(
-      `${import.meta.env.VITE_APP_BACK_USERS}auth/login`,
+      `${import.meta.env.VITE_APP_BACK_ESE}auth/login`,
       data,
     );
   },
