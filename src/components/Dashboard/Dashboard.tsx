@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import { Home } from "lucide-react";
 import { MODULES } from "../../config/modules";
@@ -15,11 +15,17 @@ import {
 } from "./DashboardStyles";
 import { useSelector } from "react-redux";
 import { AppState } from "../../redux/reducers/rootReducer";
+import {
+  clearScheduleMonth,
+  clearScheduleOptions,
+} from "../../redux/actions/scheduleActions";
+import { useAppDispatchThunk } from "../../hooks/storeHooks";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { userData } = useSelector((state: AppState) => state.user);
+  const dispatchThunk = useAppDispatchThunk();
 
   const allowedModules = filterModulesByRole(MODULES, userData.roles.id);
   const isOnDashboardHome = location.pathname === "/dashboard";
@@ -32,8 +38,19 @@ const Dashboard = () => {
   };
 
   const handleBackToDashboard = () => {
+    // Limpia al usar el botón
+    dispatchThunk(clearScheduleMonth());
+    dispatchThunk(clearScheduleOptions());
     navigate("/dashboard");
   };
+
+  // Limpia cada vez que entras a /dashboard (incluye primer render si ya estás allí)
+  useEffect(() => {
+    if (isOnDashboardHome) {
+      dispatchThunk(clearScheduleMonth());
+      dispatchThunk(clearScheduleOptions());
+    }
+  }, [isOnDashboardHome, dispatchThunk]);
 
   if (!isOnDashboardHome) {
     return (

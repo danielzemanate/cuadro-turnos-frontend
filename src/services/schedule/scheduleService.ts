@@ -1,4 +1,8 @@
-import { IScheduleMonthParams } from "../../interfaces/schedule";
+import {
+  IDataEditScheduleData,
+  IParamsGenericQuery,
+  IScheduleMonthParams,
+} from "../../interfaces/schedule";
 import api from "../../lib/api";
 
 const ScheduleService = {
@@ -11,6 +15,24 @@ const ScheduleService = {
     return await api.get(
       `${import.meta.env.VITE_APP_BACK_ESE}api/cuadros/cuadros-mes`,
       { params },
+    );
+  },
+  getEditableOptions: async (params: IParamsGenericQuery) => {
+    return await api.get(
+      `${import.meta.env.VITE_APP_BACK_ESE}api/cuadros/opciones-editables`,
+      { params },
+    );
+  },
+  getAttentionTypes: async (params: IParamsGenericQuery) => {
+    return await api.get(
+      `${import.meta.env.VITE_APP_BACK_ESE}api/cuadros/tipos-atencion`,
+      { params },
+    );
+  },
+  getEditScheduleDay: async (data: IDataEditScheduleData) => {
+    return await api.post(
+      `${import.meta.env.VITE_APP_BACK_ESE}api/cuadros/editar-dia`,
+      data,
     );
   },
 };

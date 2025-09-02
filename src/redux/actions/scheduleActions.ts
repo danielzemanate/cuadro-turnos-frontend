@@ -4,6 +4,9 @@ import {
   IOptionsResponse,
   IScheduleResponse,
   IScheduleMonthParams,
+  IParamsGenericQuery,
+  IAttentionTypesResponse,
+  IDataEditScheduleData,
 } from "../../interfaces/schedule";
 import {
   setLoading,
@@ -59,7 +62,91 @@ export const fetchScheduleByMonth = (
     } catch (error) {
       dispatch(setOpenToast(true));
       dispatch(setVariantToast("error"));
+      dispatch(setMessageToast(t("alerts.genericError")));
+      console.log(error?.message || error);
+    } finally {
+      dispatch(setLoading(false));
+    }
+  };
+};
 
+/**
+ * Carga opciones editables (según params genéricos de query)
+ */
+export const fetchEditableOptions = (
+  params: IParamsGenericQuery,
+): ThunkResult<Promise<void>> => {
+  return async (dispatch) => {
+    dispatch(setLoading(true));
+    try {
+      const response = await ScheduleService.getEditableOptions(params);
+      if (response.status === 200) {
+        const data = response.data as IOptionsResponse;
+        dispatch({
+          type: constants.scheduleSetEditableOptions,
+          payload: data,
+        });
+      }
+    } catch (error) {
+      dispatch(setOpenToast(true));
+      dispatch(setVariantToast("error"));
+      dispatch(setMessageToast(t("alerts.genericError")));
+      console.log(error?.message || error);
+    } finally {
+      dispatch(setLoading(false));
+    }
+  };
+};
+
+/**
+ * Carga tipos de atención (según params genéricos de query)
+ */
+export const fetchAttentionTypes = (
+  params: IParamsGenericQuery,
+): ThunkResult<Promise<void>> => {
+  return async (dispatch) => {
+    dispatch(setLoading(true));
+    try {
+      const response = await ScheduleService.getAttentionTypes(params);
+      if (response.status === 200) {
+        const data = response.data as IAttentionTypesResponse;
+        dispatch({
+          type: constants.scheduleSetAttentionTypes,
+          payload: data,
+        });
+      }
+    } catch (error) {
+      dispatch(setOpenToast(true));
+      dispatch(setVariantToast("error"));
+      dispatch(setMessageToast(t("alerts.genericError")));
+      console.log(error?.message || error);
+    } finally {
+      dispatch(setLoading(false));
+    }
+  };
+};
+
+/**
+ * Edita un día del cuadro de turnos
+ */
+export const editScheduleDay = (
+  data: IDataEditScheduleData,
+): ThunkResult<Promise<void>> => {
+  return async (dispatch) => {
+    dispatch(setLoading(true));
+    try {
+      const response = await ScheduleService.getEditScheduleDay(data);
+      if (response.status === 200) {
+        // Despachar algo si se requiere guardar en el store
+        // dispatch({ type: constants.scheduleUpdateDay, payload: response.data });
+
+        dispatch(setOpenToast(true));
+        dispatch(setVariantToast("success"));
+        dispatch(setMessageToast(t("alerts.updateSuccess")));
+      }
+    } catch (error) {
+      dispatch(setOpenToast(true));
+      dispatch(setVariantToast("error"));
       dispatch(setMessageToast(t("alerts.genericError")));
       console.log(error?.message || error);
     } finally {
@@ -80,4 +167,15 @@ export const clearScheduleOptions = () => ({
  */
 export const clearScheduleMonth = () => ({
   type: constants.scheduleClearMonth,
+});
+
+/**
+ * Limpia opciones editables y tipos de atencion del schedule (útil en logout o cambio de contexto)
+ */
+export const clearEditableOptions = () => ({
+  type: constants.scheduleClearEditableOptions,
+});
+
+export const clearAttentionTypes = () => ({
+  type: constants.scheduleClearAttentionTypes,
 });

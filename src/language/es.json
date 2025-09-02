@@ -13,7 +13,9 @@
   },
   "scheduleViewer": {
     "title": "Visualizar Turnos",
+    "titleEditable": "Visualizar Turnos Editables",
     "subtitle": "Por favor seleccione el mes que desea visualizar",
+    "subtitleEditable": "Por favor seleccione el mes que desea editar",
     "select": "Seleccionar",
     "download": "Descargar",
     "news": "Novedades",
@@ -41,6 +43,12 @@
   },
   "alerts": {
     "credentialsError": "Credenciales no validas",
-    "genericError": "Error al cargar los datos"
+    "genericError": "Error al cargar los datos",
+    "downloadError": "Error al descargar los datos",
+    "updateSuccess": "Actualización Correcta"
+  },
+  "common": {
+    "select": "Seleccionar",
+    "loading": "Cargando"
   }
 }
