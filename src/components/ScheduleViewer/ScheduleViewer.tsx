@@ -9,6 +9,9 @@ import {
   IScheduleMonthParams,
   Periodo,
   PersonalDeSalud,
+  IParamsGenericQuery,
+  IAttentionTypesResponse,
+  IDataEditScheduleData,
 } from "../../interfaces/schedule";
 
 import {
@@ -25,6 +28,7 @@ import {
   DownloadButton,
   BackButton,
   CheckboxRow,
+  TableContainer,
   Table,
   Th,
   Td,
@@ -40,16 +44,16 @@ import {
   fetchScheduleOptions,
   clearScheduleMonth,
   clearScheduleOptions,
+  fetchEditableOptions,
+  fetchAttentionTypes,
+  editScheduleDay,
 } from "../../redux/actions/scheduleActions";
 import { useAppDispatchThunk } from "../../hooks/storeHooks";
 import {
   getDayAbbreviation,
   daysInMonth,
   generateDaysArray,
-  sumUserDay,
   createDayBuckets,
-  generateCSVContent,
-  downloadCSV,
   isValidFormState,
   formatPersonName,
   getNoveltyJustifications,
@@ -57,15 +61,40 @@ import {
   sortPeriodos,
   findPeriodo,
 } from "../../helpers/ScheduleHelper";
+import { IDownloadSchedule } from "../../interfaces/utils";
+import { fetchDownloadSchedule } from "../../redux/actions/utilsActions";
+import { RoleId, Roles } from "../../constants/schedule.constants";
 
-const ScheduleViewer: React.FC = () => {
+interface ScheduleViewerProps {
+  editable?: boolean;
+}
+
+const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
+  editable = false,
+}) => {
   const { t } = useTranslation();
   const dispatchThunk = useAppDispatchThunk();
 
   const { loading } = useSelector((state: AppState) => state.helpers);
-  const { options, monthData } = useSelector(
+  const { userData } = useSelector((state: AppState) => state.user);
+  const { options, monthData, attentionTypes } = useSelector(
     (state: AppState) => state.schedule,
   );
+
+  const editableParams: IParamsGenericQuery = {
+    id_user: userData.user.id,
+  };
+
+  const rolesQueForzanMunicipio = [Roles.COORDINADOR, Roles.PERSONAL_SALUD];
+
+  // Si el rol es COORDINADOR O PERSONAL SALUD, forzamos el municipio con userData.user.id_municipio
+  const forceMunicipio = useMemo(() => {
+    const roleId = userData?.roles?.id as RoleId | undefined;
+
+    return roleId && rolesQueForzanMunicipio.includes(roleId)
+      ? (userData?.user?.id_municipio ?? null)
+      : null;
+  }, [userData]);
 
   // Form state
   const [formState, setFormState] = useState<FormState>({
@@ -77,6 +106,18 @@ const ScheduleViewer: React.FC = () => {
   // UI state
   const [showTable, setShowTable] = useState<boolean>(false);
   const [showNovedades, setShowNovedades] = useState<boolean>(false);
+
+  // Estado local por celda: `${id_usuario}-${day}` -> sigla seleccionada
+  const [attentionByCell, setAttentionByCell] = useState<
+    Record<string, string>
+  >({});
+
+  // Mapa sigla -> tipo completo (para obtener horas)
+  const attentionMapBySigla = useMemo(() => {
+    const map = new Map<string, IAttentionTypesResponse>();
+    (attentionTypes || []).forEach((a) => map.set(a.sigla, a));
+    return map;
+  }, [attentionTypes]);
 
   // Memoized values
   const MONTHS = useMemo(
@@ -109,17 +150,24 @@ const ScheduleViewer: React.FC = () => {
       isValidFormState(
         formState.selectedPeriodo,
         formState.selectedTipo,
-        formState.selectedMunicipio,
+        // aunque no haya select visible, validamos con el municipio efectivo
+        forceMunicipio ?? formState.selectedMunicipio,
       ),
-    [formState],
+    [formState, forceMunicipio],
   );
 
-  // Load options on mount
+  // Cargar opciones y tipos de atención (si editable)
   useEffect(() => {
-    dispatchThunk(fetchScheduleOptions());
-  }, [dispatchThunk]);
+    if (editable) {
+      dispatchThunk(fetchEditableOptions(editableParams ?? {}));
+      dispatchThunk(fetchAttentionTypes(editableParams ?? {}));
+    } else {
+      dispatchThunk(fetchScheduleOptions());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dispatchThunk, editable, JSON.stringify(editableParams)]);
 
-  // Set default values when options are loaded
+  // Set defaults cuando options cambian (respetando municipio forzado)
   useEffect(() => {
     if (!options) return;
 
@@ -129,11 +177,28 @@ const ScheduleViewer: React.FC = () => {
       selectedTipo:
         prev.selectedTipo || options.tipos_personal_salud?.[0]?.id || null,
       selectedMunicipio:
-        prev.selectedMunicipio || options.municipios?.[0]?.id || null,
+        prev.selectedMunicipio ??
+        forceMunicipio ??
+        options.municipios?.[0]?.id ??
+        null,
     }));
-  }, [options, sortedPeriodos]);
+  }, [options, sortedPeriodos, forceMunicipio]);
 
-  // Event handlers
+  // Inicializa selección local por celda con valores del backend
+  useEffect(() => {
+    if (!monthData) return;
+    const next: Record<string, string> = {};
+    monthData.personal_de_salud.forEach((p) => {
+      const buckets = createDayBuckets(p.dias);
+      days.forEach((d) => {
+        const currentSigla = buckets[d]?.normal?.tipo_atencion || "";
+        next[`${p.id_usuario}-${d}`] = currentSigla;
+      });
+    });
+    setAttentionByCell(next);
+  }, [monthData, days]);
+
+  // Handlers
   const handlePeriodoChange = useCallback(
     (field: "mes" | "anio", value: number) => {
       if (!sortedPeriodos.length) return;
@@ -167,23 +232,25 @@ const ScheduleViewer: React.FC = () => {
   const handleConsultar = useCallback(() => {
     if (!isFormValid) return;
 
+    const municipioId = forceMunicipio ?? formState.selectedMunicipio!;
+
     const params: IScheduleMonthParams = {
       anio: formState.selectedPeriodo!.anio,
       mes: formState.selectedPeriodo!.mes,
       id_tipo_personal_salud: formState.selectedTipo!,
-      id_municipio: formState.selectedMunicipio!,
+      id_municipio: municipioId,
     };
 
     dispatchThunk(fetchScheduleByMonth(params));
     setShowTable(true);
-  }, [dispatchThunk, formState, isFormValid]);
+  }, [dispatchThunk, formState, isFormValid, forceMunicipio]);
 
   const handleBack = useCallback(() => {
-    // Clear Redux state
+    // Limpiar Redux
     dispatchThunk(clearScheduleMonth());
     dispatchThunk(clearScheduleOptions());
 
-    // Reset local state
+    // Reset local
     setFormState({
       selectedPeriodo: null,
       selectedTipo: null,
@@ -191,80 +258,71 @@ const ScheduleViewer: React.FC = () => {
     });
     setShowNovedades(false);
     setShowTable(false);
+    setAttentionByCell({});
 
-    // Reload options
-    dispatchThunk(fetchScheduleOptions());
-  }, [dispatchThunk]);
+    // Recargar según modo
+    if (editable) {
+      dispatchThunk(fetchEditableOptions(editableParams ?? {}));
+      dispatchThunk(fetchAttentionTypes(editableParams ?? {}));
+    } else {
+      dispatchThunk(fetchScheduleOptions());
+    }
+  }, [dispatchThunk, editable, editableParams]);
 
-  const generateCSVData = useCallback(
-    (personal: PersonalDeSalud[]) => {
-      const headers = ["Profesional", ...days.map(String), "Total Horas"];
-      const rows: (string | number)[][] = [];
+  const handleAttentionChange = useCallback(
+    (idUsuario: number, day: number, newSigla: string) => {
+      const key = `${idUsuario}-${day}`;
+      setAttentionByCell((prev) => ({ ...prev, [key]: newSigla }));
 
-      personal.forEach((person) => {
-        const dayBuckets = createDayBuckets(person.dias);
+      // Tipo seleccionado por sigla (para obtener id y horas)
+      const selectedType = attentionMapBySigla.get(newSigla) || null;
 
-        // Main row with attention types
-        const attentionValues = days.map(
-          (day) => dayBuckets[day]?.normal?.tipo_atencion || "",
-        );
+      // Buscar id_cuadro_personal del profesional
+      const person = monthData?.personal_de_salud.find(
+        (p) => p.id_usuario === idUsuario,
+      );
+      const id_cuadro_personal = person?.id_cuadro_personal;
 
-        const totalHours = days.reduce((total, day) => {
-          const normal = dayBuckets[day]?.normal?.horas || 0;
-          const novelties = sumNoveltyHours(dayBuckets[day]?.novedades || []);
-          return total + (showNovedades ? normal + novelties : normal);
-        }, 0);
+      // Si limpian la selección, o falta info necesaria, no disparamos al backend
+      if (!selectedType || !id_cuadro_personal) {
+        return;
+      }
 
-        rows.push([
-          formatPersonName(person.nombre, person.apellidos),
-          ...attentionValues,
-          totalHours,
-        ]);
+      const payload: IDataEditScheduleData = {
+        id_cuadro_personal,
+        dia: day,
+        id_tipo_atencion: selectedType.id,
+        horas: selectedType.horas,
+        es_novedad: false,
+        editor_user_id: userData.user.id,
+      };
 
-        // Hours row
-        const hoursValues = days.map(
-          (day) => dayBuckets[day]?.normal?.horas || 0,
-        );
-        rows.push(["Nº DE HORAS", ...hoursValues, totalHours]);
-
-        // Novelty rows if enabled
-        if (showNovedades) {
-          const noveltyJustifications = days.map((day) =>
-            getNoveltyJustifications(dayBuckets[day]?.novedades || []),
-          );
-          rows.push([
-            "JUSTIFICACIONES NOVEDADES",
-            ...noveltyJustifications,
-            "",
-          ]);
-
-          const noveltyHours = days.map((day) =>
-            sumNoveltyHours(dayBuckets[day]?.novedades || []),
-          );
-          const noveltyTotal = noveltyHours.reduce((a, b) => a + b, 0);
-          rows.push(["HORAS NOVEDADES", ...noveltyHours, noveltyTotal]);
-        }
-      });
-
-      return [headers, ...rows];
+      // Llamada al backend
+      dispatchThunk(editScheduleDay(payload));
     },
-    [days, showNovedades],
+    [
+      attentionMapBySigla,
+      monthData?.personal_de_salud,
+      userData.user.id,
+      dispatchThunk,
+    ],
   );
 
   const handleDownload = useCallback(() => {
-    if (!monthData) return;
+    if (!isFormValid) return;
 
-    const csvData = generateCSVData(monthData.personal_de_salud);
-    const csvContent = generateCSVContent(csvData);
+    const municipioId = forceMunicipio ?? formState.selectedMunicipio!;
 
-    const monthName =
-      MONTHS[monthIndex0]?.toLowerCase() ?? String(monthIndex0 + 1);
-    const filename = (t("scheduleViewer.csvFilename") as string)
-      .replace("{{month}}", monthName)
-      .replace("{{year}}", String(year));
+    const params: IDownloadSchedule = {
+      anio: formState.selectedPeriodo!.anio,
+      mes: formState.selectedPeriodo!.mes,
+      id_tipo_personal_salud: formState.selectedTipo!,
+      id_municipio: municipioId,
+      // formato: no enviar (el backend usa pdf por defecto)
+    };
 
-    downloadCSV(csvContent, filename);
-  }, [monthData, generateCSVData, MONTHS, monthIndex0, year, t]);
+    dispatchThunk(fetchDownloadSchedule(params));
+  }, [dispatchThunk, formState, isFormValid, forceMunicipio]);
 
   const renderPersonRows = useCallback(
     (person: PersonalDeSalud) => {
@@ -272,29 +330,81 @@ const ScheduleViewer: React.FC = () => {
 
       return (
         <React.Fragment key={person.id_usuario}>
-          {/* Main attention row */}
+          {/* Fila principal */}
           <tr>
             <StaffCell>
               {formatPersonName(person.nombre, person.apellidos)}
             </StaffCell>
-            {days.map((day) => (
-              <Td key={`${person.id_usuario}-${day}`} $center>
-                {dayBuckets[day]?.normal?.tipo_atencion || ""}
-              </Td>
-            ))}
+            {days.map((day) => {
+              const cellKey = `${person.id_usuario}-${day}`;
+              const currentBackendSigla =
+                dayBuckets[day]?.normal?.tipo_atencion || "";
+              const currentSigla =
+                attentionByCell[cellKey] ?? currentBackendSigla;
+
+              return (
+                <Td key={`${person.id_usuario}-${day}`} $center>
+                  {editable ? (
+                    attentionTypes && attentionTypes.length > 0 ? (
+                      <select
+                        value={currentSigla || ""}
+                        onChange={(e) =>
+                          handleAttentionChange(
+                            person.id_usuario,
+                            day,
+                            e.target.value,
+                          )
+                        }
+                        aria-label={`Tipo de atención día ${day} - ${formatPersonName(
+                          person.nombre,
+                          person.apellidos,
+                        )}`}
+                      >
+                        <option value="">{"-"}</option>
+                        {attentionTypes.map((a) => (
+                          <option
+                            key={a.id}
+                            value={a.sigla}
+                            title={`${a.sigla} - ${a.nombre}`}
+                          >
+                            {a.sigla}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <small style={{ color: "#6b7280" }}>
+                        {t("common.loading") || "Cargando…"}
+                      </small>
+                    )
+                  ) : (
+                    currentBackendSigla
+                  )}
+                </Td>
+              );
+            })}
           </tr>
 
-          {/* Hours row */}
+          {/* Fila de horas */}
           <HoursRow>
             <StaffCell>{t("scheduleViewer.rowHours").toUpperCase()}</StaffCell>
-            {days.map((day) => (
-              <Td key={`hn-${person.id_usuario}-${day}`} $center>
-                {dayBuckets[day]?.normal?.horas || 0}
-              </Td>
-            ))}
+            {days.map((day) => {
+              const key = `${person.id_usuario}-${day}`;
+              const selectedSigla = attentionByCell[key] || "";
+              const horasFromType =
+                attentionMapBySigla.get(selectedSigla)?.horas ?? 0;
+
+              const backendHoras = dayBuckets[day]?.normal?.horas || 0;
+              const value = editable ? horasFromType : backendHoras;
+
+              return (
+                <Td key={`hn-${person.id_usuario}-${day}`} $center>
+                  {value}
+                </Td>
+              );
+            })}
           </HoursRow>
 
-          {/* Novelty rows */}
+          {/* Novedades */}
           {showNovedades && (
             <>
               <tr style={{ background: "#fff5f5" }}>
@@ -305,7 +415,6 @@ const ScheduleViewer: React.FC = () => {
                   const justifications = getNoveltyJustifications(
                     dayBuckets[day]?.novedades || [],
                   );
-
                   return (
                     <Td key={`jn-${person.id_usuario}-${day}`} $center>
                       {justifications}
@@ -322,7 +431,6 @@ const ScheduleViewer: React.FC = () => {
                   const noveltyHours = sumNoveltyHours(
                     dayBuckets[day]?.novedades || [],
                   );
-
                   return (
                     <Td key={`hnv-${person.id_usuario}-${day}`} $center>
                       {noveltyHours}
@@ -335,17 +443,41 @@ const ScheduleViewer: React.FC = () => {
         </React.Fragment>
       );
     },
-    [days, showNovedades, t],
+    [
+      days,
+      showNovedades,
+      t,
+      attentionTypes,
+      attentionByCell,
+      editable,
+      handleAttentionChange,
+      attentionMapBySigla,
+    ],
   );
 
+  // Fila Total
   const renderTotalRow = useCallback(
     () => (
       <TotalRow>
         <StaffCell>{t("scheduleViewer.rowTotalHours").toUpperCase()}</StaffCell>
         {days.map((day) => {
           const totalHours = (monthData?.personal_de_salud || []).reduce(
-            (total, person) =>
-              total + sumUserDay(person.dias, day, showNovedades),
+            (total, person) => {
+              const key = `${person.id_usuario}-${day}`;
+              const selectedSigla = attentionByCell[key] || "";
+              const horasFromType =
+                attentionMapBySigla.get(selectedSigla)?.horas ?? 0;
+
+              const buckets = createDayBuckets(person.dias);
+              const backendHoras = buckets[day]?.normal?.horas || 0;
+
+              const novelty = showNovedades
+                ? sumNoveltyHours(buckets[day]?.novedades || [])
+                : 0;
+
+              const base = editable ? horasFromType : backendHoras;
+              return total + base + novelty;
+            },
             0,
           );
 
@@ -357,16 +489,32 @@ const ScheduleViewer: React.FC = () => {
         })}
       </TotalRow>
     ),
-    [days, monthData?.personal_de_salud, showNovedades, t],
+    [
+      days,
+      monthData?.personal_de_salud,
+      showNovedades,
+      t,
+      editable,
+      attentionByCell,
+      attentionMapBySigla,
+    ],
   );
 
-  // Render selection screen
+  // Pantalla de selección
   if (!showTable) {
     return (
       <Wrapper>
         <Card>
-          <Title>{t("scheduleViewer.title").toUpperCase()}</Title>
-          <Subtitle>{t("scheduleViewer.subtitle")}</Subtitle>
+          <Title>
+            {editable
+              ? t("scheduleViewer.titleEditable").toUpperCase()
+              : t("scheduleViewer.title").toUpperCase()}
+          </Title>
+          <Subtitle>
+            {editable
+              ? t("scheduleViewer.subtitleEditable")
+              : t("scheduleViewer.subtitle")}
+          </Subtitle>
 
           <ControlsRow>
             <Select
@@ -419,22 +567,25 @@ const ScheduleViewer: React.FC = () => {
               ))}
             </Select>
 
-            <Select
-              aria-label="Municipio"
-              value={formState.selectedMunicipio ?? ""}
-              onChange={(e) =>
-                setFormState((prev) => ({
-                  ...prev,
-                  selectedMunicipio: parseInt(e.target.value, 10),
-                }))
-              }
-            >
-              {(options?.municipios || []).map((municipio) => (
-                <option key={municipio.id} value={municipio.id}>
-                  {municipio.nombre}
-                </option>
-              ))}
-            </Select>
+            {/* Municipio: ocultar el select si el rol fuerza el municipio */}
+            {!forceMunicipio ? (
+              <Select
+                aria-label="Municipio"
+                value={formState.selectedMunicipio ?? ""}
+                onChange={(e) =>
+                  setFormState((prev) => ({
+                    ...prev,
+                    selectedMunicipio: parseInt(e.target.value, 10),
+                  }))
+                }
+              >
+                {(options?.municipios || []).map((municipio) => (
+                  <option key={municipio.id} value={municipio.id}>
+                    {municipio.nombre}
+                  </option>
+                ))}
+              </Select>
+            ) : null}
 
             <Button
               onClick={handleConsultar}
@@ -453,7 +604,7 @@ const ScheduleViewer: React.FC = () => {
     );
   }
 
-  // Render table screen
+  // Tabla
   const siteHeader = monthData
     ? t("scheduleViewer.tableHeader", {
         site: monthData.municipio,
@@ -472,11 +623,15 @@ const ScheduleViewer: React.FC = () => {
             {siteHeader}
             <span>{MONTHS[monthIndex0]}</span>
           </TableTitle>
-
-          <DownloadButton onClick={handleDownload} disabled={!monthData}>
-            <Download size={18} />
-            {t("scheduleViewer.download").toUpperCase()}
-          </DownloadButton>
+          {!editable && (
+            <DownloadButton
+              onClick={handleDownload}
+              disabled={!isFormValid || loading}
+            >
+              <Download size={18} />
+              {t("scheduleViewer.download").toUpperCase()}
+            </DownloadButton>
+          )}
         </TopActions>
 
         <CheckboxRow>
@@ -490,7 +645,7 @@ const ScheduleViewer: React.FC = () => {
           </label>
         </CheckboxRow>
 
-        <div style={{ position: "relative" }}>
+        <TableContainer>
           {loading && (
             <TableLoadingOverlay>
               <LoadingSpinner />
@@ -519,7 +674,7 @@ const ScheduleViewer: React.FC = () => {
             </thead>
 
             <tbody>
-              {/* Month separator */}
+              {/* Separador de mes */}
               <tr>
                 <StaffCell>{MONTHS[monthIndex0]}</StaffCell>
                 {days.map((day) => (
@@ -527,14 +682,14 @@ const ScheduleViewer: React.FC = () => {
                 ))}
               </tr>
 
-              {/* Person rows */}
+              {/* Filas por persona */}
               {(monthData?.personal_de_salud || []).map(renderPersonRows)}
 
-              {/* Total row */}
+              {/* Total */}
               {renderTotalRow()}
             </tbody>
           </Table>
-        </div>
+        </TableContainer>
       </TableWrapper>
     </Wrapper>
   );

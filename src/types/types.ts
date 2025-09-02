@@ -20,8 +20,12 @@ export const constants = {
   setVariantToast: "[HELPERS] set variant toast",
   scheduleSetOptions: "[schedule] set options",
   scheduleClearOptions: "[schedule] clear options",
+  scheduleSetEditableOptions: "[schedule] set editable options",
+  scheduleClearEditableOptions: "[schedule] clear editable options",
   scheduleSetMonth: "[schedule] set month data",
   scheduleClearMonth: "[schedule] clear month data",
+  scheduleSetAttentionTypes: "[schedule] set attention types",
+  scheduleClearAttentionTypes: "[schedule] clear attention types",
 } as const;
 
 export type Types = (typeof constants)[keyof typeof constants];
