@@ -1,9 +1,13 @@
 import { CalendarDays, Edit3, FileBarChart, FilePlus } from "lucide-react";
 import { Module } from "../types/types";
 import ScheduleViewer from "../components/ScheduleViewer/ScheduleViewer";
-import ScheduleManagement from "../components/ScheduleManagement/ScheduleManagement";
 import Reports from "../components/Reports/Reports";
 import UnsatisfiedDemand from "../components/Unsatisfied-demand/UnsatisfiedDemand";
+import React, { ComponentType } from "react";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const ScheduleViewerEditable: ComponentType<any> = (props) =>
+  React.createElement(ScheduleViewer, { ...props, editable: true });
 
 export const MODULES: Module[] = [
   {
@@ -21,7 +25,7 @@ export const MODULES: Module[] = [
     name: "Editar Turnos y Novedades",
     icon: Edit3,
     allowedRoles: [1],
-    component: ScheduleManagement,
+    component: ScheduleViewerEditable,
     path: "/dashboard/gestion-turnos",
     bgColor: "#FDE68A",
     hoverColor: "#F59E0B",

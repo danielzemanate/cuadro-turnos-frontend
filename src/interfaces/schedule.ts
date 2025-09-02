@@ -14,6 +14,7 @@ export interface IScheduleResponse {
 }
 
 export interface PersonalDeSalud {
+  id_cuadro_personal: number;
   id_usuario: number;
   nombre: string;
   apellidos: string;
@@ -63,4 +64,25 @@ export interface FormState {
 export interface PeriodoLike {
   anio: number;
   mes: number;
+}
+
+export interface IParamsGenericQuery {
+  [key: string]: string | number | boolean | undefined;
+}
+
+export interface IAttentionTypesResponse {
+  id: number;
+  nombre: string;
+  sigla: string;
+  horas: number;
+}
+
+export interface IDataEditScheduleData {
+  id_cuadro_personal: number;
+  dia: number;
+  id_tipo_atencion: number;
+  horas: number;
+  es_novedad: boolean;
+  justificacion?: string;
+  editor_user_id: number;
 }

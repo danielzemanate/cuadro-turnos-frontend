@@ -30,4 +30,5 @@ export interface IUser {
   id: number;
   activo: boolean;
   es_personal_salud: boolean;
+  id_municipio: number;
 }
