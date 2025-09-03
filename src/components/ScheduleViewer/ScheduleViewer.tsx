@@ -156,16 +156,26 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
     [formState, forceMunicipio],
   );
 
-  // Cargar opciones y tipos de atención (si editable)
+  // Cargar opciones iniciales
   useEffect(() => {
     if (editable) {
       dispatchThunk(fetchEditableOptions(editableParams ?? {}));
-      dispatchThunk(fetchAttentionTypes(editableParams ?? {}));
+      // NO llamamos fetchAttentionTypes aquí - lo haremos cuando se seleccione el tipo
     } else {
       dispatchThunk(fetchScheduleOptions());
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatchThunk, editable, JSON.stringify(editableParams)]);
+
+  // Cargar tipos de atención cuando cambie selectedTipo (solo en modo editable)
+  useEffect(() => {
+    if (editable && formState.selectedTipo) {
+      const attentionParams = {
+        id_tipo_personal_salud: formState.selectedTipo,
+      };
+      dispatchThunk(fetchAttentionTypes(attentionParams));
+    }
+  }, [dispatchThunk, editable, formState.selectedTipo]);
 
   // Set defaults cuando options cambian (respetando municipio forzado)
   useEffect(() => {
@@ -229,6 +239,13 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
     [sortedPeriodos, formState.selectedPeriodo],
   );
 
+  const handleTipoChange = useCallback((value: number) => {
+    setFormState((prev) => ({
+      ...prev,
+      selectedTipo: value,
+    }));
+  }, []);
+
   const handleConsultar = useCallback(() => {
     if (!isFormValid) return;
 
@@ -263,7 +280,7 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
     // Recargar según modo
     if (editable) {
       dispatchThunk(fetchEditableOptions(editableParams ?? {}));
-      dispatchThunk(fetchAttentionTypes(editableParams ?? {}));
+      // Los tipos de atención se cargarán cuando se seleccione un tipo
     } else {
       dispatchThunk(fetchScheduleOptions());
     }
@@ -553,12 +570,7 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
             <Select
               aria-label="Tipo de personal de salud"
               value={formState.selectedTipo ?? ""}
-              onChange={(e) =>
-                setFormState((prev) => ({
-                  ...prev,
-                  selectedTipo: parseInt(e.target.value, 10),
-                }))
-              }
+              onChange={(e) => handleTipoChange(parseInt(e.target.value, 10))}
             >
               {(options?.tipos_personal_salud || []).map((tipo) => (
                 <option key={tipo.id} value={tipo.id}>
