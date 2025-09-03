@@ -45,10 +45,30 @@
     "credentialsError": "Credenciales no validas",
     "genericError": "Error al cargar los datos",
     "downloadError": "Error al descargar los datos",
-    "updateSuccess": "Actualización Correcta"
+    "updateSuccess": "Actualización Correcta",
+    "createSuccess": "Creación Correcta"
   },
   "common": {
     "select": "Seleccionar",
-    "loading": "Cargando"
+    "loading": "Cargando",
+    "selectPlaceholder": "Seleccione…",
+    "back": "Volver",
+    "send": "Enviar"
+  },
+  "usersConfig": {
+    "selectCoordinator": {
+      "title": "Seleccionar coordinador",
+      "subtitle": "Por favor seleccione el coordinador autorizado para permisos especiales",
+      "aria": "Seleccionar coordinador",
+      "result": "Coordinador seleccionado:"
+    },
+    "permitForm": {
+      "title": "Permiso especial",
+      "subtitle": "Complete los siguientes campos:",
+      "until": "Hasta",
+      "sheet": "Cuadro (mes)",
+      "changeType": "¿Es novedad?",
+      "novedadLabel": "Marcar como novedad"
+    }
   }
 }
