@@ -26,6 +26,10 @@ export const constants = {
   scheduleClearMonth: "[schedule] clear month data",
   scheduleSetAttentionTypes: "[schedule] set attention types",
   scheduleClearAttentionTypes: "[schedule] clear attention types",
+  usersConfigSetSpecialPermitApprovers:
+    "[usersConfig] set special permit approvers",
+  usersConfigClearSpecialPermitApprovers:
+    "[usersConfig] clear special permit approvers",
 } as const;
 
 export type Types = (typeof constants)[keyof typeof constants];
