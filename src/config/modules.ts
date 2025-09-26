@@ -21,7 +21,7 @@ export const MODULES: Module[] = [
     id: 1,
     name: "Visualización Turnos",
     icon: CalendarDays,
-    allowedRoles: [1, 6],
+    allowedRoles: [1, 2, 3, 6],
     component: ScheduleViewer,
     path: "/dashboard/vizualizacion-turnos",
     bgColor: "#DBEAFE",

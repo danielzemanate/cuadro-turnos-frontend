@@ -86,3 +86,18 @@ export interface IDataEditScheduleData {
   justificacion?: string;
   editor_user_id: number;
 }
+
+export interface IDataAddPatient {
+  id_usuario: number;
+  id_cuadro_mes: number;
+  dia: number;
+  total_pacientes: number;
+}
+
+export interface IPatientsData {
+  id: number;
+  id_usuario: number;
+  mes: number;
+  dia: number;
+  total_pacientes: number;
+}
