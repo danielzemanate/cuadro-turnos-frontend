@@ -7,6 +7,7 @@ import {
   IParamsGenericQuery,
   IAttentionTypesResponse,
   IDataEditScheduleData,
+  IDataAddPatient,
 } from "../../interfaces/schedule";
 import {
   setLoading,
@@ -139,6 +140,62 @@ export const editScheduleDay = (
       if (response.status === 200) {
         // Despachar algo si se requiere guardar en el store
         // dispatch({ type: constants.scheduleUpdateDay, payload: response.data });
+
+        dispatch(setOpenToast(true));
+        dispatch(setVariantToast("success"));
+        dispatch(setMessageToast(t("alerts.updateSuccess")));
+      }
+    } catch (error) {
+      dispatch(setOpenToast(true));
+      dispatch(setVariantToast("error"));
+      dispatch(setMessageToast(t("alerts.genericError")));
+      console.log(error?.message || error);
+    } finally {
+      dispatch(setLoading(false));
+    }
+  };
+};
+
+/**
+ * Obtiene el total de pacientes por mes
+ */
+export const fetchTotalPatientsByMonth = (
+  id_cuadro_mes: string,
+): ThunkResult<Promise<unknown>> => {
+  return async (dispatch) => {
+    dispatch(setLoading(true));
+    try {
+      const response =
+        await ScheduleService.getTotalPatientsByMonth(id_cuadro_mes);
+      if (response.status === 200) {
+        // Retornar la respuesta para que el componente la pueda usar
+        return response;
+      }
+    } catch (error) {
+      dispatch(setOpenToast(true));
+      dispatch(setVariantToast("error"));
+      dispatch(setMessageToast(t("alerts.genericError")));
+      console.log(error?.message || error);
+      throw error;
+    } finally {
+      dispatch(setLoading(false));
+    }
+  };
+};
+
+/**
+ * Agrega total pacientes a un día en el cuadro de turnos
+ */
+export const addPatients = (
+  data: IDataAddPatient,
+): ThunkResult<Promise<void>> => {
+  return async (dispatch) => {
+    dispatch(setLoading(true));
+    try {
+      const response = await ScheduleService.postAddPatients(data);
+      if (response.status === 200) {
+        // Despachar algo si se requiere guardar en el store
+        // dispatch({ type: constants.scheduleAddTotalPatients, payload: response.data });
 
         dispatch(setOpenToast(true));
         dispatch(setVariantToast("success"));

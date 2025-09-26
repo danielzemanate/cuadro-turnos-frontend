@@ -39,7 +39,8 @@
       "OCTUBRE",
       "NOVIEMBRE",
       "DICIEMBRE"
-    ]
+    ],
+    "totalPatientsTreated": "Total pacientes atendidos"
   },
   "alerts": {
     "credentialsError": "Credenciales no validas",

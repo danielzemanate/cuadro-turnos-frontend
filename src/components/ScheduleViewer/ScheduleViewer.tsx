@@ -12,30 +12,53 @@ import {
   IParamsGenericQuery,
   IAttentionTypesResponse,
   IDataEditScheduleData,
+  IDataAddPatient,
+  IPatientsData,
 } from "../../interfaces/schedule";
 
+// Improved styled components with better organization
 import {
-  Wrapper,
-  Card,
-  Title,
-  Subtitle,
-  ControlsRow,
-  Select,
-  Button,
-  TableWrapper,
-  TableTitle,
-  TopActions,
-  DownloadButton,
-  BackButton,
-  CheckboxRow,
+  // Layout Components
+  PageContainer,
+  ContentWrapper,
+  FormCard,
+
+  // Typography Components
+  PageTitle,
+  PageSubtitle,
+  SectionTitle,
+
+  // Form Components
+  FormGrid,
+  FormSelect,
+  FormButton,
+  FormCheckbox,
+  FormLabel,
+
+  // Table Components
+  TableSection,
+  TableHeader,
+  TableControls,
   TableContainer,
-  Table,
-  Th,
-  Td,
-  StaffCell,
-  HoursRow,
-  TotalRow,
-  TableLoadingOverlay,
+  DataTable,
+  TableHead,
+  TableBody,
+  HeaderCell,
+  DataCell,
+  StaffNameCell,
+  HoursDataRow,
+  NoveltyDataRow,
+  PatientsDataRow,
+  TotalDataRow,
+
+  // Action Components
+  BackButton,
+  DownloadButton,
+
+  // Utility Components
+  LoadingOverlay,
+  InputField,
+  SelectField,
 } from "./ScheduleViewerStyles";
 
 import { AppState } from "../../redux/reducers/rootReducer";
@@ -47,6 +70,8 @@ import {
   fetchEditableOptions,
   fetchAttentionTypes,
   editScheduleDay,
+  addPatients,
+  fetchTotalPatientsByMonth,
 } from "../../redux/actions/scheduleActions";
 import { useAppDispatchThunk } from "../../hooks/storeHooks";
 import {
@@ -63,10 +88,18 @@ import {
 } from "../../helpers/ScheduleHelper";
 import { IDownloadSchedule } from "../../interfaces/utils";
 import { fetchDownloadSchedule } from "../../redux/actions/utilsActions";
-import { RoleId, Roles } from "../../constants/schedule.constants";
+import {
+  RoleId,
+  Roles,
+  RolesDatabase,
+} from "../../constants/schedule.constants";
 
 interface ScheduleViewerProps {
   editable?: boolean;
+}
+
+interface FetchResponse {
+  data: IPatientsData[];
 }
 
 const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
@@ -87,10 +120,12 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
 
   const rolesQueForzanMunicipio = [Roles.COORDINADOR, Roles.PERSONAL_SALUD];
 
-  // Si el rol es COORDINADOR O PERSONAL SALUD, forzamos el municipio con userData.user.id_municipio
+  const canManagePatients = useMemo(() => {
+    return userData?.roles?.id === RolesDatabase.DILIGENCIADOR;
+  }, [userData?.roles?.id]);
+
   const forceMunicipio = useMemo(() => {
     const roleId = userData?.roles?.id as RoleId | undefined;
-
     return roleId && rolesQueForzanMunicipio.includes(roleId)
       ? (userData?.user?.id_municipio ?? null)
       : null;
@@ -106,20 +141,24 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
   // UI state
   const [showTable, setShowTable] = useState<boolean>(false);
   const [showNovedades, setShowNovedades] = useState<boolean>(false);
+  const [showPacientes, setShowPacientes] = useState<boolean>(false);
 
-  // Estado local por celda: `${id_usuario}-${day}` -> sigla seleccionada
   const [attentionByCell, setAttentionByCell] = useState<
     Record<string, string>
   >({});
+  const [patientsDataByKey, setPatientsDataByKey] = useState<
+    Record<string, IPatientsData>
+  >({});
+  const [patientsInput, setPatientsInput] = useState<Record<string, string>>(
+    {},
+  );
 
-  // Mapa sigla -> tipo completo (para obtener horas)
   const attentionMapBySigla = useMemo(() => {
     const map = new Map<string, IAttentionTypesResponse>();
     (attentionTypes || []).forEach((a) => map.set(a.sigla, a));
     return map;
   }, [attentionTypes]);
 
-  // Memoized values
   const MONTHS = useMemo(
     () => t("scheduleViewer.months", { returnObjects: true }) as string[],
     [t],
@@ -150,24 +189,28 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
       isValidFormState(
         formState.selectedPeriodo,
         formState.selectedTipo,
-        // aunque no haya select visible, validamos con el municipio efectivo
         forceMunicipio ?? formState.selectedMunicipio,
       ),
     [formState, forceMunicipio],
   );
 
-  // Cargar opciones iniciales
+  const getPatientsForPersonDay = useCallback(
+    (userId: number, day: number): number => {
+      const key = `${userId}-${day}`;
+      return patientsDataByKey[key]?.total_pacientes || 0;
+    },
+    [patientsDataByKey],
+  );
+
+  // Effects
   useEffect(() => {
     if (editable) {
       dispatchThunk(fetchEditableOptions(editableParams ?? {}));
-      // NO llamamos fetchAttentionTypes aquí - lo haremos cuando se seleccione el tipo
     } else {
       dispatchThunk(fetchScheduleOptions());
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatchThunk, editable, JSON.stringify(editableParams)]);
 
-  // Cargar tipos de atención cuando cambie selectedTipo (solo en modo editable)
   useEffect(() => {
     if (editable && formState.selectedTipo) {
       const attentionParams = {
@@ -177,7 +220,32 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
     }
   }, [dispatchThunk, editable, formState.selectedTipo]);
 
-  // Set defaults cuando options cambian (respetando municipio forzado)
+  useEffect(() => {
+    if (showPacientes && monthData?.mes && canManagePatients) {
+      dispatchThunk(fetchTotalPatientsByMonth(monthData.mes.toString()))
+        .then((response: FetchResponse) => {
+          if (response && response.data) {
+            const byKey: Record<string, IPatientsData> = {};
+            const initialInputs: Record<string, string> = {};
+
+            (response.data as IPatientsData[]).forEach((item) => {
+              const key = `${item.id_usuario}-${item.dia}`;
+              byKey[key] = item;
+              initialInputs[key] = item.total_pacientes.toString();
+            });
+
+            setPatientsDataByKey(byKey);
+            setPatientsInput(initialInputs);
+          }
+        })
+        .catch((error) => {
+          console.error("Error cargando datos de pacientes:", error);
+          setPatientsDataByKey({});
+          setPatientsInput({});
+        });
+    }
+  }, [showPacientes, monthData?.mes, canManagePatients, dispatchThunk]);
+
   useEffect(() => {
     if (!options) return;
 
@@ -194,7 +262,6 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
     }));
   }, [options, sortedPeriodos, forceMunicipio]);
 
-  // Inicializa selección local por celda con valores del backend
   useEffect(() => {
     if (!monthData) return;
     const next: Record<string, string> = {};
@@ -263,24 +330,23 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
   }, [dispatchThunk, formState, isFormValid, forceMunicipio]);
 
   const handleBack = useCallback(() => {
-    // Limpiar Redux
     dispatchThunk(clearScheduleMonth());
     dispatchThunk(clearScheduleOptions());
 
-    // Reset local
     setFormState({
       selectedPeriodo: null,
       selectedTipo: null,
       selectedMunicipio: null,
     });
     setShowNovedades(false);
+    setShowPacientes(false);
     setShowTable(false);
     setAttentionByCell({});
+    setPatientsDataByKey({});
+    setPatientsInput({});
 
-    // Recargar según modo
     if (editable) {
       dispatchThunk(fetchEditableOptions(editableParams ?? {}));
-      // Los tipos de atención se cargarán cuando se seleccione un tipo
     } else {
       dispatchThunk(fetchScheduleOptions());
     }
@@ -291,16 +357,12 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
       const key = `${idUsuario}-${day}`;
       setAttentionByCell((prev) => ({ ...prev, [key]: newSigla }));
 
-      // Tipo seleccionado por sigla (para obtener id y horas)
       const selectedType = attentionMapBySigla.get(newSigla) || null;
-
-      // Buscar id_cuadro_personal del profesional
       const person = monthData?.personal_de_salud.find(
         (p) => p.id_usuario === idUsuario,
       );
       const id_cuadro_personal = person?.id_cuadro_personal;
 
-      // Si limpian la selección, o falta info necesaria, no disparamos al backend
       if (!selectedType || !id_cuadro_personal) {
         return;
       }
@@ -314,7 +376,6 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
         editor_user_id: userData.user.id,
       };
 
-      // Llamada al backend
       dispatchThunk(editScheduleDay(payload));
     },
     [
@@ -323,6 +384,58 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
       userData.user.id,
       dispatchThunk,
     ],
+  );
+
+  const handlePatientsChange = useCallback(
+    (userId: number, day: number, value: string) => {
+      const key = `${userId}-${day}`;
+      setPatientsInput((prev) => ({ ...prev, [key]: value }));
+    },
+    [],
+  );
+
+  const handlePatientsBlur = useCallback(
+    (userId: number, day: number) => {
+      if (!monthData?.mes) return;
+
+      const key = `${userId}-${day}`;
+      const value = patientsInput[key] || "0";
+      const numericValue = parseInt(value, 10);
+
+      if (isNaN(numericValue) || numericValue < 0) {
+        setPatientsInput((prev) => ({ ...prev, [key]: "0" }));
+        return;
+      }
+
+      const payload: IDataAddPatient = {
+        id_usuario: userId,
+        id_cuadro_mes: monthData.mes,
+        dia: day,
+        total_pacientes: numericValue,
+      };
+
+      dispatchThunk(addPatients(payload))
+        .then(() => {
+          setPatientsDataByKey((prev) => ({
+            ...prev,
+            [key]: {
+              id: prev[key]?.id ?? Date.now(),
+              id_usuario: userId,
+              mes: monthData.mes!,
+              dia: day,
+              total_pacientes: numericValue,
+            },
+          }));
+        })
+        .catch(() => {
+          const previousValue = getPatientsForPersonDay(userId, day);
+          setPatientsInput((prev) => ({
+            ...prev,
+            [key]: previousValue.toString(),
+          }));
+        });
+    },
+    [monthData?.mes, patientsInput, dispatchThunk, getPatientsForPersonDay],
   );
 
   const handleDownload = useCallback(() => {
@@ -335,11 +448,59 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
       mes: formState.selectedPeriodo!.mes,
       id_tipo_personal_salud: formState.selectedTipo!,
       id_municipio: municipioId,
-      // formato: no enviar (el backend usa pdf por defecto)
     };
 
     dispatchThunk(fetchDownloadSchedule(params));
   }, [dispatchThunk, formState, isFormValid, forceMunicipio]);
+
+  // Render helpers
+  const renderPatientsRow = useCallback(
+    (person: PersonalDeSalud) => {
+      if (!showPacientes) return null;
+
+      return (
+        <PatientsDataRow key={`patients-row-${person.id_usuario}`}>
+          <StaffNameCell>
+            {t("scheduleViewer.totalPatientsTreated")}
+          </StaffNameCell>
+          {days.map((day) => {
+            const key = `${person.id_usuario}-${day}`;
+            return (
+              <DataCell key={`patients-${person.id_usuario}-${day}`} $center>
+                {canManagePatients ? (
+                  <InputField
+                    type="text"
+                    value={patientsInput[key] ?? ""}
+                    onChange={(e) =>
+                      handlePatientsChange(
+                        person.id_usuario,
+                        day,
+                        e.target.value,
+                      )
+                    }
+                    onBlur={() => handlePatientsBlur(person.id_usuario, day)}
+                    aria-label={`Total pacientes día ${day} - ${formatPersonName(person.nombre, person.apellidos)}`}
+                  />
+                ) : (
+                  getPatientsForPersonDay(person.id_usuario, day)
+                )}
+              </DataCell>
+            );
+          })}
+        </PatientsDataRow>
+      );
+    },
+    [
+      showPacientes,
+      days,
+      canManagePatients,
+      patientsInput,
+      getPatientsForPersonDay,
+      handlePatientsChange,
+      handlePatientsBlur,
+      t,
+    ],
+  );
 
   const renderPersonRows = useCallback(
     (person: PersonalDeSalud) => {
@@ -347,11 +508,11 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
 
       return (
         <React.Fragment key={person.id_usuario}>
-          {/* Fila principal */}
+          {/* Main row */}
           <tr>
-            <StaffCell>
+            <StaffNameCell>
               {formatPersonName(person.nombre, person.apellidos)}
-            </StaffCell>
+            </StaffNameCell>
             {days.map((day) => {
               const cellKey = `${person.id_usuario}-${day}`;
               const currentBackendSigla =
@@ -360,10 +521,10 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
                 attentionByCell[cellKey] ?? currentBackendSigla;
 
               return (
-                <Td key={`${person.id_usuario}-${day}`} $center>
+                <DataCell key={`${person.id_usuario}-${day}`} $center>
                   {editable ? (
                     attentionTypes && attentionTypes.length > 0 ? (
-                      <select
+                      <SelectField
                         value={currentSigla || ""}
                         onChange={(e) =>
                           handleAttentionChange(
@@ -372,10 +533,7 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
                             e.target.value,
                           )
                         }
-                        aria-label={`Tipo de atención día ${day} - ${formatPersonName(
-                          person.nombre,
-                          person.apellidos,
-                        )}`}
+                        aria-label={`Tipo de atención día ${day} - ${formatPersonName(person.nombre, person.apellidos)}`}
                       >
                         <option value="">{"-"}</option>
                         {attentionTypes.map((a) => (
@@ -387,7 +545,7 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
                             {a.sigla}
                           </option>
                         ))}
-                      </select>
+                      </SelectField>
                     ) : (
                       <small style={{ color: "#6b7280" }}>
                         {t("common.loading") || "Cargando…"}
@@ -396,67 +554,71 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
                   ) : (
                     currentBackendSigla
                   )}
-                </Td>
+                </DataCell>
               );
             })}
           </tr>
 
-          {/* Fila de horas */}
-          <HoursRow>
-            <StaffCell>{t("scheduleViewer.rowHours").toUpperCase()}</StaffCell>
+          {/* Hours row */}
+          <HoursDataRow>
+            <StaffNameCell>
+              {t("scheduleViewer.rowHours").toUpperCase()}
+            </StaffNameCell>
             {days.map((day) => {
               const key = `${person.id_usuario}-${day}`;
               const selectedSigla = attentionByCell[key] || "";
               const horasFromType =
                 attentionMapBySigla.get(selectedSigla)?.horas ?? 0;
-
               const backendHoras = dayBuckets[day]?.normal?.horas || 0;
               const value = editable ? horasFromType : backendHoras;
 
               return (
-                <Td key={`hn-${person.id_usuario}-${day}`} $center>
+                <DataCell key={`hn-${person.id_usuario}-${day}`} $center>
                   {value}
-                </Td>
+                </DataCell>
               );
             })}
-          </HoursRow>
+          </HoursDataRow>
 
-          {/* Novedades */}
+          {/* Novelties */}
           {showNovedades && (
             <>
-              <tr style={{ background: "#fff5f5" }}>
-                <StaffCell>
+              <NoveltyDataRow>
+                <StaffNameCell>
                   {t("scheduleViewer.justificationsUpdates").toUpperCase()}
-                </StaffCell>
+                </StaffNameCell>
                 {days.map((day) => {
                   const justifications = getNoveltyJustifications(
                     dayBuckets[day]?.novedades || [],
                   );
                   return (
-                    <Td key={`jn-${person.id_usuario}-${day}`} $center>
+                    <DataCell key={`jn-${person.id_usuario}-${day}`} $center>
                       {justifications}
-                    </Td>
+                    </DataCell>
                   );
                 })}
-              </tr>
+              </NoveltyDataRow>
 
-              <HoursRow style={{ background: "#fff1f2" }}>
-                <StaffCell>
+              <NoveltyDataRow $hours>
+                <StaffNameCell>
                   {t("scheduleViewer.hoursUpdates").toUpperCase()}
-                </StaffCell>
+                </StaffNameCell>
                 {days.map((day) => {
                   const noveltyHours = sumNoveltyHours(
                     dayBuckets[day]?.novedades || [],
                   );
                   return (
-                    <Td key={`hnv-${person.id_usuario}-${day}`} $center>
+                    <DataCell key={`hnv-${person.id_usuario}-${day}`} $center>
                       {noveltyHours}
-                    </Td>
+                    </DataCell>
                   );
                 })}
-              </HoursRow>
+              </NoveltyDataRow>
             </>
           )}
+
+          {/* Patients row */}
+          {renderPatientsRow(person)}
         </React.Fragment>
       );
     },
@@ -469,14 +631,16 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
       editable,
       handleAttentionChange,
       attentionMapBySigla,
+      renderPatientsRow,
     ],
   );
 
-  // Fila Total
   const renderTotalRow = useCallback(
     () => (
-      <TotalRow>
-        <StaffCell>{t("scheduleViewer.rowTotalHours").toUpperCase()}</StaffCell>
+      <TotalDataRow>
+        <StaffNameCell>
+          {t("scheduleViewer.rowTotalHours").toUpperCase()}
+        </StaffNameCell>
         {days.map((day) => {
           const totalHours = (monthData?.personal_de_salud || []).reduce(
             (total, person) => {
@@ -484,14 +648,11 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
               const selectedSigla = attentionByCell[key] || "";
               const horasFromType =
                 attentionMapBySigla.get(selectedSigla)?.horas ?? 0;
-
               const buckets = createDayBuckets(person.dias);
               const backendHoras = buckets[day]?.normal?.horas || 0;
-
               const novelty = showNovedades
                 ? sumNoveltyHours(buckets[day]?.novedades || [])
                 : 0;
-
               const base = editable ? horasFromType : backendHoras;
               return total + base + novelty;
             },
@@ -499,12 +660,12 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
           );
 
           return (
-            <Td key={`total-${day}`} $center>
+            <DataCell key={`total-${day}`} $center>
               {totalHours}
-            </Td>
+            </DataCell>
           );
         })}
-      </TotalRow>
+      </TotalDataRow>
     ),
     [
       days,
@@ -517,106 +678,107 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
     ],
   );
 
-  // Pantalla de selección
+  // Main render
   if (!showTable) {
     return (
-      <Wrapper>
-        <Card>
-          <Title>
-            {editable
-              ? t("scheduleViewer.titleEditable").toUpperCase()
-              : t("scheduleViewer.title").toUpperCase()}
-          </Title>
-          <Subtitle>
-            {editable
-              ? t("scheduleViewer.subtitleEditable")
-              : t("scheduleViewer.subtitle")}
-          </Subtitle>
+      <PageContainer>
+        <ContentWrapper>
+          <FormCard>
+            <PageTitle>
+              {editable
+                ? t("scheduleViewer.titleEditable").toUpperCase()
+                : t("scheduleViewer.title").toUpperCase()}
+            </PageTitle>
+            <PageSubtitle>
+              {editable
+                ? t("scheduleViewer.subtitleEditable")
+                : t("scheduleViewer.subtitle")}
+            </PageSubtitle>
 
-          <ControlsRow>
-            <Select
-              aria-label="Mes"
-              value={formState.selectedPeriodo?.mes ?? ""}
-              onChange={(e) =>
-                handlePeriodoChange("mes", parseInt(e.target.value, 10))
-              }
-            >
-              {sortedPeriodos.map((periodo) => (
-                <option
-                  key={`${periodo.anio}-${periodo.mes}`}
-                  value={periodo.mes}
-                >
-                  {MONTHS[(periodo.mes - 1 + 12) % 12]}
-                </option>
-              ))}
-            </Select>
-
-            <Select
-              aria-label="Año"
-              value={formState.selectedPeriodo?.anio ?? ""}
-              onChange={(e) =>
-                handlePeriodoChange("anio", parseInt(e.target.value, 10))
-              }
-            >
-              {Array.from(new Set(sortedPeriodos.map((p) => p.anio))).map(
-                (anio) => (
-                  <option key={anio} value={anio}>
-                    {anio}
-                  </option>
-                ),
-              )}
-            </Select>
-
-            <Select
-              aria-label="Tipo de personal de salud"
-              value={formState.selectedTipo ?? ""}
-              onChange={(e) => handleTipoChange(parseInt(e.target.value, 10))}
-            >
-              {(options?.tipos_personal_salud || []).map((tipo) => (
-                <option key={tipo.id} value={tipo.id}>
-                  {tipo.nombre}
-                </option>
-              ))}
-            </Select>
-
-            {/* Municipio: ocultar el select si el rol fuerza el municipio */}
-            {!forceMunicipio ? (
-              <Select
-                aria-label="Municipio"
-                value={formState.selectedMunicipio ?? ""}
+            <FormGrid $columns={forceMunicipio ? 4 : 5}>
+              <FormSelect
+                aria-label="Mes"
+                value={formState.selectedPeriodo?.mes ?? ""}
                 onChange={(e) =>
-                  setFormState((prev) => ({
-                    ...prev,
-                    selectedMunicipio: parseInt(e.target.value, 10),
-                  }))
+                  handlePeriodoChange("mes", parseInt(e.target.value, 10))
                 }
               >
-                {(options?.municipios || []).map((municipio) => (
-                  <option key={municipio.id} value={municipio.id}>
-                    {municipio.nombre}
+                {sortedPeriodos.map((periodo) => (
+                  <option
+                    key={`${periodo.anio}-${periodo.mes}`}
+                    value={periodo.mes}
+                  >
+                    {MONTHS[(periodo.mes - 1 + 12) % 12]}
                   </option>
                 ))}
-              </Select>
-            ) : null}
+              </FormSelect>
 
-            <Button
-              onClick={handleConsultar}
-              disabled={loading || !isFormValid}
-              aria-busy={loading}
-            >
-              {loading ? (
-                <LoadingSpinner />
-              ) : (
-                (t("scheduleViewer.select")?.toUpperCase() ?? "CONSULTAR")
+              <FormSelect
+                aria-label="Año"
+                value={formState.selectedPeriodo?.anio ?? ""}
+                onChange={(e) =>
+                  handlePeriodoChange("anio", parseInt(e.target.value, 10))
+                }
+              >
+                {Array.from(new Set(sortedPeriodos.map((p) => p.anio))).map(
+                  (anio) => (
+                    <option key={anio} value={anio}>
+                      {anio}
+                    </option>
+                  ),
+                )}
+              </FormSelect>
+
+              <FormSelect
+                aria-label="Tipo de personal de salud"
+                value={formState.selectedTipo ?? ""}
+                onChange={(e) => handleTipoChange(parseInt(e.target.value, 10))}
+              >
+                {(options?.tipos_personal_salud || []).map((tipo) => (
+                  <option key={tipo.id} value={tipo.id}>
+                    {tipo.nombre}
+                  </option>
+                ))}
+              </FormSelect>
+
+              {!forceMunicipio && (
+                <FormSelect
+                  aria-label="Municipio"
+                  value={formState.selectedMunicipio ?? ""}
+                  onChange={(e) =>
+                    setFormState((prev) => ({
+                      ...prev,
+                      selectedMunicipio: parseInt(e.target.value, 10),
+                    }))
+                  }
+                >
+                  {(options?.municipios || []).map((municipio) => (
+                    <option key={municipio.id} value={municipio.id}>
+                      {municipio.nombre}
+                    </option>
+                  ))}
+                </FormSelect>
               )}
-            </Button>
-          </ControlsRow>
-        </Card>
-      </Wrapper>
+
+              <FormButton
+                onClick={handleConsultar}
+                disabled={loading || !isFormValid}
+                aria-busy={loading}
+              >
+                {loading ? (
+                  <LoadingSpinner />
+                ) : (
+                  (t("scheduleViewer.select")?.toUpperCase() ?? "CONSULTAR")
+                )}
+              </FormButton>
+            </FormGrid>
+          </FormCard>
+        </ContentWrapper>
+      </PageContainer>
     );
   }
 
-  // Tabla
+  // Table view
   const siteHeader = monthData
     ? t("scheduleViewer.tableHeader", {
         site: monthData.municipio,
@@ -624,86 +786,92 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
     : "";
 
   return (
-    <Wrapper>
-      <TableWrapper>
-        <TopActions>
-          <BackButton onClick={handleBack}>
-            <ArrowLeft size={18} />
-          </BackButton>
+    <PageContainer>
+      <ContentWrapper>
+        <TableSection>
+          <TableHeader>
+            <BackButton onClick={handleBack}>
+              <ArrowLeft size={18} />
+            </BackButton>
 
-          <TableTitle style={{ textAlign: "center", width: "100%" }}>
-            {siteHeader}
-            <span>{MONTHS[monthIndex0]}</span>
-          </TableTitle>
-          {!editable && (
-            <DownloadButton
-              onClick={handleDownload}
-              disabled={!isFormValid || loading}
-            >
-              <Download size={18} />
-              {t("scheduleViewer.download").toUpperCase()}
-            </DownloadButton>
-          )}
-        </TopActions>
+            <SectionTitle>
+              {siteHeader}
+              <span>{MONTHS[monthIndex0]}</span>
+            </SectionTitle>
 
-        <CheckboxRow>
-          <label>
-            <input
-              type="checkbox"
-              checked={showNovedades}
-              onChange={(e) => setShowNovedades(e.target.checked)}
-            />
-            <span>{t("scheduleViewer.news")}</span>
-          </label>
-        </CheckboxRow>
+            {!editable && (
+              <DownloadButton
+                onClick={handleDownload}
+                disabled={!isFormValid || loading}
+              >
+                <Download size={18} />
+                {t("scheduleViewer.download").toUpperCase()}
+              </DownloadButton>
+            )}
+          </TableHeader>
 
-        <TableContainer>
-          {loading && (
-            <TableLoadingOverlay>
-              <LoadingSpinner />
-            </TableLoadingOverlay>
-          )}
+          <TableControls>
+            <FormLabel>
+              <FormCheckbox
+                type="checkbox"
+                checked={showNovedades}
+                onChange={(e) => setShowNovedades(e.target.checked)}
+              />
+              <span>{t("scheduleViewer.news")}</span>
+            </FormLabel>
 
-          <Table aria-busy={loading}>
-            <thead>
-              <tr>
-                <Th style={{ minWidth: 220 }}>{year}</Th>
-                {days.map((day) => (
-                  <Th key={`h-${day}`}>
-                    <div>{day}</div>
-                    <div
-                      style={{
-                        fontSize: "0.75rem",
-                        fontWeight: "normal",
-                        color: "#6b7280",
-                      }}
-                    >
-                      {getDayAbbreviation(day, monthIndex0, year)}
-                    </div>
-                  </Th>
-                ))}
-              </tr>
-            </thead>
+            {canManagePatients && (
+              <FormLabel>
+                <FormCheckbox
+                  type="checkbox"
+                  checked={showPacientes}
+                  onChange={(e) => setShowPacientes(e.target.checked)}
+                />
+                <span>{t("scheduleViewer.totalPatientsTreated")}</span>
+              </FormLabel>
+            )}
+          </TableControls>
 
-            <tbody>
-              {/* Separador de mes */}
-              <tr>
-                <StaffCell>{MONTHS[monthIndex0]}</StaffCell>
-                {days.map((day) => (
-                  <Td key={`m-${day}`} />
-                ))}
-              </tr>
+          <TableContainer>
+            {loading && (
+              <LoadingOverlay>
+                <LoadingSpinner />
+              </LoadingOverlay>
+            )}
 
-              {/* Filas por persona */}
-              {(monthData?.personal_de_salud || []).map(renderPersonRows)}
+            <DataTable aria-busy={loading}>
+              <TableHead>
+                <tr>
+                  <HeaderCell $sticky>{year}</HeaderCell>
+                  {days.map((day) => (
+                    <HeaderCell key={`h-${day}`}>
+                      <div>{day}</div>
+                      <div>{getDayAbbreviation(day, monthIndex0, year)}</div>
+                    </HeaderCell>
+                  ))}
+                </tr>
+              </TableHead>
 
-              {/* Total */}
-              {renderTotalRow()}
-            </tbody>
-          </Table>
-        </TableContainer>
-      </TableWrapper>
-    </Wrapper>
+              <TableBody>
+                {/* Month separator */}
+                <tr>
+                  <StaffNameCell>{MONTHS[monthIndex0]}</StaffNameCell>
+                  {days.map((day) => (
+                    <DataCell key={`m-${day}`} />
+                  ))}
+                </tr>
+
+                {/* Person rows */}
+                {(monthData?.personal_de_salud || []).map(renderPersonRows)}
+
+                {/* Total hours */}
+                {renderTotalRow()}
+              </TableBody>
+            </DataTable>
+          </TableContainer>
+        </TableSection>
+      </ContentWrapper>
+    </PageContainer>
   );
 };
 
