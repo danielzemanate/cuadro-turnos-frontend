@@ -1,4 +1,5 @@
 import {
+  IDataAddPatient,
   IDataEditScheduleData,
   IParamsGenericQuery,
   IScheduleMonthParams,
@@ -32,6 +33,17 @@ const ScheduleService = {
   getEditScheduleDay: async (data: IDataEditScheduleData) => {
     return await api.post(
       `${import.meta.env.VITE_APP_BACK_ESE}api/cuadros/editar-dia`,
+      data,
+    );
+  },
+  getTotalPatientsByMonth: async (id_month: string) => {
+    return await api.get(
+      `${import.meta.env.VITE_APP_BACK_ESE}api/reportes/registro-pacientes?id_cuadro_mes=${id_month}`,
+    );
+  },
+  postAddPatients: async (data: IDataAddPatient) => {
+    return await api.post(
+      `${import.meta.env.VITE_APP_BACK_ESE}api/reportes/registro-pacientes`,
       data,
     );
   },
