@@ -14,28 +14,21 @@ import {
   IDataEditScheduleData,
   IDataAddPatient,
   IPatientsData,
+  IDataAddUnmetDemand,
 } from "../../interfaces/schedule";
 
-// Improved styled components with better organization
 import {
-  // Layout Components
   PageContainer,
   ContentWrapper,
   FormCard,
-
-  // Typography Components
   PageTitle,
   PageSubtitle,
   SectionTitle,
-
-  // Form Components
   FormGrid,
   FormSelect,
   FormButton,
   FormCheckbox,
   FormLabel,
-
-  // Table Components
   TableSection,
   TableHeader,
   TableControls,
@@ -50,12 +43,8 @@ import {
   NoveltyDataRow,
   PatientsDataRow,
   TotalDataRow,
-
-  // Action Components
   BackButton,
   DownloadButton,
-
-  // Utility Components
   LoadingOverlay,
   InputField,
   SelectField,
@@ -72,6 +61,9 @@ import {
   editScheduleDay,
   addPatients,
   fetchTotalPatientsByMonth,
+  fetchSiauTypes,
+  fetchUnmetDemand,
+  addUnmetDemand,
 } from "../../redux/actions/scheduleActions";
 import { useAppDispatchThunk } from "../../hooks/storeHooks";
 import {
@@ -93,13 +85,18 @@ import {
   Roles,
   RolesDatabase,
 } from "../../constants/schedule.constants";
+import { SiauTypesTable } from "./siau/SiauTypesTable";
 
 interface ScheduleViewerProps {
   editable?: boolean;
 }
 
-interface FetchResponse {
+interface FetchPatientsResponse {
   data: IPatientsData[];
+}
+
+interface FetchDataAddUnmetDemandResponse {
+  data: IDataAddUnmetDemand[];
 }
 
 const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
@@ -110,7 +107,7 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
 
   const { loading } = useSelector((state: AppState) => state.helpers);
   const { userData } = useSelector((state: AppState) => state.user);
-  const { options, monthData, attentionTypes } = useSelector(
+  const { options, monthData, attentionTypes, siauTypes } = useSelector(
     (state: AppState) => state.schedule,
   );
 
@@ -120,38 +117,60 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
 
   const rolesQueForzanMunicipio = [Roles.COORDINADOR, Roles.PERSONAL_SALUD];
 
+  const roleIdNum = userData?.roles?.id as number | undefined;
+
+  const isSiauRole =
+    roleIdNum === RolesDatabase.COORDINADOR_SIAU ||
+    roleIdNum === RolesDatabase.SIAU;
+
   const canManagePatients = useMemo(() => {
     return userData?.roles?.id === RolesDatabase.DILIGENCIADOR;
   }, [userData?.roles?.id]);
 
+  // Permisos para SIAU: sólo roles 4 o 5 y únicamente en viewer (no en modo editable de turnos)
+  const canManageSiau = useMemo(
+    () => !editable && !!isSiauRole,
+    [editable, isSiauRole],
+  );
+
   const forceMunicipio = useMemo(() => {
-    const roleId = userData?.roles?.id as RoleId | undefined;
-    return roleId && rolesQueForzanMunicipio.includes(roleId)
+    const rId = userData?.roles?.id as RoleId | undefined;
+    return rId && rolesQueForzanMunicipio.includes(rId)
       ? (userData?.user?.id_municipio ?? null)
       : null;
   }, [userData]);
 
-  // Form state
+  // --- Form state ---
   const [formState, setFormState] = useState<FormState>({
     selectedPeriodo: null,
     selectedTipo: null,
     selectedMunicipio: null,
   });
 
-  // UI state
+  // --- UI toggles ---
   const [showTable, setShowTable] = useState<boolean>(false);
   const [showNovedades, setShowNovedades] = useState<boolean>(false);
   const [showPacientes, setShowPacientes] = useState<boolean>(false);
+  const [showSiau, setShowSiau] = useState<boolean>(false);
 
+  // --- Attention (editable) ---
   const [attentionByCell, setAttentionByCell] = useState<
     Record<string, string>
   >({});
+
+  // --- Patients (por usuario/día) ---
   const [patientsDataByKey, setPatientsDataByKey] = useState<
     Record<string, IPatientsData>
   >({});
   const [patientsInput, setPatientsInput] = useState<Record<string, string>>(
     {},
   );
+
+  // --- SIAU unmet demand (por tipo/día) ---
+  const [siauUnmetByKey, setSiauUnmetByKey] = useState<Record<string, number>>(
+    {},
+  );
+  const [siauInputs, setSiauInputs] = useState<Record<string, string>>({});
 
   const attentionMapBySigla = useMemo(() => {
     const map = new Map<string, IAttentionTypesResponse>();
@@ -176,7 +195,6 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
       (formState.selectedPeriodo?.mes ?? new Date().getMonth() + 1) - 1;
     const totalDays = daysInMonth(currentYear, currentMonthIndex);
     const currentDays = generateDaysArray(totalDays);
-
     return {
       year: currentYear,
       monthIndex0: currentMonthIndex,
@@ -202,7 +220,7 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
     [patientsDataByKey],
   );
 
-  // Effects
+  // ===== Effects =====
   useEffect(() => {
     if (editable) {
       dispatchThunk(fetchEditableOptions(editableParams ?? {}));
@@ -220,20 +238,19 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
     }
   }, [dispatchThunk, editable, formState.selectedTipo]);
 
+  // Cargar pacientes al abrir la vista de pacientes (PARA TODOS LOS ROLES: ver/editar según permiso)
   useEffect(() => {
-    if (showPacientes && monthData?.mes && canManagePatients) {
+    if (showPacientes && monthData?.mes) {
       dispatchThunk(fetchTotalPatientsByMonth(monthData.mes.toString()))
-        .then((response: FetchResponse) => {
+        .then((response: FetchPatientsResponse) => {
           if (response && response.data) {
             const byKey: Record<string, IPatientsData> = {};
             const initialInputs: Record<string, string> = {};
-
             (response.data as IPatientsData[]).forEach((item) => {
               const key = `${item.id_usuario}-${item.dia}`;
               byKey[key] = item;
               initialInputs[key] = item.total_pacientes.toString();
             });
-
             setPatientsDataByKey(byKey);
             setPatientsInput(initialInputs);
           }
@@ -244,11 +261,11 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
           setPatientsInput({});
         });
     }
-  }, [showPacientes, monthData?.mes, canManagePatients, dispatchThunk]);
+  }, [showPacientes, monthData?.mes, dispatchThunk]);
 
+  // Inicializar selects por defecto
   useEffect(() => {
     if (!options) return;
-
     setFormState((prev) => ({
       ...prev,
       selectedPeriodo: prev.selectedPeriodo || sortedPeriodos[0] || null,
@@ -262,6 +279,7 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
     }));
   }, [options, sortedPeriodos, forceMunicipio]);
 
+  // Cargar mapa de atenciones inicial desde backend
   useEffect(() => {
     if (!monthData) return;
     const next: Record<string, string> = {};
@@ -275,11 +293,54 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
     setAttentionByCell(next);
   }, [monthData, days]);
 
-  // Handlers
+  // Forzar ocultar toggle SIAU al entrar a modo editable
+  useEffect(() => {
+    if (editable && showSiau) setShowSiau(false);
+  }, [editable, showSiau]);
+
+  // Cargar tipos SIAU al activar el toggle (si no hay)
+  useEffect(() => {
+    if (showSiau && (!siauTypes || siauTypes.length === 0)) {
+      dispatchThunk(fetchSiauTypes());
+    }
+  }, [showSiau, siauTypes, dispatchThunk]);
+
+  // Cargar DEMANDA INSATISFECHA SIAU al activar el toggle y con mes listo (todos ven; editan según permiso)
+  useEffect(() => {
+    if (showSiau && monthData?.mes) {
+      dispatchThunk(fetchUnmetDemand(monthData.mes.toString()))
+        .then((response: FetchDataAddUnmetDemandResponse) => {
+          const list = (response?.data ?? []) as Array<{
+            id: number;
+            id_usuario: number;
+            id_cuadro_mes: number;
+            dia: number;
+            id_tipos_siau: number;
+            valor: number;
+          }>;
+
+          const byKey: Record<string, number> = {};
+          const inputs: Record<string, string> = {};
+          list.forEach((item) => {
+            const key = `${item.id_tipos_siau}-${item.dia}`;
+            byKey[key] = item.valor ?? 0;
+            inputs[key] = String(item.valor ?? 0);
+          });
+          setSiauUnmetByKey(byKey);
+          setSiauInputs(inputs);
+        })
+        .catch((err) => {
+          console.error("Error cargando demanda insatisfecha SIAU:", err);
+          setSiauUnmetByKey({});
+          setSiauInputs({});
+        });
+    }
+  }, [showSiau, monthData?.mes, dispatchThunk]);
+
+  // ===== Handlers =====
   const handlePeriodoChange = useCallback(
     (field: "mes" | "anio", value: number) => {
       if (!sortedPeriodos.length) return;
-
       const currentPeriodo = formState.selectedPeriodo;
       let foundPeriodo: Periodo | null = null;
 
@@ -300,31 +361,24 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
           undefined,
         );
       }
-
       setFormState((prev) => ({ ...prev, selectedPeriodo: foundPeriodo }));
     },
     [sortedPeriodos, formState.selectedPeriodo],
   );
 
   const handleTipoChange = useCallback((value: number) => {
-    setFormState((prev) => ({
-      ...prev,
-      selectedTipo: value,
-    }));
+    setFormState((prev) => ({ ...prev, selectedTipo: value }));
   }, []);
 
   const handleConsultar = useCallback(() => {
     if (!isFormValid) return;
-
     const municipioId = forceMunicipio ?? formState.selectedMunicipio!;
-
     const params: IScheduleMonthParams = {
       anio: formState.selectedPeriodo!.anio,
       mes: formState.selectedPeriodo!.mes,
       id_tipo_personal_salud: formState.selectedTipo!,
       id_municipio: municipioId,
     };
-
     dispatchThunk(fetchScheduleByMonth(params));
     setShowTable(true);
   }, [dispatchThunk, formState, isFormValid, forceMunicipio]);
@@ -340,10 +394,13 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
     });
     setShowNovedades(false);
     setShowPacientes(false);
+    setShowSiau(false);
     setShowTable(false);
     setAttentionByCell({});
     setPatientsDataByKey({});
     setPatientsInput({});
+    setSiauUnmetByKey({});
+    setSiauInputs({});
 
     if (editable) {
       dispatchThunk(fetchEditableOptions(editableParams ?? {}));
@@ -363,9 +420,7 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
       );
       const id_cuadro_personal = person?.id_cuadro_personal;
 
-      if (!selectedType || !id_cuadro_personal) {
-        return;
-      }
+      if (!selectedType || !id_cuadro_personal) return;
 
       const payload: IDataEditScheduleData = {
         id_cuadro_personal,
@@ -375,7 +430,6 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
         es_novedad: false,
         editor_user_id: userData.user.id,
       };
-
       dispatchThunk(editScheduleDay(payload));
     },
     [
@@ -386,6 +440,7 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
     ],
   );
 
+  // Patients handlers
   const handlePatientsChange = useCallback(
     (userId: number, day: number, value: string) => {
       const key = `${userId}-${day}`;
@@ -397,7 +452,6 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
   const handlePatientsBlur = useCallback(
     (userId: number, day: number) => {
       if (!monthData?.mes) return;
-
       const key = `${userId}-${day}`;
       const value = patientsInput[key] || "0";
       const numericValue = parseInt(value, 10);
@@ -440,24 +494,67 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
 
   const handleDownload = useCallback(() => {
     if (!isFormValid) return;
-
     const municipioId = forceMunicipio ?? formState.selectedMunicipio!;
-
     const params: IDownloadSchedule = {
       anio: formState.selectedPeriodo!.anio,
       mes: formState.selectedPeriodo!.mes,
       id_tipo_personal_salud: formState.selectedTipo!,
       id_municipio: municipioId,
     };
-
     dispatchThunk(fetchDownloadSchedule(params));
   }, [dispatchThunk, formState, isFormValid, forceMunicipio]);
 
-  // Render helpers
+  // SIAU unmet handlers (por tipo/día)
+  const handleSiauChange = useCallback(
+    (tipoId: number, day: number, value: string) => {
+      const key = `${tipoId}-${day}`;
+      setSiauInputs((prev) => ({ ...prev, [key]: value }));
+    },
+    [],
+  );
+
+  const handleSiauBlur = useCallback(
+    (tipoId: number, day: number) => {
+      if (!monthData?.mes) return;
+      const key = `${tipoId}-${day}`;
+      const raw = siauInputs[key] ?? "0";
+      const numericValue = parseInt(raw, 10);
+
+      if (isNaN(numericValue) || numericValue < 0) {
+        setSiauInputs((prev) => ({ ...prev, [key]: "0" }));
+        return;
+      }
+
+      const payload: IDataAddUnmetDemand = {
+        id_usuario: userData.user.id,
+        id_cuadro_mes: monthData.mes!,
+        dia: day,
+        id_tipos_siau: tipoId,
+        valor: numericValue,
+      };
+
+      dispatchThunk(addUnmetDemand(payload))
+        .then(() => {
+          setSiauUnmetByKey((prev) => ({ ...prev, [key]: numericValue }));
+        })
+        .catch(() => {
+          const previous = siauUnmetByKey[key] ?? 0;
+          setSiauInputs((prev) => ({ ...prev, [key]: String(previous) }));
+        });
+    },
+    [
+      monthData?.mes,
+      siauInputs,
+      siauUnmetByKey,
+      dispatchThunk,
+      userData.user.id,
+    ],
+  );
+
+  // ===== Render helpers =====
   const renderPatientsRow = useCallback(
     (person: PersonalDeSalud) => {
       if (!showPacientes) return null;
-
       return (
         <PatientsDataRow key={`patients-row-${person.id_usuario}`}>
           <StaffNameCell>
@@ -479,7 +576,10 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
                       )
                     }
                     onBlur={() => handlePatientsBlur(person.id_usuario, day)}
-                    aria-label={`Total pacientes día ${day} - ${formatPersonName(person.nombre, person.apellidos)}`}
+                    aria-label={`Total pacientes día ${day} - ${formatPersonName(
+                      person.nombre,
+                      person.apellidos,
+                    )}`}
                   />
                 ) : (
                   getPatientsForPersonDay(person.id_usuario, day)
@@ -505,10 +605,8 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
   const renderPersonRows = useCallback(
     (person: PersonalDeSalud) => {
       const dayBuckets = createDayBuckets(person.dias);
-
       return (
         <React.Fragment key={person.id_usuario}>
-          {/* Main row */}
           <tr>
             <StaffNameCell>
               {formatPersonName(person.nombre, person.apellidos)}
@@ -533,7 +631,10 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
                             e.target.value,
                           )
                         }
-                        aria-label={`Tipo de atención día ${day} - ${formatPersonName(person.nombre, person.apellidos)}`}
+                        aria-label={`Tipo de atención día ${day} - ${formatPersonName(
+                          person.nombre,
+                          person.apellidos,
+                        )}`}
                       >
                         <option value="">{"-"}</option>
                         {attentionTypes.map((a) => (
@@ -559,7 +660,6 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
             })}
           </tr>
 
-          {/* Hours row */}
           <HoursDataRow>
             <StaffNameCell>
               {t("scheduleViewer.rowHours").toUpperCase()}
@@ -571,7 +671,6 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
                 attentionMapBySigla.get(selectedSigla)?.horas ?? 0;
               const backendHoras = dayBuckets[day]?.normal?.horas || 0;
               const value = editable ? horasFromType : backendHoras;
-
               return (
                 <DataCell key={`hn-${person.id_usuario}-${day}`} $center>
                   {value}
@@ -580,7 +679,6 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
             })}
           </HoursDataRow>
 
-          {/* Novelties */}
           {showNovedades && (
             <>
               <NoveltyDataRow>
@@ -617,7 +715,6 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
             </>
           )}
 
-          {/* Patients row */}
           {renderPatientsRow(person)}
         </React.Fragment>
       );
@@ -658,7 +755,6 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
             },
             0,
           );
-
           return (
             <DataCell key={`total-${day}`} $center>
               {totalHours}
@@ -678,7 +774,7 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
     ],
   );
 
-  // Main render
+  // ===== Main render =====
   if (!showTable) {
     return (
       <PageContainer>
@@ -778,7 +874,6 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
     );
   }
 
-  // Table view
   const siteHeader = monthData
     ? t("scheduleViewer.tableHeader", {
         site: monthData.municipio,
@@ -820,14 +915,25 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
               <span>{t("scheduleViewer.news")}</span>
             </FormLabel>
 
-            {canManagePatients && (
+            {/* Pacientes: mostrar toggle a TODOS (verán data; solo DILIGENCIADOR edita) */}
+            <FormLabel>
+              <FormCheckbox
+                type="checkbox"
+                checked={showPacientes}
+                onChange={(e) => setShowPacientes(e.target.checked)}
+              />
+              <span>{t("scheduleViewer.totalPatientsTreated")}</span>
+            </FormLabel>
+
+            {/* SIAU: mostrar toggle a TODOS en modo viewer; solo roles 4/5 editan */}
+            {!editable && (
               <FormLabel>
                 <FormCheckbox
                   type="checkbox"
-                  checked={showPacientes}
-                  onChange={(e) => setShowPacientes(e.target.checked)}
+                  checked={showSiau}
+                  onChange={(e) => setShowSiau(e.target.checked)}
                 />
-                <span>{t("scheduleViewer.totalPatientsTreated")}</span>
+                <span>{t("scheduleViewer.siauTypes") ?? "Tipos de SIAU"}</span>
               </FormLabel>
             )}
           </TableControls>
@@ -853,7 +959,6 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
               </TableHead>
 
               <TableBody>
-                {/* Month separator */}
                 <tr>
                   <StaffNameCell>{MONTHS[monthIndex0]}</StaffNameCell>
                   {days.map((day) => (
@@ -861,15 +966,43 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
                   ))}
                 </tr>
 
-                {/* Person rows */}
                 {(monthData?.personal_de_salud || []).map(renderPersonRows)}
 
-                {/* Total hours */}
                 {renderTotalRow()}
               </TableBody>
             </DataTable>
           </TableContainer>
         </TableSection>
+
+        {/* === Tabla SIAU === */}
+        {!editable && showSiau && (
+          <TableSection>
+            <TableHeader>
+              <div />
+              <SectionTitle>
+                {(
+                  t("scheduleViewer.siauSectionTitle") ?? "SIAU – TIPOS"
+                ).toUpperCase()}
+                <span>{MONTHS[monthIndex0]}</span>
+              </SectionTitle>
+              <div />
+            </TableHeader>
+
+            <SiauTypesTable
+              loading={loading}
+              year={year}
+              monthIndex0={monthIndex0}
+              days={days}
+              monthLabel={MONTHS[monthIndex0]}
+              siauTypes={siauTypes ?? []}
+              canEdit={canManageSiau} // <- solo 4/5 editan; el resto ve
+              valuesByKey={siauUnmetByKey}
+              inputsByKey={siauInputs}
+              onChangeCell={handleSiauChange}
+              onBlurCell={handleSiauBlur}
+            />
+          </TableSection>
+        )}
       </ContentWrapper>
     </PageContainer>
   );

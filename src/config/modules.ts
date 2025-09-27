@@ -4,6 +4,7 @@ import {
   FileBarChart,
   FilePlus,
   Settings,
+  Shield,
 } from "lucide-react";
 import { Module } from "../types/types";
 import ScheduleViewer from "../components/ScheduleViewer/ScheduleViewer";
@@ -11,6 +12,7 @@ import Reports from "../components/Reports/Reports";
 import UnsatisfiedDemand from "../components/Unsatisfied-demand/UnsatisfiedDemand";
 import React, { ComponentType } from "react";
 import UsersConfig from "../components/UsersConfig/UsersConfig";
+import Administration from "../components/Administration/Administration";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const ScheduleViewerEditable: ComponentType<any> = (props) =>
@@ -66,5 +68,15 @@ export const MODULES: Module[] = [
     path: "/dashboard/configuracion-usuarios",
     bgColor: "#F3E8FF",
     hoverColor: "#7C3AED",
+  },
+  {
+    id: 6,
+    name: "Administración",
+    icon: Shield,
+    allowedRoles: [6],
+    component: Administration,
+    path: "/dashboard/administracion",
+    bgColor: "#DBEAFE",
+    hoverColor: "#1E40AF",
   },
 ];

@@ -8,6 +8,8 @@ import {
   IAttentionTypesResponse,
   IDataEditScheduleData,
   IDataAddPatient,
+  ISiauTypesResponse,
+  IDataAddUnmetDemand,
 } from "../../interfaces/schedule";
 import {
   setLoading,
@@ -213,6 +215,88 @@ export const addPatients = (
 };
 
 /**
+ * Obtiene los tipos de siau
+ */
+export const fetchSiauTypes = (): ThunkResult<Promise<void>> => {
+  return async (dispatch) => {
+    dispatch(setLoading(true));
+    try {
+      const response = await ScheduleService.getSiauTypes();
+      if (response.status === 200) {
+        const data = response.data as ISiauTypesResponse;
+        dispatch({
+          type: constants.scheduleSetSiauTypes,
+          payload: data,
+        });
+      }
+    } catch (error) {
+      dispatch(setOpenToast(true));
+      dispatch(setVariantToast("error"));
+      dispatch(setMessageToast(t("alerts.genericError")));
+      console.log(error?.message || error);
+      throw error;
+    } finally {
+      dispatch(setLoading(false));
+    }
+  };
+};
+
+/**
+ * Obtiene los valores de la demanda insatisfecha por tipo de siau
+ */
+export const fetchUnmetDemand = (
+  id_cuadro_mes: string,
+): ThunkResult<Promise<unknown>> => {
+  return async (dispatch) => {
+    dispatch(setLoading(true));
+    try {
+      const response = await ScheduleService.getUnmetDemand(id_cuadro_mes);
+      if (response.status === 200) {
+        // Retornar la respuesta para que el componente la pueda usar
+        return response;
+      }
+    } catch (error) {
+      dispatch(setOpenToast(true));
+      dispatch(setVariantToast("error"));
+      dispatch(setMessageToast(t("alerts.genericError")));
+      console.log(error?.message || error);
+      throw error;
+    } finally {
+      dispatch(setLoading(false));
+    }
+  };
+};
+
+/**
+ * Agrega valor a la demanda insatisfecha por tipo de siau
+ */
+export const addUnmetDemand = (
+  data: IDataAddUnmetDemand,
+): ThunkResult<Promise<void>> => {
+  return async (dispatch) => {
+    dispatch(setLoading(true));
+    try {
+      const response = await ScheduleService.postUnmetDemand(data);
+      if (response.status === 200) {
+        // Despachar algo si se requiere guardar en el store
+        // dispatch({ type: constants.scheduleAddTotalPatients, payload: response.data });
+
+        dispatch(setOpenToast(true));
+        dispatch(setVariantToast("success"));
+        dispatch(setMessageToast(t("alerts.updateSuccess")));
+      }
+    } catch (error) {
+      dispatch(setOpenToast(true));
+      dispatch(setVariantToast("error"));
+      dispatch(setMessageToast(t("alerts.genericError")));
+      console.log(error?.message || error);
+    } finally {
+      dispatch(setLoading(false));
+    }
+  };
+};
+
+/**
  * Limpia opciones del schedule (útil en logout o cambio de contexto)
  */
 export const clearScheduleOptions = () => ({
@@ -235,4 +319,11 @@ export const clearEditableOptions = () => ({
 
 export const clearAttentionTypes = () => ({
   type: constants.scheduleClearAttentionTypes,
+});
+
+/**
+ * Limpia datos del cuadro del mes tipos de siau
+ */
+export const clearSiauTypes = () => ({
+  type: constants.scheduleClearSiauTypes,
 });

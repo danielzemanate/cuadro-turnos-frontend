@@ -3,31 +3,34 @@ import {
   IOptionsResponse,
   IScheduleResponse,
   IAttentionTypesResponse,
+  ISiauTypesResponse,
 } from "../../interfaces/schedule";
 
 export interface IScheduleState {
   options: IOptionsResponse | null; // único store para opciones (normales o editables)
   monthData: IScheduleResponse | null;
   attentionTypes: IAttentionTypesResponse[] | null;
+  siauTypes: ISiauTypesResponse[] | null;
 }
 
 const initialState: IScheduleState = {
   options: null,
   monthData: null,
   attentionTypes: null,
+  siauTypes: null,
 };
 
 export type IScheduleActions =
   | {
       type:
         | typeof constants.scheduleSetOptions
-        | typeof constants.scheduleSetEditableOptions; // ambos set escriben en options
+        | typeof constants.scheduleSetEditableOptions;
       payload: IOptionsResponse;
     }
   | {
       type:
         | typeof constants.scheduleClearOptions
-        | typeof constants.scheduleClearEditableOptions; // ambos clear limpian options
+        | typeof constants.scheduleClearEditableOptions;
     }
   | {
       type: typeof constants.scheduleSetMonth;
@@ -38,10 +41,17 @@ export type IScheduleActions =
     }
   | {
       type: typeof constants.scheduleSetAttentionTypes;
-      payload: IAttentionTypesResponse[]; // <-- corregido: es un array
+      payload: IAttentionTypesResponse[];
     }
   | {
       type: typeof constants.scheduleClearAttentionTypes;
+    }
+  | {
+      type: typeof constants.scheduleSetSiauTypes;
+      payload: ISiauTypesResponse[];
+    }
+  | {
+      type: typeof constants.scheduleClearSiauTypes;
     };
 
 export const scheduleReducer = (
@@ -71,6 +81,12 @@ export const scheduleReducer = (
     case constants.scheduleClearAttentionTypes:
       return { ...state, attentionTypes: null };
 
+    //SIAU TYPES
+    case constants.scheduleSetSiauTypes:
+      return { ...state, siauTypes: action.payload };
+
+    case constants.scheduleClearSiauTypes:
+      return { ...state, siauTypes: null };
     default:
       return state;
   }
