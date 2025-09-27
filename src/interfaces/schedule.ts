@@ -101,3 +101,16 @@ export interface IPatientsData {
   dia: number;
   total_pacientes: number;
 }
+
+export interface ISiauTypesResponse {
+  id: number;
+  nombre: string;
+}
+
+export interface IDataAddUnmetDemand {
+  id_usuario: number;
+  id_cuadro_mes: number;
+  dia: number;
+  id_tipos_siau: number;
+  valor: number;
+}

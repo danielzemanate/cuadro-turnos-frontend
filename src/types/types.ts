@@ -26,10 +26,18 @@ export const constants = {
   scheduleClearMonth: "[schedule] clear month data",
   scheduleSetAttentionTypes: "[schedule] set attention types",
   scheduleClearAttentionTypes: "[schedule] clear attention types",
+  scheduleSetSiauTypes: "[schedule] set siau types",
+  scheduleClearSiauTypes: "[schedule] clear siau types",
   usersConfigSetSpecialPermitApprovers:
     "[usersConfig] set special permit approvers",
   usersConfigClearSpecialPermitApprovers:
     "[usersConfig] clear special permit approvers",
+  administrationSetRoles: "[administration] set roles",
+  administrationClearRoles: "[administration] clear roles",
+  administrationSetAttentionTypes: "[administration] set attention types",
+  administrationClearAttentionTypes: "[administration] clear attention types",
+  administrationSetPersonalTypes: "[administration] set personal types",
+  administrationClearPersonalTypes: "[administration] clear personal types",
 } as const;
 
 export type Types = (typeof constants)[keyof typeof constants];

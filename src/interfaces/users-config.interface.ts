@@ -35,3 +35,8 @@ export interface IDataCreateSpecialPermit {
   id_cuadro_mes: number;
   creado_por: number;
 }
+
+export interface IRoles {
+  id: number;
+  nombre: string;
+}
