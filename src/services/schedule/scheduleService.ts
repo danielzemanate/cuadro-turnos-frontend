@@ -1,5 +1,6 @@
 import {
   IDataAddPatient,
+  IDataAddUnmetDemand,
   IDataEditScheduleData,
   IParamsGenericQuery,
   IScheduleMonthParams,
@@ -44,6 +45,22 @@ const ScheduleService = {
   postAddPatients: async (data: IDataAddPatient) => {
     return await api.post(
       `${import.meta.env.VITE_APP_BACK_ESE}api/reportes/registro-pacientes`,
+      data,
+    );
+  },
+  getSiauTypes: async () => {
+    return await api.get(
+      `${import.meta.env.VITE_APP_BACK_ESE}api/reportes/tipos-siau`,
+    );
+  },
+  getUnmetDemand: async (id_month: string) => {
+    return await api.get(
+      `${import.meta.env.VITE_APP_BACK_ESE}api/reportes/demanda-insatisfecha?id_cuadro_mes=${id_month}`,
+    );
+  },
+  postUnmetDemand: async (data: IDataAddUnmetDemand) => {
+    return await api.post(
+      `${import.meta.env.VITE_APP_BACK_ESE}api/reportes/demanda-insatisfecha`,
       data,
     );
   },

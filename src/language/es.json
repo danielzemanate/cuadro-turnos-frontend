@@ -40,21 +40,33 @@
       "NOVIEMBRE",
       "DICIEMBRE"
     ],
-    "totalPatientsTreated": "Total pacientes atendidos"
+    "totalPatientsTreated": "Total pacientes atendidos",
+    "siauTypes": "Tipos de SIAU",
+    "siauSectionTitle": "SIAU – Tipos"
   },
   "alerts": {
     "credentialsError": "Credenciales no validas",
     "genericError": "Error al cargar los datos",
     "downloadError": "Error al descargar los datos",
     "updateSuccess": "Actualización Correcta",
-    "createSuccess": "Creación Correcta"
+    "createSuccess": "Creación Correcta",
+    "deleteSuccess": "Eliminación Correcta"
   },
   "common": {
     "select": "Seleccionar",
     "loading": "Cargando",
     "selectPlaceholder": "Seleccione…",
     "back": "Volver",
-    "send": "Enviar"
+    "send": "Enviar",
+    "accept": "Aceptar",
+    "cancel": "Cancelar",
+    "create": "Crear",
+    "update": "Actualizar",
+    "delete": "Eliminar",
+    "actions": "Acciones",
+    "new": "Nuevo",
+    "search": "Buscar...",
+    "empty": "Sin datos"
   },
   "usersConfig": {
     "selectCoordinator": {
@@ -70,6 +82,127 @@
       "sheet": "Cuadro (mes)",
       "changeType": "¿Es novedad?",
       "novedadLabel": "Marcar como novedad"
+    }
+  },
+  "administration": {
+    "title": "Administración",
+    "tabs": {
+      "roles": "Roles",
+      "usuarios": "Usuarios",
+      "tiposAtencion": "Tipos de atención",
+      "tiposPersonal": "Tipos de personal de salud"
+    },
+
+    "roles": {
+      "title": "Roles",
+      "new": "Nuevo rol",
+      "columns": {
+        "id": "ID",
+        "nombre": "Nombre"
+      },
+      "confirm": {
+        "createTitle": "Crear rol",
+        "updateTitle": "Actualizar rol",
+        "deleteTitle": "Eliminar rol",
+        "createQuestion": "¿Deseas crear el rol {{name}}?",
+        "updateQuestion": "¿Deseas actualizar el rol {{name}}?",
+        "deleteQuestion": "¿Deseas eliminar este rol?"
+      },
+      "form": {
+        "newTitle": "Nuevo rol",
+        "editTitle": "Editar rol",
+        "nameLabel": "Nombre del rol",
+        "placeholderName": "Ej. Coordinador Unidad"
+      }
+    },
+    "users": {
+      "form": {
+        "newTitle": "Nuevo usuario",
+        "editTitle": "Editar usuario",
+        "firstName": "Nombres",
+        "lastName": "Apellidos",
+        "email": "Correo",
+        "phone": "Celular",
+        "healthStaffType": "Tipo de personal de salud",
+        "municipality": "Municipio",
+        "placeholderFirstName": "Ej. Ana María",
+        "placeholderLastName": "Ej. Pérez López",
+        "placeholderEmail": "usuario@ejemplo.com",
+        "placeholderPhone": "Ej. 3001234567",
+        "status": "Estado del usuario",
+        "errors": {
+          "required": "Este campo es obligatorio",
+          "email": "Correo electrónico inválido"
+        }
+      },
+      "roles": {
+        "current": "Rol actual",
+        "selectRole": "Seleccione un rol",
+        "none": "Sin rol asignado",
+        "confirmDelete": "¿Eliminar rol actual?"
+      }
+    },
+    "attentionTypes": {
+      "title": "Tipos de atención",
+      "new": "Nuevo tipo",
+      "columns": {
+        "id": "ID",
+        "nombre": "Nombre",
+        "sigla": "Sigla",
+        "horas": "Horas",
+        "personal": "Personal"
+      },
+      "form": {
+        "newTitle": "Nuevo tipo de atención",
+        "editTitle": "Editar tipo de atención",
+        "nameLabel": "Nombre",
+        "abbrLabel": "Sigla",
+        "hoursLabel": "Horas",
+        "personalLabel": "Personal de salud",
+        "placeholderName": "Ej. Atención primaria en salud",
+        "placeholderAbbr": "Ej. APS",
+        "placeholderHours": "Ej. 8",
+        "placeholderSelect": "Seleccione…"
+      },
+      "confirm": {
+        "createTitle": "Crear tipo de atención",
+        "updateTitle": "Actualizar tipo de atención",
+        "deleteTitle": "Eliminar tipo de atención",
+        "createQuestion": "¿Deseas crear el tipo de atención {{name}}?",
+        "updateQuestion": "¿Deseas actualizar el tipo de atención {{name}}?",
+        "deleteQuestion": "¿Deseas eliminar este tipo de atención?"
+      }
+    },
+
+    "personalTypes": {
+      "title": "Tipos de personal de salud",
+      "new": "Nuevo tipo",
+      "columns": {
+        "id": "ID",
+        "nombre": "Nombre"
+      },
+      "form": {
+        "newTitle": "Nuevo tipo de personal",
+        "editTitle": "Editar tipo de personal",
+        "nameLabel": "Nombre",
+        "placeholderName": "Ej. Médico"
+      },
+      "confirm": {
+        "createTitle": "Crear tipo de personal",
+        "updateTitle": "Actualizar tipo de personal",
+        "deleteTitle": "Eliminar tipo de personal",
+        "createQuestion": "¿Deseas crear el tipo de personal {{name}}?",
+        "updateQuestion": "¿Deseas actualizar el tipo de personal {{name}}?",
+        "deleteQuestion": "¿Deseas eliminar este tipo de personal?"
+      }
+    },
+
+    "datatable": {
+      "actions": "Acciones",
+      "edit": "Editar",
+      "delete": "Eliminar",
+      "add": "Agregar",
+      "empty": "Sin datos para mostrar"
     }
   }
 }
