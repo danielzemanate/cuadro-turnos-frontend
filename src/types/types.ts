@@ -38,6 +38,10 @@ export const constants = {
   administrationClearAttentionTypes: "[administration] clear attention types",
   administrationSetPersonalTypes: "[administration] set personal types",
   administrationClearPersonalTypes: "[administration] clear personal types",
+  administrationSetMunicipios: "[administration] set Municipios",
+  administrationClearMunicipios: "[administration] clear Municipios",
+  administrationSetUsers: "[administration] set users",
+  administrationClearUsers: "[administration] clear users",
 } as const;
 
 export type Types = (typeof constants)[keyof typeof constants];

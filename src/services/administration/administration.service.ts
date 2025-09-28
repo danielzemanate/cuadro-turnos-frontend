@@ -96,7 +96,20 @@ const AdministrationService = {
   },
   deleteUserRol: async (id: string) => {
     return await api.delete(
-      `${import.meta.env.VITE_APP_BACK_ESE}api/config/tipos-personal-salud/${id}`,
+      `${import.meta.env.VITE_APP_BACK_ESE}api/config/roles/${id}`,
+    );
+  },
+
+  fetchMunicipios: async () => {
+    return await api.get(
+      `${import.meta.env.VITE_APP_BACK_ESE}api/config/municipios`,
+    );
+  },
+
+  // =============== USUARIOS ===============
+  fetchUsers: async () => {
+    return await api.get(
+      `${import.meta.env.VITE_APP_BACK_ESE}api/config/usuarios`,
     );
   },
 };
