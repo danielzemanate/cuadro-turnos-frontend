@@ -28,12 +28,18 @@ import {
   createPersonalType,
   updatePersonalType,
   deletePersonalType,
+  // USUARIOS
+  fetchUsers,
+  //MUNICIPIOS
+  fetchMunicipios,
 } from "../../redux/actions/administrationActions";
 
 import { IRoles } from "../../interfaces/user";
 import {
   IConfigAttentionTypes,
   IPersonalType,
+  IUserListItem,
+  IMunicipio,
 } from "../../interfaces/administration";
 
 import { Column, DataTable } from "../Common/table/DataTable";
@@ -45,6 +51,7 @@ import FormAttentionTypes from "./forms/attention-types/FormAttentionTypes";
 import FormPersonalTypes from "./forms/personal-types/FormPersonalTypes";
 import FormUser, { IUserForm } from "./forms/users/FormUser";
 import { useTranslation } from "react-i18next";
+import { registerUser } from "../../redux/actions/userActions";
 
 /* ---------------------------- Tabs definition ---------------------------- */
 
@@ -68,42 +75,6 @@ const tabsConfig: {
     icon: Stethoscope,
   },
 ];
-
-/* ---------------------- Placeholders para otros tabs --------------------- */
-
-type UsuarioRow = {
-  id: number;
-  nombre: string;
-  correo: string;
-  rol: string;
-  estado: "Activo" | "Inactivo";
-};
-
-const seedUsuarios: UsuarioRow[] = [
-  {
-    id: 1,
-    nombre: "Ana Pérez",
-    correo: "ana@ese.com",
-    rol: "Coordinador",
-    estado: "Activo",
-  },
-  {
-    id: 2,
-    nombre: "Juan Ortiz",
-    correo: "juan@ese.com",
-    rol: "Personal Salud",
-    estado: "Activo",
-  },
-  {
-    id: 4,
-    nombre: "Daniel Zemanate",
-    correo: "ana@ese.com",
-    rol: "Administrador",
-    estado: "Activo",
-  },
-];
-
-/* -------------------------------- Component ------------------------------ */
 
 const Administration: React.FC = () => {
   const { t } = useTranslation();
@@ -148,6 +119,12 @@ const Administration: React.FC = () => {
   const personalTypesFromStore =
     useSelector((s: AppState) => s.administration.personalTypes) ?? [];
 
+  // USUARIOS Y MUNICIPIOS
+  const usersFromStore =
+    useSelector((s: AppState) => s.administration.users) ?? [];
+  const municipiosFromStore =
+    useSelector((s: AppState) => s.administration.municipios) ?? [];
+
   /* --------------------------- Initial data loaders -------------------------- */
 
   // ROLES
@@ -180,6 +157,22 @@ const Administration: React.FC = () => {
       dispatchThunk(fetchConfigPersonalTypes());
     }
   }, [active, personalTypesFromStore.length, dispatchThunk]);
+
+  // USUARIOS (lista) + MUNICIPIOS + TIPOS DE PERSONAL (para mapear nombres)
+  React.useEffect(() => {
+    if (active === "usuarios") {
+      if (usersFromStore.length === 0) dispatchThunk(fetchUsers());
+      if (municipiosFromStore.length === 0) dispatchThunk(fetchMunicipios());
+      if (personalTypesFromStore.length === 0)
+        dispatchThunk(fetchConfigPersonalTypes());
+    }
+  }, [
+    active,
+    usersFromStore.length,
+    municipiosFromStore.length,
+    personalTypesFromStore.length,
+    dispatchThunk,
+  ]);
 
   /* ---------------------------------- ROLES ---------------------------------- */
 
@@ -441,42 +434,77 @@ const Administration: React.FC = () => {
     setConfirmKindPT(null);
   };
 
-  /* ----------------------------- USUARIOS (CRUD) ----------------------------- */
+  /* ----------------------------- USUARIOS (LISTA) ----------------------------- */
 
-  const [usuarios, setUsuarios] = React.useState<UsuarioRow[]>(seedUsuarios);
+  // Helpers de mapeo
+  const municipioNameById = React.useCallback(
+    (id?: number) =>
+      municipiosFromStore.find((m: IMunicipio) => m.id === id)?.nombre ?? "-",
+    [municipiosFromStore],
+  );
 
-  const usuarioCols: Column<UsuarioRow>[] = [
+  const personalTypeNameById = React.useCallback(
+    (id?: number) =>
+      personalTypesFromStore.find((p) => p.id === id)?.nombre ?? "-",
+    [personalTypesFromStore],
+  );
+
+  // Columnas para la lista de usuarios
+  const usuarioCols: Column<IUserListItem>[] = [
     {
       key: "nombre",
       header: t("administration.users.columns.nombre", "Nombre"),
+      render: (row) => row.nombre,
+    },
+    {
+      key: "apellidos",
+      header: t("administration.users.columns.apellidos", "Apellidos"),
+      render: (row) => row.apellidos,
     },
     {
       key: "correo",
       header: t("administration.users.columns.correo", "Correo"),
+      render: (row) => row.correo,
     },
     {
-      key: "rol",
-      header: t("administration.users.columns.rol", "Rol"),
+      key: "celular",
+      header: t("administration.users.columns.celular", "Celular"),
       width: "160px",
+      render: (row) => row.celular,
     },
     {
-      key: "estado",
-      header: t("administration.users.columns.estado", "Estado"),
-      width: "120px",
+      key: "id_municipio",
+      header: t("administration.users.columns.municipio", "Municipio"),
+      render: (row) => municipioNameById(row.id_municipio),
+    },
+    {
+      key: "id_tipo_personal_salud",
+      header: t(
+        "administration.users.columns.tipoPersonal",
+        "Tipo personal salud",
+      ),
+      render: (row) => personalTypeNameById(row.id_tipo_personal_salud),
+    },
+    {
+      key: "rol_nombre",
+      header: t("administration.users.columns.rol", "Rol"),
+      width: "180px",
+      render: (row) => row.rol_nombre ?? "—",
     },
   ];
 
+  // Handlers “conservados” para el DataTable de usuarios
   const [showFormUser, setShowFormUser] = React.useState(false);
-  const [editingUser, setEditingUser] = React.useState<UsuarioRow | null>(null);
+  const [editingUser, setEditingUser] = React.useState<IUserListItem | null>(
+    null,
+  );
   type ConfirmKindUser = "create" | "update" | "delete" | null;
   const [confirmKindUser, setConfirmKindUser] =
     React.useState<ConfirmKindUser>(null);
   const [confirmOpenUser, setConfirmOpenUser] = React.useState(false);
   const [pendingPayloadUser, setPendingPayloadUser] =
     React.useState<IUserForm | null>(null);
-  const [pendingDeleteIdUser, setPendingDeleteIdUser] = React.useState<
-    string | null
-  >(null);
+  const [, setPendingDeleteIdUser] = React.useState<string | null>(null);
 
   const handleAddUser = () => {
     if (loading) return;
@@ -487,62 +515,53 @@ const Administration: React.FC = () => {
 
   // Recibe el payload del FormUser
   const handleFormSubmitUser = (payload: IUserForm) => {
-    console.log("Form submit usuario:", payload);
     setPendingPayloadUser(payload);
     setConfirmKindUser(editingUser ? "update" : "create");
     setConfirmOpenUser(true);
   };
 
+  // >>> AHORA CREA USUARIO (solo create); update/delete después
   const confirmCreateOrUpdateUser = async () => {
     if (!pendingPayloadUser) return;
 
-    if (confirmKindUser === "create") {
-      console.log("Crear usuario:", pendingPayloadUser);
-      // Demo: agregamos a la tabla local
-      setUsuarios((prev) => [
-        ...prev,
-        {
-          id: prev.length ? Math.max(...prev.map((u) => u.id)) + 1 : 1,
-          nombre:
-            `${pendingPayloadUser.nombre} ${pendingPayloadUser.apellidos}`.trim(),
-          correo: pendingPayloadUser.correo,
-          rol: "—",
-          estado: "Activo",
-        },
-      ]);
-    } else if (confirmKindUser === "update" && editingUser) {
-      console.log("Actualizar usuario:", editingUser.id, pendingPayloadUser);
-      setUsuarios((prev) =>
-        prev.map((u) =>
-          u.id === editingUser.id
-            ? {
-                ...u,
-                nombre:
-                  `${pendingPayloadUser.nombre} ${pendingPayloadUser.apellidos}`.trim(),
-                correo: pendingPayloadUser.correo,
-              }
-            : u,
-        ),
-      );
+    try {
+      if (confirmKindUser === "create") {
+        await dispatchThunk(
+          registerUser({
+            nombre: pendingPayloadUser.nombre,
+            apellidos: pendingPayloadUser.apellidos,
+            correo: pendingPayloadUser.correo,
+            celular: pendingPayloadUser.celular,
+            id_tipo_personal_salud: pendingPayloadUser.id_tipo_personal_salud,
+            id_municipio: pendingPayloadUser.id_municipio,
+            // password NO se envía; backend lo genera
+            creado_por: pendingPayloadUser.creado_por!, // viene seteado en el form con userId
+            actualizado_por: pendingPayloadUser.creado_por!,
+          }),
+        );
+        await dispatchThunk(fetchUsers());
+      } else if (confirmKindUser === "update" && editingUser) {
+        // pendiente para después
+      }
+    } finally {
+      setConfirmOpenUser(false);
+      setShowFormUser(false);
+      setEditingUser(null);
+      setPendingPayloadUser(null);
+      setConfirmKindUser(null);
     }
-
-    setConfirmOpenUser(false);
-    setShowFormUser(false);
-    setEditingUser(null);
-    setPendingPayloadUser(null);
-    setConfirmKindUser(null);
   };
 
   const cancelConfirmUser = () => setConfirmOpenUser(false);
 
-  const handleEditUser = (row: UsuarioRow) => {
+  const handleEditUser = (row: IUserListItem) => {
     if (loading) return;
     setEditingUser(row);
     setPendingPayloadUser(null);
     setShowFormUser(true);
   };
 
-  const handleDeleteUser = (row: UsuarioRow) => {
+  const handleDeleteUser = (row: IUserListItem) => {
     if (loading) return;
     setPendingDeleteIdUser(String(row.id));
     setConfirmKindUser("delete");
@@ -550,12 +569,7 @@ const Administration: React.FC = () => {
   };
 
   const confirmDeleteUser = async () => {
-    if (pendingDeleteIdUser) {
-      console.log("Eliminar usuario:", pendingDeleteIdUser);
-      setUsuarios((prev) =>
-        prev.filter((x) => String(x.id) !== pendingDeleteIdUser),
-      );
-    }
+    // pendiente para después
     setConfirmOpenUser(false);
     setPendingDeleteIdUser(null);
     setConfirmKindUser(null);
@@ -563,19 +577,18 @@ const Administration: React.FC = () => {
 
   // Para edición, mapeamos el row parcial a defaultValue del form
   const buildUserDefaultFromRow = (
-    row: UsuarioRow | null,
+    row: IUserListItem | null,
   ): Partial<IUserForm & { id?: number }> | undefined => {
     if (!row) return undefined;
-    const [nombre = "", ...rest] = row.nombre.split(" ");
-    const apellidos = rest.join(" ");
     return {
       id: row.id,
-      nombre,
-      apellidos,
+      nombre: row.nombre,
+      apellidos: row.apellidos,
       correo: row.correo,
-      celular: "",
-      id_municipio: undefined as unknown as number,
-      id_tipo_personal_salud: undefined as unknown as number,
+      celular: row.celular,
+      id_municipio: row.id_municipio,
+      id_tipo_personal_salud: row.id_tipo_personal_salud,
+      // creado_por se setea dentro del FormUser con el userId actual
     };
   };
 
@@ -614,7 +627,6 @@ const Administration: React.FC = () => {
           aria-labelledby={`tab-${active}`}
           tabIndex={0}
         >
-          {/* Spinner global del panel */}
           {loading && <LoadingSpinner />}
 
           {/* ------------------------------- ROLES ------------------------------- */}
@@ -770,14 +782,14 @@ const Administration: React.FC = () => {
             </>
           )}
 
-          {/* ----------------------------- USUARIOS ----------------------------- */}
+          {/* ----------------------------- USUARIOS (LISTA) ----------------------------- */}
           {active === "usuarios" && (
             <>
               {!showFormUser ? (
-                <DataTable<UsuarioRow>
+                <DataTable<IUserListItem>
                   title={t("administration.tabs.usuarios")}
                   columns={usuarioCols}
-                  data={usuarios}
+                  data={usersFromStore}
                   onAdd={handleAddUser}
                   addLabel={t("administration.users.form.newTitle")}
                   onEdit={handleEditUser}

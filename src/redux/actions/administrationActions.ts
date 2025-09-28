@@ -11,7 +11,9 @@ import { IRoles } from "../../interfaces/user";
 import {
   IConfigAttentionTypes,
   IDataUserRol,
+  IMunicipio,
   IPersonalType,
+  IUserListItem,
 } from "../../interfaces/administration";
 
 /**
@@ -380,6 +382,60 @@ export const deleteUserRol = (id: string): ThunkResult<Promise<void>> => {
     }
   };
 };
+
+export const fetchMunicipios = (): ThunkResult<Promise<void>> => {
+  return async (dispatch) => {
+    dispatch(setLoading(true));
+    try {
+      const res = await AdministrationService.fetchMunicipios();
+      if (res.status === 200) {
+        dispatch({
+          type: constants.administrationSetMunicipios,
+          payload: res.data as IMunicipio[],
+        });
+      }
+    } catch (error) {
+      dispatch(setOpenToast(true));
+      dispatch(setVariantToast("error"));
+      dispatch(setMessageToast(t("alerts.genericError")));
+      console.log(error?.message || error);
+    } finally {
+      dispatch(setLoading(false));
+    }
+  };
+};
+
+export const clearMunicipios = () => ({
+  type: constants.administrationClearMunicipios,
+});
+
+// ===================== USUARIOS =====================
+
+export const fetchUsers = (): ThunkResult<Promise<void>> => {
+  return async (dispatch) => {
+    dispatch(setLoading(true));
+    try {
+      const res = await AdministrationService.fetchUsers();
+      if (res.status === 200) {
+        dispatch({
+          type: constants.administrationSetUsers,
+          payload: res.data as IUserListItem[],
+        });
+      }
+    } catch (error) {
+      dispatch(setOpenToast(true));
+      dispatch(setVariantToast("error"));
+      dispatch(setMessageToast(t("alerts.genericError")));
+      console.log(error?.message || error);
+    } finally {
+      dispatch(setLoading(false));
+    }
+  };
+};
+
+export const clearUsers = () => ({
+  type: constants.administrationClearUsers,
+});
 
 export const clearPersonalTypes = () => ({
   type: constants.administrationClearPersonalTypes,

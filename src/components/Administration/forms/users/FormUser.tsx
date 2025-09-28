@@ -30,27 +30,10 @@ import {
   updateUserRol,
   fetchRoles,
 } from "../../../../redux/actions/administrationActions";
-
-// Importa el diálogo de confirmación
 import ConfirmDialog from "../../../Common/confirmDialog/ConfirmDialog";
 
-// Constantes tipadas
-const MUNICIPIOS = [
-  { id: 1, nombre: "Balboa" },
-  { id: 2, nombre: "Argelia" },
-] as const;
+/* ---------------------------- Tipos del formulario ---------------------------- */
 
-const TIPOS_PERSONAL_SALUD = [
-  { id: 1, nombre: "Médico" },
-  { id: 2, nombre: "Odontólogo" },
-] as const;
-
-const ESTADOS_USUARIO = [
-  { id: 1, nombre: "Activo" },
-  { id: 2, nombre: "Inactivo" },
-] as const;
-
-// Tipos
 export interface IUserForm {
   nombre: string;
   apellidos: string;
@@ -58,7 +41,7 @@ export interface IUserForm {
   celular: string;
   id_tipo_personal_salud: number;
   id_municipio: number;
-  estado: 1 | 2;
+  // estado eliminado
   creado_por?: number;
   actualizado_por?: number;
 }
@@ -78,7 +61,8 @@ interface IDataUserRol {
 type FormField = keyof IUserForm;
 type TouchedFields = Record<FormField, boolean>;
 
-// Hook personalizado para validaciones
+/* ------------------------------ Validaciones -------------------------------- */
+
 const useFormValidation = (form: IUserForm) => {
   return useMemo(() => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -93,7 +77,9 @@ const useFormValidation = (form: IUserForm) => {
         form.id_tipo_personal_salud <= 0,
       id_municipio:
         !Number.isInteger(form.id_municipio) || form.id_municipio <= 0,
-      estado: ![1, 2].includes(form.estado),
+      // sin estado
+      creado_por: false,
+      actualizado_por: false,
     };
 
     return {
@@ -103,7 +89,8 @@ const useFormValidation = (form: IUserForm) => {
   }, [form]);
 };
 
-// Hook para manejo de roles
+/* ------------------------------- Hook Roles -------------------------------- */
+
 const useUserRoles = (isEditing: boolean, editingUserId?: number) => {
   const dispatchThunk = useAppDispatchThunk();
   const [userRol, setUserRol] = useState<IDataUserRol | null>(null);
@@ -144,15 +131,23 @@ const useUserRoles = (isEditing: boolean, editingUserId?: number) => {
   };
 };
 
+/* -------------------------------- Componente -------------------------------- */
+
 const FormUser: React.FC<Props> = ({ onSubmit, onCancel, defaultValue }) => {
   const { t } = useTranslation();
   const dispatchThunk = useAppDispatchThunk();
 
-  // Selectores de Redux
+  // Selectores Redux
   const { userData } = useSelector((state: AppState) => state.user);
   const loading = useSelector((state: AppState) => state.helpers.loading);
   const rolesFromStore =
     useSelector((state: AppState) => state.administration.roles) ?? [];
+
+  const municipios =
+    useSelector((state: AppState) => state.administration.municipios) ?? [];
+
+  const personalTypes =
+    useSelector((state: AppState) => state.administration.personalTypes) ?? [];
 
   // Estados derivados
   const userId = userData?.user?.id ?? 0;
@@ -167,7 +162,7 @@ const FormUser: React.FC<Props> = ({ onSubmit, onCancel, defaultValue }) => {
     celular: defaultValue?.celular ?? "",
     id_tipo_personal_salud: Number(defaultValue?.id_tipo_personal_salud) || 0,
     id_municipio: Number(defaultValue?.id_municipio) || 0,
-    estado: Number(defaultValue?.estado) as 1 | 2,
+    // setear creado_por/actualizado_por al enviar
   }));
 
   const [touched, setTouched] = useState<Partial<TouchedFields>>({});
@@ -225,7 +220,8 @@ const FormUser: React.FC<Props> = ({ onSubmit, onCancel, defaultValue }) => {
           celular: true,
           id_tipo_personal_salud: true,
           id_municipio: true,
-          estado: true,
+          creado_por: true,
+          actualizado_por: true,
         });
         return;
       }
@@ -234,18 +230,16 @@ const FormUser: React.FC<Props> = ({ onSubmit, onCancel, defaultValue }) => {
         ...form,
         id_tipo_personal_salud: Number(form.id_tipo_personal_salud),
         id_municipio: Number(form.id_municipio),
-        estado: Number(form.estado) as 1 | 2,
-        ...(isEditing
-          ? { actualizado_por: userId }
-          : { creado_por: userId, actualizado_por: userId }),
+        creado_por: userId,
+        actualizado_por: userId,
       };
 
       onSubmit(payload);
     },
-    [hasErrors, form, isEditing, userId, onSubmit],
+    [hasErrors, form, userId, onSubmit],
   );
 
-  // Handlers de roles con ConfirmDialog
+  // Handlers de roles con ConfirmDialog (solo en edición)
   const handleDeleteUserRole = useCallback(async () => {
     if (!userRol) {
       setOpenDeleteDialog(false);
@@ -288,7 +282,7 @@ const FormUser: React.FC<Props> = ({ onSubmit, onCancel, defaultValue }) => {
     (
       id: string,
       label: string,
-      field: FormField,
+      field: Extract<FormField, "nombre" | "apellidos" | "correo" | "celular">,
       placeholder?: string,
       type: "text" | "email" | "tel" = "text",
     ) => (
@@ -320,7 +314,7 @@ const FormUser: React.FC<Props> = ({ onSubmit, onCancel, defaultValue }) => {
     (
       id: string,
       label: string,
-      field: FormField,
+      field: Extract<FormField, "id_tipo_personal_salud" | "id_municipio">,
       options: readonly { id: number; nombre: string }[],
     ) => (
       <Field key={field}>
@@ -350,7 +344,7 @@ const FormUser: React.FC<Props> = ({ onSubmit, onCancel, defaultValue }) => {
     [form, setField, markFieldAsTouched, showError, t],
   );
 
-  // Render del rol actual
+  // Render del rol actual (solo modo edición)
   const currentRoleName = useMemo(() => {
     if (!userRol) return t("administration.users.roles.none");
     return rolesFromStore.find((r) => r.id === userRol.id_rol)?.nombre ?? "—";
@@ -399,21 +393,14 @@ const FormUser: React.FC<Props> = ({ onSubmit, onCancel, defaultValue }) => {
           "user-tipo-personal",
           t("administration.users.form.healthStaffType"),
           "id_tipo_personal_salud",
-          TIPOS_PERSONAL_SALUD,
+          personalTypes,
         )}
 
         {renderSelectField(
           "user-municipio",
           t("administration.users.form.municipality"),
           "id_municipio",
-          MUNICIPIOS,
-        )}
-
-        {renderSelectField(
-          "user-estado",
-          t("administration.users.form.status"),
-          "estado",
-          ESTADOS_USUARIO,
+          municipios,
         )}
       </GridThree>
 
@@ -426,6 +413,7 @@ const FormUser: React.FC<Props> = ({ onSubmit, onCancel, defaultValue }) => {
         </Primary>
       </Actions>
 
+      {/* BLOQUE DE ROLES SOLO EN EDICIÓN */}
       {isEditing && (
         <>
           <SeparatorWithTitle>ROLES</SeparatorWithTitle>
