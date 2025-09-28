@@ -140,6 +140,14 @@
         "selectRole": "Seleccione un rol",
         "none": "Sin rol asignado",
         "confirmDelete": "¿Eliminar rol actual?"
+      },
+      "confirm": {
+        "createTitle": "Crear usuario",
+        "updateTitle": "Actualizar usuario",
+        "deleteTitle": "Eliminar usuarip",
+        "createQuestion": "¿Deseas crear el usuario {{name}}?",
+        "updateQuestion": "¿Deseas actualizar el usuario {{name}}?",
+        "deleteQuestion": "¿Deseas eliminar este usuario?"
       }
     },
     "attentionTypes": {

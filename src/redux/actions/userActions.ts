@@ -1,4 +1,4 @@
-import { ISignInValues } from "../../interfaces/signIn";
+import { ISignInValues, IUserRegister } from "../../interfaces/signIn";
 import { IUserInfo } from "../../interfaces/user";
 import AuthService from "../../services/auth/auth";
 import { constants, ThunkResult } from "../../types/types";
@@ -48,4 +48,28 @@ export const logoutUser = (): ThunkResult<void> => async (dispatch) => {
     // Si falla algo, limpia el slice
     dispatch({ type: constants.logoutUser });
   }
+};
+
+// Register
+export const registerUser = (
+  data: IUserRegister,
+): ThunkResult<Promise<void>> => {
+  return async (dispatch) => {
+    dispatch(setLoading(true));
+    try {
+      const response = await AuthService.register(data);
+      if (response.status === 200) {
+        dispatch(setOpenToast(true));
+        dispatch(setVariantToast("success"));
+        dispatch(setMessageToast(t("alerts.createSuccess")));
+      }
+    } catch (error) {
+      dispatch(setOpenToast(true));
+      dispatch(setVariantToast("error"));
+      dispatch(setMessageToast(t("alerts.genericError")));
+      console.log(error?.message || error);
+    } finally {
+      dispatch(setLoading(false));
+    }
+  };
 };
