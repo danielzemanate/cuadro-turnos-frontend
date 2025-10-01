@@ -104,3 +104,47 @@ export const ErrorMessage = styled.div`
   font-size: 0.875rem;
   margin-top: 0.5rem;
 `;
+
+export const ModalField = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+`;
+
+export const ModalLabel = styled.label`
+  font-size: 0.85rem;
+  color: #374151;
+`;
+
+export const ModalInput = styled.input`
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  &:focus {
+    outline: none;
+    border-color: #011e62;
+    box-shadow: 0 0 0 3px rgba(1, 30, 98, 0.15);
+  }
+`;
+
+export const ModalErrorMessage = styled.div`
+  color: #dc2626;
+  font-size: 0.85rem;
+`;
+
+export const ResetLink = styled.button`
+  background: transparent;
+  border: 0;
+  color: #1f2937;
+  margin-top: 0.75rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  /* quitar subrayado */
+  text-decoration: none;
+  &:hover {
+    color: #111827;
+    /* sin subrayado en hover también */
+    text-decoration: none;
+  }
+`;

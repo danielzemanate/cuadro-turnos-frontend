@@ -1,3 +1,4 @@
+// src/router/WebSiteAppRouter.tsx
 import MainLayout from "../layouts/MainLayout";
 import { Navigate, Route, Routes } from "react-router-dom";
 import Login from "../components/Login/Login";
@@ -8,6 +9,7 @@ import HomePage from "../pages/HomePage/HomePage";
 import { useSelector } from "react-redux";
 import { AppState } from "../redux/reducers/rootReducer";
 import RequireModuleAccess from "./RequireModuleAccess";
+import Profile from "../components/Profile/Profile";
 
 const getModuleRoutes = (modules: Module[]) =>
   modules.map((module, key) => {
@@ -19,6 +21,7 @@ const getModuleRoutes = (modules: Module[]) =>
         key={key}
         path={path}
         element={
+          // Guard de módulos SOLO para módulos
           <RequireModuleAccess>
             <Component />
           </RequireModuleAccess>
@@ -42,15 +45,20 @@ const WebSiteAppRouter = () => {
           path="/dashboard/*"
           element={
             <ProtectedRoute isAllowed={isAuth}>
-              {/* Aplica guard de módulo a TODO lo que cuelga de /dashboard */}
-              <RequireModuleAccess>
-                <HomePage />
-              </RequireModuleAccess>
+              {/* OJO: SIN RequireModuleAccess aquí */}
+              <HomePage />
             </ProtectedRoute>
           }
         >
+          {/* Home del dashboard */}
           <Route index element={<HomePage />} />
+
+          {/* Perfil: sin guard de módulos */}
+          <Route path="profile" element={<Profile />} />
+
+          {/* Módulos con guard de módulos */}
           {getModuleRoutes(MODULES)}
+
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Route>
 
