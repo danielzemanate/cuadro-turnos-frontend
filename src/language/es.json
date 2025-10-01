@@ -9,7 +9,19 @@
     "configuration": "Configuración",
     "logout": "Salir",
     "switchToLight": "Cambiar a claro",
-    "switchToDark": "Cambiar a oscuro"
+    "switchToDark": "Cambiar a oscuro",
+    "profile": "Perfil"
+  },
+  "profile": {
+    "title": "Perfil",
+    "subtitle": "Información de tu cuenta",
+    "fullName": "Nombre completo",
+    "email": "Correo",
+    "phone": "Celular",
+    "role": "Rol",
+    "active": "Activo",
+    "healthStaff": "Personal de salud",
+    "resetPassword": "Restablecer contraseña"
   },
   "scheduleViewer": {
     "title": "Visualizar Turnos",
@@ -50,7 +62,8 @@
     "downloadError": "Error al descargar los datos",
     "updateSuccess": "Actualización Correcta",
     "createSuccess": "Creación Correcta",
-    "deleteSuccess": "Eliminación Correcta"
+    "deleteSuccess": "Eliminación Correcta",
+    "requestSuccess": "Solicitud éxitosa"
   },
   "common": {
     "select": "Seleccionar",
@@ -66,7 +79,9 @@
     "actions": "Acciones",
     "new": "Nuevo",
     "search": "Buscar...",
-    "empty": "Sin datos"
+    "empty": "Sin datos",
+    "yes": "Si",
+    "no": "No"
   },
   "usersConfig": {
     "selectCoordinator": {
@@ -211,6 +226,37 @@
       "delete": "Eliminar",
       "add": "Agregar",
       "empty": "Sin datos para mostrar"
+    }
+  },
+  "reset": {
+    "title": "Cambiar contraseña",
+    "current": "Contraseña actual",
+    "new": "Nueva contraseña",
+    "confirm": "Repetir nueva contraseña",
+    "save": "Aceptar",
+    "required": "Todos los campos son obligatorios.",
+    "minLength": "La nueva contraseña debe tener mínimo 8 caracteres.",
+    "mismatch": "Las contraseñas no coinciden.",
+    "genericError": "No se pudo actualizar la contraseña.",
+    "confirmationText": "¿Confirmas que deseas cambiar la contraseña con los datos ingresados?",
+    "needUpper": "Debe incluir al menos una letra mayúscula.",
+    "needNumber": "Debe incluir al menos un número.",
+    "help": "Recomendación: no reutilices contraseñas y evita datos obvios."
+  },
+  "login": {
+    "email": "Correo",
+    "password": "Contraseña",
+    "submit": "Ingresar",
+    "invalidEmail": "Ingresa un correo válido.",
+    "forgotPassword": "Restablecer contraseña",
+    "togglePassword": "Mostrar/ocultar contraseña",
+    "reset": {
+      "title": "Restablecer contraseña",
+      "description": "Ingresa tu correo para enviarte información para restablecer tu contraseña",
+      "label": "Correo",
+      "confirm": "Enviar",
+      "cancel": "Cancelar",
+      "success": "Si existe una cuenta asociada, te enviaremos instrucciones a tu correo."
     }
   }
 }

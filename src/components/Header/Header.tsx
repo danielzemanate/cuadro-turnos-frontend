@@ -1,7 +1,7 @@
 import { FC, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSelector } from "react-redux";
-import { User, Settings, ChevronDown, LogOut } from "lucide-react";
+import { User, Settings, ChevronDown, LogOut, BadgeInfo } from "lucide-react";
 import loginLogo from "../../assets/images/loginLogo.png";
 import {
   Header,
@@ -44,6 +44,11 @@ const HeaderComponent: FC = () => {
 
   const toggleDropdown = () => setIsDropdownOpen((v) => !v);
 
+  const handleGoProfile = () => {
+    setIsDropdownOpen(false);
+    navigate("/dashboard/profile");
+  };
+
   return (
     <Header>
       <LogoSection
@@ -80,8 +85,14 @@ const HeaderComponent: FC = () => {
               }}
             />
           </ConfigButton>
+
           {isDropdownOpen && (
             <DropdownMenu>
+              <DropdownItem onClick={handleGoProfile}>
+                <BadgeInfo size={16} color="#011e62" />
+                {t("header.profile")}
+              </DropdownItem>
+
               <DropdownItem onClick={handleLogout}>
                 <LogOut size={16} color="#011e62" />
                 {t("header.logout")}
