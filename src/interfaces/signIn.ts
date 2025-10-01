@@ -14,3 +14,13 @@ export interface IUserRegister {
   creado_por: number;
   actualizado_por?: number;
 }
+
+export interface IDataChangePassword {
+  id_usuario: number;
+  old_password: string;
+  new_password: string;
+}
+
+export interface IDataResetPassword {
+  correo: string;
+}

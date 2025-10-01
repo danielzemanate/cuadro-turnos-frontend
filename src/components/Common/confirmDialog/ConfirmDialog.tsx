@@ -1,4 +1,3 @@
-// components/Common/confirmDialog/ConfirmDialog.tsx
 import React from "react";
 import LoadingSpinner from "../../Shared/LoadingSpinner/LoadingSpinner";
 import {
