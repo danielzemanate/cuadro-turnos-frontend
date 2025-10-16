@@ -41,7 +41,7 @@ export interface IUserForm {
   celular: string;
   id_tipo_personal_salud: number;
   id_municipio: number;
-  // estado eliminado
+  activo: boolean;
   creado_por?: number;
   actualizado_por?: number;
 }
@@ -134,6 +134,7 @@ const useUserRoles = (isEditing: boolean, editingUserId?: number) => {
 /* -------------------------------- Componente -------------------------------- */
 
 const FormUser: React.FC<Props> = ({ onSubmit, onCancel, defaultValue }) => {
+  console.log(defaultValue);
   const { t } = useTranslation();
   const dispatchThunk = useAppDispatchThunk();
 
@@ -162,7 +163,7 @@ const FormUser: React.FC<Props> = ({ onSubmit, onCancel, defaultValue }) => {
     celular: defaultValue?.celular ?? "",
     id_tipo_personal_salud: Number(defaultValue?.id_tipo_personal_salud) || 0,
     id_municipio: Number(defaultValue?.id_municipio) || 0,
-    // setear creado_por/actualizado_por al enviar
+    activo: defaultValue?.activo || false,
   }));
 
   const [touched, setTouched] = useState<Partial<TouchedFields>>({});
@@ -402,6 +403,19 @@ const FormUser: React.FC<Props> = ({ onSubmit, onCancel, defaultValue }) => {
           "id_municipio",
           municipios,
         )}
+        <Field>
+          <Label htmlFor="user-activo">
+            {t("administration.users.form.active")}
+          </Label>
+          <Select
+            id="user-activo"
+            value={String(form.activo)}
+            onChange={(e) => setField("activo")(e.target.value === "true")}
+          >
+            <option value="true">Sí</option>
+            <option value="false">No</option>
+          </Select>
+        </Field>
       </GridThree>
 
       <Actions>

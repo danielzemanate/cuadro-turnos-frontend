@@ -3,6 +3,7 @@ import {
   IDataUserRol,
   IPersonalType,
 } from "../../interfaces/administration";
+import { IUserRegister } from "../../interfaces/signIn";
 import { IRoles } from "../../interfaces/user";
 import api from "../../lib/api";
 
@@ -110,6 +111,17 @@ const AdministrationService = {
   fetchUsers: async () => {
     return await api.get(
       `${import.meta.env.VITE_APP_BACK_ESE}api/config/usuarios`,
+    );
+  },
+  deleteUsers: async (id: string) => {
+    return await api.delete(
+      `${import.meta.env.VITE_APP_BACK_ESE}auth/usuarios/${id}`,
+    );
+  },
+  updateUser: async (data: Partial<IUserRegister>, id: string) => {
+    return await api.put(
+      `${import.meta.env.VITE_APP_BACK_ESE}auth/usuarios/${id}`,
+      data,
     );
   },
 };

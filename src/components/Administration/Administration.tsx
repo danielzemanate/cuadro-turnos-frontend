@@ -32,6 +32,8 @@ import {
   fetchUsers,
   //MUNICIPIOS
   fetchMunicipios,
+  deleteUser,
+  updateUser,
 } from "../../redux/actions/administrationActions";
 
 import { IRoles } from "../../interfaces/user";
@@ -491,6 +493,12 @@ const Administration: React.FC = () => {
       width: "180px",
       render: (row) => row.rol_nombre ?? "—",
     },
+    {
+      key: "activo",
+      header: t("administration.users.form.activo", "Activo"),
+      width: "180px",
+      render: (row) => (row.activo ? "Si" : "No"),
+    },
   ];
 
   // Handlers “conservados” para el DataTable de usuarios
@@ -504,7 +512,9 @@ const Administration: React.FC = () => {
   const [confirmOpenUser, setConfirmOpenUser] = React.useState(false);
   const [pendingPayloadUser, setPendingPayloadUser] =
     React.useState<IUserForm | null>(null);
-  const [, setPendingDeleteIdUser] = React.useState<string | null>(null);
+  const [pendingDeleteIdUser, setPendingDeleteIdUser] = React.useState<
+    string | null
+  >(null);
 
   const handleAddUser = () => {
     if (loading) return;
@@ -520,7 +530,7 @@ const Administration: React.FC = () => {
     setConfirmOpenUser(true);
   };
 
-  // >>> AHORA CREA USUARIO (solo create); update/delete después
+  // >>> UPDATE O CREATE USER
   const confirmCreateOrUpdateUser = async () => {
     if (!pendingPayloadUser) return;
 
@@ -539,11 +549,13 @@ const Administration: React.FC = () => {
             actualizado_por: pendingPayloadUser.creado_por!,
           }),
         );
-        await dispatchThunk(fetchUsers());
       } else if (confirmKindUser === "update" && editingUser) {
-        // pendiente para después
+        await dispatchThunk(
+          updateUser(pendingPayloadUser, String(editingUser.id)),
+        );
       }
     } finally {
+      await dispatchThunk(fetchUsers());
       setConfirmOpenUser(false);
       setShowFormUser(false);
       setEditingUser(null);
@@ -569,7 +581,10 @@ const Administration: React.FC = () => {
   };
 
   const confirmDeleteUser = async () => {
-    // pendiente para después
+    if (pendingDeleteIdUser) {
+      await dispatchThunk(deleteUser(pendingDeleteIdUser));
+      await dispatchThunk(fetchUsers());
+    }
     setConfirmOpenUser(false);
     setPendingDeleteIdUser(null);
     setConfirmKindUser(null);
@@ -588,6 +603,7 @@ const Administration: React.FC = () => {
       celular: row.celular,
       id_municipio: row.id_municipio,
       id_tipo_personal_salud: row.id_tipo_personal_salud,
+      activo: row.activo,
       // creado_por se setea dentro del FormUser con el userId actual
     };
   };

@@ -54,12 +54,14 @@
     ],
     "totalPatientsTreated": "Total pacientes atendidos",
     "siauTypes": "Tipos de SIAU",
-    "siauSectionTitle": "SIAU – Tipos"
+    "siauSectionTitle": "SIAU – Tipos",
+    "healthPersonnelType": "Tipo personal de salud"
   },
   "alerts": {
     "credentialsError": "Credenciales no validas",
     "genericError": "Error al cargar los datos",
     "downloadError": "Error al descargar los datos",
+    "downloadSuccess": "Descarga éxitosa",
     "updateSuccess": "Actualización Correcta",
     "createSuccess": "Creación Correcta",
     "deleteSuccess": "Eliminación Correcta",
@@ -81,7 +83,12 @@
     "search": "Buscar...",
     "empty": "Sin datos",
     "yes": "Si",
-    "no": "No"
+    "no": "No",
+    "year": "Año",
+    "month": "Mes",
+    "municipality": "Municipio",
+    "download": "Descargar",
+    "period": "Periodo"
   },
   "usersConfig": {
     "selectCoordinator": {
@@ -145,6 +152,7 @@
         "placeholderEmail": "usuario@ejemplo.com",
         "placeholderPhone": "Ej. 3001234567",
         "status": "Estado del usuario",
+        "active": "Activo",
         "errors": {
           "required": "Este campo es obligatorio",
           "email": "Correo electrónico inválido"
@@ -258,5 +266,11 @@
       "cancel": "Cancelar",
       "success": "Si existe una cuenta asociada, te enviaremos instrucciones a tu correo."
     }
+  },
+  "reports": {
+    "title": "Reportes",
+    "subtitle": "Selecciona el tipo y subtipo de reporte. Luego define los filtros para descargar.",
+    "type": "Tipo de reporte",
+    "subtype": "Subtipo de reporte"
   }
 }

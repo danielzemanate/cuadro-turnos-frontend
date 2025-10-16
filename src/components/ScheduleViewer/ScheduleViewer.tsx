@@ -121,6 +121,7 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
 
   const isSiauRole =
     roleIdNum === RolesDatabase.COORDINADOR_SIAU ||
+    roleIdNum === RolesDatabase.ADMINISTRADOR ||
     roleIdNum === RolesDatabase.SIAU;
 
   const canManagePatients = useMemo(() => {

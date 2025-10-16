@@ -18,6 +18,11 @@ import {
   administrationReducer,
   AdministrationState,
 } from "./administrationReducer";
+import {
+  IReportsActions,
+  IReportsState,
+  reportsReducer,
+} from "./reportsReducer";
 
 export interface AppState {
   helpers?: IHelpersState;
@@ -25,6 +30,7 @@ export interface AppState {
   schedule?: IScheduleState;
   usersConfig?: UsersConfigState;
   administration?: AdministrationState;
+  reports?: IReportsState;
 }
 
 const rootReducer: Reducer<
@@ -34,12 +40,14 @@ const rootReducer: Reducer<
   | IScheduleActions
   | UsersConfigActions
   | AdministrationActions
+  | IReportsActions
 > = combineReducers({
   helpers: helpersReducer,
   user: userReducer,
   schedule: scheduleReducer,
   usersConfig: usersConfigReducer,
   administration: administrationReducer,
+  reports: reportsReducer,
 });
 
 export default rootReducer;
