@@ -13,6 +13,7 @@ export interface IUserRegister {
   password?: string;
   creado_por: number;
   actualizado_por?: number;
+  activo?: boolean;
 }
 
 export interface IDataChangePassword {

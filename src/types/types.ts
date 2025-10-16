@@ -18,6 +18,8 @@ export const constants = {
   setOpenToast: "[HELPERS] set open toast",
   setMessageToast: "[HELPERS] set message toast",
   setVariantToast: "[HELPERS] set variant toast",
+
+  // ---- SCHEDULE ----
   scheduleSetOptions: "[schedule] set options",
   scheduleClearOptions: "[schedule] clear options",
   scheduleSetEditableOptions: "[schedule] set editable options",
@@ -28,10 +30,14 @@ export const constants = {
   scheduleClearAttentionTypes: "[schedule] clear attention types",
   scheduleSetSiauTypes: "[schedule] set siau types",
   scheduleClearSiauTypes: "[schedule] clear siau types",
+
+  // ---- USERS CONFIG ----
   usersConfigSetSpecialPermitApprovers:
     "[usersConfig] set special permit approvers",
   usersConfigClearSpecialPermitApprovers:
     "[usersConfig] clear special permit approvers",
+
+  // ---- ADMINISTRATION ----
   administrationSetRoles: "[administration] set roles",
   administrationClearRoles: "[administration] clear roles",
   administrationSetAttentionTypes: "[administration] set attention types",
@@ -42,6 +48,12 @@ export const constants = {
   administrationClearMunicipios: "[administration] clear Municipios",
   administrationSetUsers: "[administration] set users",
   administrationClearUsers: "[administration] clear users",
+
+  // ---- REPORTS ----
+  reportsSetTypes: "[reports] set types",
+  reportsClearTypes: "[reports] clear types",
+  reportsSetSubTypes: "[reports] set subtypes",
+  reportsClearSubTypes: "[reports] clear subtypes",
 } as const;
 
 export type Types = (typeof constants)[keyof typeof constants];

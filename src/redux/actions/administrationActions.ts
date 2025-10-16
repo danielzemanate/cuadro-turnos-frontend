@@ -15,6 +15,7 @@ import {
   IPersonalType,
   IUserListItem,
 } from "../../interfaces/administration";
+import { IUserRegister } from "../../interfaces/signIn";
 
 /**
  * ROLES
@@ -421,6 +422,59 @@ export const fetchUsers = (): ThunkResult<Promise<void>> => {
           type: constants.administrationSetUsers,
           payload: res.data as IUserListItem[],
         });
+      }
+    } catch (error) {
+      dispatch(setOpenToast(true));
+      dispatch(setVariantToast("error"));
+      dispatch(setMessageToast(t("alerts.genericError")));
+      console.log(error?.message || error);
+    } finally {
+      dispatch(setLoading(false));
+    }
+  };
+};
+
+/**
+ * Actualiza un usuario
+ */
+export const updateUser = (
+  data: Partial<IUserRegister>,
+  id: string,
+): ThunkResult<Promise<void>> => {
+  return async (dispatch) => {
+    dispatch(setLoading(true));
+    try {
+      const res = await AdministrationService.updateUser(data, id);
+      if (res.status === 200) {
+        dispatch(setOpenToast(true));
+        dispatch(setVariantToast("success"));
+        dispatch(setMessageToast(t("alerts.updateSuccess")));
+      } else {
+        throw new Error(`Unexpected status: ${res.status}`);
+      }
+    } catch (error) {
+      dispatch(setOpenToast(true));
+      dispatch(setVariantToast("error"));
+      dispatch(setMessageToast(t("alerts.genericError")));
+      console.log(error?.message || error);
+    } finally {
+      dispatch(setLoading(false));
+    }
+  };
+};
+
+/**
+ * Elimina un usuario.
+ */
+export const deleteUser = (id: string): ThunkResult<Promise<void>> => {
+  return async (dispatch) => {
+    dispatch(setLoading(true));
+    try {
+      const res = await AdministrationService.deleteUsers(id);
+      if (res.status === 200) {
+        dispatch(setOpenToast(true));
+        dispatch(setVariantToast("success"));
+        dispatch(setMessageToast(t("alerts.deleteSuccess")));
       }
     } catch (error) {
       dispatch(setOpenToast(true));
