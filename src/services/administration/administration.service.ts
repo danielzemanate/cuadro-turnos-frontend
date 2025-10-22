@@ -1,6 +1,7 @@
 import {
   IConfigAttentionTypes,
   IDataUserRol,
+  IFetchUsersFilters,
   IPersonalType,
 } from "../../interfaces/administration";
 import { IUserRegister } from "../../interfaces/signIn";
@@ -108,11 +109,23 @@ const AdministrationService = {
   },
 
   // =============== USUARIOS ===============
-  fetchUsers: async () => {
+  fetchUsers: async (data: IFetchUsersFilters) => {
+    // Filtra los campos que sean null o undefined
+    const filteredParams = Object.fromEntries(
+      Object.entries({
+        municipio: data.municipio,
+        tipo_personal: data.tipo_personal,
+        activos: data.activos,
+      }).filter(([, value]) => value !== null && value !== undefined),
+    );
+
+    const params = new URLSearchParams(filteredParams);
+
     return await api.get(
-      `${import.meta.env.VITE_APP_BACK_ESE}api/config/usuarios`,
+      `${import.meta.env.VITE_APP_BACK_ESE}api/config/usuarios-detalle?${params}`,
     );
   },
+
   deleteUsers: async (id: string) => {
     return await api.delete(
       `${import.meta.env.VITE_APP_BACK_ESE}auth/usuarios/${id}`,

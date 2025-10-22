@@ -5,6 +5,13 @@ import {
   TabList,
   TabButton,
   TabPanel,
+  FiltersRow,
+  FilterGroup,
+  FilterLabel,
+  FilterSelect,
+  FilterActions,
+  FilterButton,
+  SecondaryButton,
 } from "./AdministrationStyles";
 import { LockKeyhole, Users, ClipboardList, Stethoscope } from "lucide-react";
 
@@ -30,18 +37,18 @@ import {
   deletePersonalType,
   // USUARIOS
   fetchUsers,
-  //MUNICIPIOS
+  // MUNICIPIOS
   fetchMunicipios,
   deleteUser,
   updateUser,
 } from "../../redux/actions/administrationActions";
-
 import { IRoles } from "../../interfaces/user";
 import {
   IConfigAttentionTypes,
   IPersonalType,
   IUserListItem,
   IMunicipio,
+  IFetchUsersFilters,
 } from "../../interfaces/administration";
 
 import { Column, DataTable } from "../Common/table/DataTable";
@@ -160,21 +167,24 @@ const Administration: React.FC = () => {
     }
   }, [active, personalTypesFromStore.length, dispatchThunk]);
 
-  // USUARIOS (lista) + MUNICIPIOS + TIPOS DE PERSONAL (para mapear nombres)
+  /* -------------------- USUARIOS: primera carga controlada ------------------- */
+
+  // Evitar doble consulta: una vez se cargan usuarios inicialmente, no recargar sin filtros
+  const [initialUsersLoaded, setInitialUsersLoaded] = React.useState(false);
+
   React.useEffect(() => {
-    if (active === "usuarios") {
-      if (usersFromStore.length === 0) dispatchThunk(fetchUsers());
+    if (active !== "usuarios") return;
+
+    // Cargar solo una vez la lista completa y catálogos necesarios
+    if (!initialUsersLoaded) {
+      dispatchThunk(fetchUsers({})); // primera carga sin filtros
       if (municipiosFromStore.length === 0) dispatchThunk(fetchMunicipios());
       if (personalTypesFromStore.length === 0)
         dispatchThunk(fetchConfigPersonalTypes());
+      setInitialUsersLoaded(true);
     }
-  }, [
-    active,
-    usersFromStore.length,
-    municipiosFromStore.length,
-    personalTypesFromStore.length,
-    dispatchThunk,
-  ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, initialUsersLoaded, dispatchThunk]);
 
   /* ---------------------------------- ROLES ---------------------------------- */
 
@@ -555,7 +565,8 @@ const Administration: React.FC = () => {
         );
       }
     } finally {
-      await dispatchThunk(fetchUsers());
+      // Tras crear/editar, recarga lista completa (si quieres preservar filtros, pásalos aquí)
+      await dispatchThunk(fetchUsers({}));
       setConfirmOpenUser(false);
       setShowFormUser(false);
       setEditingUser(null);
@@ -583,7 +594,7 @@ const Administration: React.FC = () => {
   const confirmDeleteUser = async () => {
     if (pendingDeleteIdUser) {
       await dispatchThunk(deleteUser(pendingDeleteIdUser));
-      await dispatchThunk(fetchUsers());
+      await dispatchThunk(fetchUsers({})); // recarga lista completa tras borrar
     }
     setConfirmOpenUser(false);
     setPendingDeleteIdUser(null);
@@ -606,6 +617,45 @@ const Administration: React.FC = () => {
       activo: row.activo,
       // creado_por se setea dentro del FormUser con el userId actual
     };
+  };
+
+  /* ------------------------------ Filtros (UI) ------------------------------ */
+
+  const [fMunicipio, setFMunicipio] = React.useState<string>("");
+  const [fTipoPersonal, setFTipoPersonal] = React.useState<string>("");
+  const [fActivo, setFActivo] = React.useState<"" | "Si" | "No">("");
+
+  // Opciones para selects (value = nombre)
+  const municipioNames = React.useMemo(() => {
+    const set = new Set(
+      municipiosFromStore.map((m) => m.nombre).filter(Boolean),
+    );
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [municipiosFromStore]);
+
+  const personalTypeNames = React.useMemo(() => {
+    const set = new Set(
+      personalTypesFromStore.map((p) => p.nombre).filter(Boolean),
+    );
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [personalTypesFromStore]);
+
+  // Aplica filtros al hacer clic en "Filtrar"
+  const onFilterUsers = () => {
+    const params: IFetchUsersFilters = {};
+    if (fMunicipio) params.municipio = fMunicipio; // nombre
+    if (fTipoPersonal) params.tipo_personal = fTipoPersonal; // nombre
+    if (fActivo) params.activos = fActivo === "Si" ? "true" : "false"; // string
+
+    dispatchThunk(fetchUsers(params));
+  };
+
+  // Limpia filtros
+  const onClearFilters = () => {
+    setFMunicipio("");
+    setFTipoPersonal("");
+    setFActivo("");
+    dispatchThunk(fetchUsers({})); // trae todos sin filtros
   };
 
   /* ----------------------------------- UI ---------------------------------- */
@@ -802,15 +852,87 @@ const Administration: React.FC = () => {
           {active === "usuarios" && (
             <>
               {!showFormUser ? (
-                <DataTable<IUserListItem>
-                  title={t("administration.tabs.usuarios")}
-                  columns={usuarioCols}
-                  data={usersFromStore}
-                  onAdd={handleAddUser}
-                  addLabel={t("administration.users.form.newTitle")}
-                  onEdit={handleEditUser}
-                  onDelete={handleDeleteUser}
-                />
+                <>
+                  <FiltersRow>
+                    <FilterGroup>
+                      <FilterLabel>{t("common.municipality")}</FilterLabel>
+                      <FilterSelect
+                        value={fMunicipio}
+                        onChange={(e) => setFMunicipio(e.target.value)}
+                        disabled={loading}
+                      >
+                        <option value="">{t("common.all")}</option>
+                        {municipioNames.map((name) => (
+                          <option key={name} value={name}>
+                            {name}
+                          </option>
+                        ))}
+                      </FilterSelect>
+                    </FilterGroup>
+
+                    <FilterGroup>
+                      <FilterLabel>
+                        {t("scheduleViewer.healthPersonnelType")}
+                      </FilterLabel>
+                      <FilterSelect
+                        value={fTipoPersonal}
+                        onChange={(e) => setFTipoPersonal(e.target.value)}
+                        disabled={loading}
+                      >
+                        <option value="">{t("common.all")}</option>
+                        {personalTypeNames.map((name) => (
+                          <option key={name} value={name}>
+                            {name}
+                          </option>
+                        ))}
+                      </FilterSelect>
+                    </FilterGroup>
+
+                    <FilterGroup>
+                      <FilterLabel>
+                        {t("administration.users.form.active")}
+                      </FilterLabel>
+                      <FilterSelect
+                        value={fActivo}
+                        onChange={(e) =>
+                          setFActivo(e.target.value as "Si" | "No" | "")
+                        }
+                        disabled={loading}
+                      >
+                        <option value="">{t("common.all")}</option>
+                        <option value="Si">{t("common.yes")}</option>
+                        <option value="No">{t("common.no")}</option>
+                      </FilterSelect>
+                    </FilterGroup>
+
+                    <FilterActions>
+                      <FilterButton
+                        type="button"
+                        onClick={onFilterUsers}
+                        disabled={loading}
+                      >
+                        {t("common.filter")}
+                      </FilterButton>
+                      <SecondaryButton
+                        type="button"
+                        onClick={onClearFilters}
+                        disabled={loading}
+                      >
+                        {t("common.clear")}
+                      </SecondaryButton>
+                    </FilterActions>
+                  </FiltersRow>
+
+                  <DataTable<IUserListItem>
+                    title={t("administration.tabs.usuarios")}
+                    columns={usuarioCols}
+                    data={usersFromStore}
+                    onAdd={handleAddUser}
+                    addLabel={t("administration.users.form.newTitle")}
+                    onEdit={handleEditUser}
+                    onDelete={handleDeleteUser}
+                  />
+                </>
               ) : (
                 <FormUser
                   defaultValue={buildUserDefaultFromRow(editingUser)}

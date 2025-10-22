@@ -33,3 +33,9 @@ export interface IUserListItem {
   id_rol: number | null;
   rol_nombre: string | null;
 }
+
+export interface IFetchUsersFilters {
+  municipio?: string;
+  tipo_personal?: string;
+  activos?: string;
+}
