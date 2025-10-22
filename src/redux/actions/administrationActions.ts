@@ -11,6 +11,7 @@ import { IRoles } from "../../interfaces/user";
 import {
   IConfigAttentionTypes,
   IDataUserRol,
+  IFetchUsersFilters,
   IMunicipio,
   IPersonalType,
   IUserListItem,
@@ -412,11 +413,13 @@ export const clearMunicipios = () => ({
 
 // ===================== USUARIOS =====================
 
-export const fetchUsers = (): ThunkResult<Promise<void>> => {
+export const fetchUsers = (
+  params: IFetchUsersFilters,
+): ThunkResult<Promise<void>> => {
   return async (dispatch) => {
     dispatch(setLoading(true));
     try {
-      const res = await AdministrationService.fetchUsers();
+      const res = await AdministrationService.fetchUsers(params);
       if (res.status === 200) {
         dispatch({
           type: constants.administrationSetUsers,
