@@ -161,6 +161,52 @@
           "email": "Correo electrónico inválido"
         }
       },
+      "contracts": {
+        "title": "Contratos del Usuario",
+        "user": "Usuario",
+        "selectContract": "Seleccionar Contrato",
+        "contractNumber": "Contrato #{{number}}",
+        "contractData": "DATOS DEL CONTRATO",
+        "contractType": "Tipo de Contrato",
+        "noContracts": "Este usuario no tiene contratos registrados.",
+        "newContractData": "Datos para el nuevo contrato",
+        "types": {
+          "serviceProvision": "Prestación de servicios",
+          "indefiniteTerm": "Término indefinido"
+        },
+
+        "fields": {
+          "contractType": "Tipo de Contrato",
+          "contractNumber": "Número de Contrato",
+          "monthlySalary": "Salario Mensual",
+          "startDate": "Fecha de Inicio",
+          "endDate": "Fecha de Fin"
+        },
+
+        "placeholders": {
+          "contractNumber": "Ej. 1234",
+          "monthlySalary": "Ej. 3000000"
+        },
+        "errors": {
+          "required": "Campo requerido",
+          "invalidNumber": "Ingrese un número válido",
+          "invalidSalary": "Ingrese un valor válido mayor a 0"
+        },
+        "expiredWarningTitle": "Contrato vencido",
+        "expiredWarningMessage": "Este contrato ha finalizado y no puede ser modificado ni eliminado.",
+        "deleteDialog": {
+          "title": "Eliminar contrato",
+          "description": "Se eliminará el contrato seleccionado. Esta acción no se puede deshacer."
+        },
+        "updateDialog": {
+          "title": "Actualizar contrato",
+          "description": "Se actualizará la información del contrato seleccionado."
+        },
+        "createDialog": {
+          "title": "Crear contrato",
+          "description": "Se creará un nuevo contrato con la información registrada en el formulario."
+        }
+      },
       "roles": {
         "current": "Rol actual",
         "selectRole": "Seleccione un rol",

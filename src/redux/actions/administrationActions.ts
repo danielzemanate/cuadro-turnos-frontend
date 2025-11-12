@@ -11,9 +11,12 @@ import { IRoles } from "../../interfaces/user";
 import {
   IConfigAttentionTypes,
   IDataUserRol,
+  IFetchContractUserFilters,
   IFetchUsersFilters,
+  IGenericGetData,
   IMunicipio,
   IPersonalType,
+  IUserContract,
   IUserListItem,
 } from "../../interfaces/administration";
 import { IUserRegister } from "../../interfaces/signIn";
@@ -497,3 +500,130 @@ export const clearUsers = () => ({
 export const clearPersonalTypes = () => ({
   type: constants.administrationClearPersonalTypes,
 });
+
+/* ===================== CONTRATOS DE USUARIO ===================== */
+
+// Obtener contratos de un usuario
+export const fetchUserContracts = (
+  data: IFetchContractUserFilters,
+): ThunkResult<Promise<IUserContract[] | null>> => {
+  return async (dispatch) => {
+    dispatch(setLoading(true));
+    try {
+      const res = await AdministrationService.fetchUserContract(data);
+      if (res.status === 200) {
+        return res.data as IUserContract[];
+      }
+      return null;
+    } catch (error) {
+      dispatch(setOpenToast(true));
+      dispatch(setVariantToast("error"));
+      dispatch(setMessageToast(t("alerts.genericError")));
+      console.error(
+        "Error al obtener contratos del usuario:",
+        error?.message || error,
+      );
+      return null;
+    } finally {
+      dispatch(setLoading(false));
+    }
+  };
+};
+
+// Obtener tipos de contrato
+export const fetchContractTypes = (): ThunkResult<
+  Promise<IGenericGetData[] | null>
+> => {
+  return async (dispatch) => {
+    dispatch(setLoading(true));
+    try {
+      const res = await AdministrationService.fetchContractsTypes();
+      if (res.status === 200) {
+        return res.data as IGenericGetData[];
+      }
+      return null;
+    } catch (error) {
+      dispatch(setOpenToast(true));
+      dispatch(setVariantToast("error"));
+      dispatch(setMessageToast(t("alerts.genericError")));
+      console.error(
+        "Error al obtener tipos de contrato:",
+        error?.message || error,
+      );
+      return null;
+    } finally {
+      dispatch(setLoading(false));
+    }
+  };
+};
+
+// Crear contrato de usuario
+export const createUserContract = (
+  data: Partial<IUserContract>,
+): ThunkResult<Promise<void>> => {
+  return async (dispatch) => {
+    dispatch(setLoading(true));
+    try {
+      const res = await AdministrationService.createUserContractlTypes(data);
+      if (res.status === 200) {
+        dispatch(setOpenToast(true));
+        dispatch(setVariantToast("success"));
+        dispatch(setMessageToast(t("alerts.createSuccess")));
+      }
+    } catch (error) {
+      dispatch(setOpenToast(true));
+      dispatch(setVariantToast("error"));
+      dispatch(setMessageToast(t("alerts.genericError")));
+      console.error("Error al crear contrato:", error?.message || error);
+    } finally {
+      dispatch(setLoading(false));
+    }
+  };
+};
+
+// Actualizar contrato de usuario
+export const updateUserContract = (
+  data: Partial<IUserContract>,
+  id: string,
+): ThunkResult<Promise<void>> => {
+  return async (dispatch) => {
+    dispatch(setLoading(true));
+    try {
+      const res = await AdministrationService.updateUserContract(data, id);
+      if (res.status === 200) {
+        dispatch(setOpenToast(true));
+        dispatch(setVariantToast("success"));
+        dispatch(setMessageToast(t("alerts.updateSuccess")));
+      }
+    } catch (error) {
+      dispatch(setOpenToast(true));
+      dispatch(setVariantToast("error"));
+      dispatch(setMessageToast(t("alerts.genericError")));
+      console.error("Error al actualizar contrato:", error?.message || error);
+    } finally {
+      dispatch(setLoading(false));
+    }
+  };
+};
+
+// Eliminar contrato de usuario
+export const deleteUserContract = (id: string): ThunkResult<Promise<void>> => {
+  return async (dispatch) => {
+    dispatch(setLoading(true));
+    try {
+      const res = await AdministrationService.deletetUserContract(id);
+      if (res.status === 200) {
+        dispatch(setOpenToast(true));
+        dispatch(setVariantToast("success"));
+        dispatch(setMessageToast(t("alerts.deleteSuccess")));
+      }
+    } catch (error) {
+      dispatch(setOpenToast(true));
+      dispatch(setVariantToast("error"));
+      dispatch(setMessageToast(t("alerts.genericError")));
+      console.error("Error al eliminar contrato:", error?.message || error);
+    } finally {
+      dispatch(setLoading(false));
+    }
+  };
+};

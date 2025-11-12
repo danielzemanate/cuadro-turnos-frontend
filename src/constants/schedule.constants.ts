@@ -5,6 +5,13 @@ export const RolesDatabase = {
   COORDINADOR_SIAU: 4,
   SIAU: 5,
   ADMINISTRADOR: 6,
+  GERENCIA: 7,
+  SUBGERENCIA_ADMINISTRATIVA: 8,
+  SEGURIDAD_PACIENTE: 9,
+  LIDER_PROYECTOS: 10,
+  INGENIERO: 11,
+  TALENTO_HUMANO: 12,
+  COSTOS: 13,
 } as const;
 
 export const Roles = {

@@ -31,25 +31,16 @@ import {
   fetchRoles,
 } from "../../../../redux/actions/administrationActions";
 import ConfirmDialog from "../../../Common/confirmDialog/ConfirmDialog";
+import FormUserContracts from "./FormUserContracts";
+import { IUserForm } from "../../../../interfaces/user";
 
 /* ---------------------------- Tipos del formulario ---------------------------- */
-
-export interface IUserForm {
-  nombre: string;
-  apellidos: string;
-  correo: string;
-  celular: string;
-  id_tipo_personal_salud: number;
-  id_municipio: number;
-  activo: boolean;
-  creado_por?: number;
-  actualizado_por?: number;
-}
 
 interface Props {
   onSubmit: (_payload: IUserForm) => void;
   onCancel: () => void;
   defaultValue?: Partial<IUserForm & { id?: number }>;
+  contractMode?: boolean;
 }
 
 interface IDataUserRol {
@@ -133,8 +124,12 @@ const useUserRoles = (isEditing: boolean, editingUserId?: number) => {
 
 /* -------------------------------- Componente -------------------------------- */
 
-const FormUser: React.FC<Props> = ({ onSubmit, onCancel, defaultValue }) => {
-  console.log(defaultValue);
+const FormUser: React.FC<Props> = ({
+  onSubmit,
+  onCancel,
+  defaultValue,
+  contractMode = false,
+}) => {
   const { t } = useTranslation();
   const dispatchThunk = useAppDispatchThunk();
 
@@ -350,6 +345,9 @@ const FormUser: React.FC<Props> = ({ onSubmit, onCancel, defaultValue }) => {
     if (!userRol) return t("administration.users.roles.none");
     return rolesFromStore.find((r) => r.id === userRol.id_rol)?.nombre ?? "—";
   }, [userRol, rolesFromStore, t]);
+  if (contractMode) {
+    return <FormUserContracts userId={editingUserId} onCancel={onCancel} />;
+  }
 
   return (
     <PageBlock onSubmit={handleSubmit} noValidate>
