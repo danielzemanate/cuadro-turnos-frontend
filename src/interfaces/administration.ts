@@ -39,3 +39,25 @@ export interface IFetchUsersFilters {
   tipo_personal?: string;
   activos?: string;
 }
+
+export interface IFetchContractUserFilters {
+  id_usuario?: string;
+}
+
+export interface IUserContract {
+  id_usuario: number;
+  id_tipo_contrato: number;
+  n_contrato: number;
+  fecha_inicio: string;
+  fecha_fin: string;
+  salario_mes: string;
+  id: number;
+  tipo_contrato_nombre: string;
+  usuario_nombre: string;
+  usuario_apellidos: string;
+}
+
+export interface IGenericGetData {
+  id: number;
+  nombre: string;
+}

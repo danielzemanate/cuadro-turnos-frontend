@@ -1,10 +1,10 @@
+// DataTable.tsx
 import React from "react";
 import {
   TableCard,
   Toolbar,
   Title,
   AddButton,
-  TableScroller,
   Table,
   Th,
   Tr,
@@ -13,6 +13,7 @@ import {
   ActionsGroup,
   ActionButton,
 } from "./DataTableStyles";
+import { Eye } from "lucide-react"; // 👈 NUEVO
 
 export type Column<T> = {
   key: keyof T | string;
@@ -31,6 +32,7 @@ export type DataTableProps<T extends { id: RowId }> = {
   addLabel?: string;
   onEdit?: (_row: T) => void;
   onDelete?: (_row: T) => void;
+  onViewContract?: (_row: T) => void;
 };
 
 export function DataTable<T extends { id: RowId }>({
@@ -41,7 +43,10 @@ export function DataTable<T extends { id: RowId }>({
   addLabel = "Nuevo",
   onEdit,
   onDelete,
+  onViewContract, // 👈 NUEVO
 }: DataTableProps<T>) {
+  const hasActions = Boolean(onEdit || onDelete || onViewContract);
+
   return (
     <TableCard>
       <Toolbar>
@@ -49,55 +54,65 @@ export function DataTable<T extends { id: RowId }>({
         {onAdd && <AddButton onClick={onAdd}>{addLabel}</AddButton>}
       </Toolbar>
 
-      <TableScroller>
-        <Table role="table">
-          <thead>
-            <Tr>
-              {columns.map((c) => (
-                <Th key={String(c.key)} style={{ width: c.width }}>
-                  {c.header}
-                </Th>
-              ))}
-              {(onEdit || onDelete) && <Th style={{ width: 160 }}>Acciones</Th>}
-            </Tr>
-          </thead>
-          <tbody>
-            {data.map((row) => (
-              <Tr key={String(row.id)}>
-                {columns.map((c) => (
-                  <Td key={String(c.key)}>
-                    {c.render
-                      ? c.render(row)
-                      : String(row[c.key as keyof T] ?? "")}
-                  </Td>
-                ))}
-                {(onEdit || onDelete) && (
-                  <ActionsCell>
-                    <ActionsGroup>
-                      {onEdit && (
-                        <ActionButton
-                          variant="edit"
-                          onClick={() => onEdit(row)}
-                        >
-                          Editar
-                        </ActionButton>
-                      )}
-                      {onDelete && (
-                        <ActionButton
-                          variant="delete"
-                          onClick={() => onDelete(row)}
-                        >
-                          Eliminar
-                        </ActionButton>
-                      )}
-                    </ActionsGroup>
-                  </ActionsCell>
-                )}
-              </Tr>
+      <Table role="table">
+        <thead>
+          <Tr>
+            {columns.map((c) => (
+              <Th key={String(c.key)} style={{ width: c.width }}>
+                {c.header}
+              </Th>
             ))}
-          </tbody>
-        </Table>
-      </TableScroller>
+            {hasActions && <Th style={{ width: 200 }}>Acciones</Th>}
+          </Tr>
+        </thead>
+        <tbody>
+          {data.map((row) => (
+            <Tr key={String(row.id)}>
+              {columns.map((c) => (
+                <Td key={String(c.key)}>
+                  {c.render
+                    ? c.render(row)
+                    : String(row[c.key as keyof T] ?? "")}
+                </Td>
+              ))}
+              {hasActions && (
+                <ActionsCell>
+                  <ActionsGroup>
+                    {/* 👇 NUEVO botón ojito */}
+                    {onViewContract && (
+                      <ActionButton
+                        // usamos variant="edit" para no tocar estilos;
+                        // si tienes un variant "ghost" o "view", cámbialo aquí.
+                        variant="edit"
+                        aria-label="Ver contrato"
+                        title="Ver contrato"
+                        onClick={() => onViewContract(row)}
+                      >
+                        <Eye size={16} style={{ marginRight: 6 }} />
+                        Ver contrato
+                      </ActionButton>
+                    )}
+
+                    {onEdit && (
+                      <ActionButton variant="edit" onClick={() => onEdit(row)}>
+                        Editar
+                      </ActionButton>
+                    )}
+                    {onDelete && (
+                      <ActionButton
+                        variant="delete"
+                        onClick={() => onDelete(row)}
+                      >
+                        Eliminar
+                      </ActionButton>
+                    )}
+                  </ActionsGroup>
+                </ActionsCell>
+              )}
+            </Tr>
+          ))}
+        </tbody>
+      </Table>
     </TableCard>
   );
 }
