@@ -532,7 +532,7 @@ export const fetchUserContracts = (
 
 // Obtener tipos de contrato
 export const fetchContractTypes = (): ThunkResult<
-  Promise<unknown[] | null>
+  Promise<IGenericGetData[] | null>
 > => {
   return async (dispatch) => {
     dispatch(setLoading(true));
