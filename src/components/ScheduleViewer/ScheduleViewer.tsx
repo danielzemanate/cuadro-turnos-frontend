@@ -121,11 +121,14 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
 
   const isSiauRole =
     roleIdNum === RolesDatabase.COORDINADOR_SIAU ||
-    roleIdNum === RolesDatabase.ADMINISTRADOR ||
+    roleIdNum === RolesDatabase.INGENIERO ||
     roleIdNum === RolesDatabase.SIAU;
 
   const canManagePatients = useMemo(() => {
-    return userData?.roles?.id === RolesDatabase.DILIGENCIADOR;
+    return (
+      userData?.roles?.id === RolesDatabase.DILIGENCIADOR ||
+      userData?.roles?.id === RolesDatabase.INGENIERO
+    );
   }, [userData?.roles?.id]);
 
   // Permisos para SIAU: sólo roles 4 o 5 y únicamente en viewer (no en modo editable de turnos)

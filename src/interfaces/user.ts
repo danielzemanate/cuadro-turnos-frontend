@@ -32,3 +32,36 @@ export interface IUser {
   es_personal_salud: boolean;
   id_municipio: number;
 }
+
+export interface IContract {
+  id: number;
+  id_usuario: number;
+  id_tipo_contrato: number;
+  n_contrato: number;
+  fecha_inicio: string;
+  fecha_fin: string;
+  salario_mes: string;
+  tipo_contrato_nombre: string;
+  usuario_nombre: string;
+  usuario_apellidos: string;
+}
+
+export interface IContractForm {
+  id_tipo_contrato: number;
+  n_contrato: string;
+  fecha_inicio: string;
+  fecha_fin: string;
+  salario_mes: string;
+}
+
+export interface IUserForm {
+  nombre: string;
+  apellidos: string;
+  correo: string;
+  celular: string;
+  id_tipo_personal_salud: number;
+  id_municipio: number;
+  activo: boolean;
+  creado_por?: number;
+  actualizado_por?: number;
+}

@@ -42,7 +42,7 @@ import {
   deleteUser,
   updateUser,
 } from "../../redux/actions/administrationActions";
-import { IRoles } from "../../interfaces/user";
+import { IRoles, IUserForm } from "../../interfaces/user";
 import {
   IConfigAttentionTypes,
   IPersonalType,
@@ -58,9 +58,10 @@ import LoadingSpinner from "../Shared/LoadingSpinner/LoadingSpinner";
 import FormRole from "./forms/roles/FormRole";
 import FormAttentionTypes from "./forms/attention-types/FormAttentionTypes";
 import FormPersonalTypes from "./forms/personal-types/FormPersonalTypes";
-import FormUser, { IUserForm } from "./forms/users/FormUser";
+import FormUser from "./forms/users/FormUser";
 import { useTranslation } from "react-i18next";
 import { registerUser } from "../../redux/actions/userActions";
+import { RolesDatabase } from "../../constants/schedule.constants";
 
 /* ---------------------------- Tabs definition ---------------------------- */
 
@@ -90,32 +91,6 @@ const Administration: React.FC = () => {
 
   const [active, setActive] = React.useState<TabKey>("roles");
 
-  const activeIndex = React.useMemo(
-    () => tabsConfig.findIndex((t) => t.key === active),
-    [active],
-  );
-
-  const selectByIndex = React.useCallback((idx: number) => {
-    const clamped = Math.max(0, Math.min(idx, tabsConfig.length - 1));
-    setActive(tabsConfig[clamped].key);
-  }, []);
-
-  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === "ArrowRight") {
-      e.preventDefault();
-      selectByIndex(activeIndex + 1);
-    } else if (e.key === "ArrowLeft") {
-      e.preventDefault();
-      selectByIndex(activeIndex - 1);
-    } else if (e.key === "Home") {
-      e.preventDefault();
-      selectByIndex(0);
-    } else if (e.key === "End") {
-      e.preventDefault();
-      selectByIndex(tabsConfig.length - 1);
-    }
-  };
-
   /* ------------------------------- Redux state ------------------------------- */
 
   const dispatchThunk = useAppDispatchThunk();
@@ -133,6 +108,55 @@ const Administration: React.FC = () => {
     useSelector((s: AppState) => s.administration.users) ?? [];
   const municipiosFromStore =
     useSelector((s: AppState) => s.administration.municipios) ?? [];
+
+  // Rol del usuario autenticado
+  const { userData } = useSelector((state: AppState) => state.user);
+  const roleIdNum = userData?.roles?.id as number | undefined;
+  const isCostos = roleIdNum === RolesDatabase.COSTOS;
+  const isIngeniero = roleIdNum === RolesDatabase.INGENIERO;
+
+  // Tabs visibles según rol (COSTOS solo puede ver "usuarios")
+  const visibleTabs = React.useMemo(
+    () =>
+      isCostos ? tabsConfig.filter((t) => t.key === "usuarios") : tabsConfig,
+    [isCostos],
+  );
+
+  // Si el tab activo no es visible, forzar a "usuarios"
+  React.useEffect(() => {
+    if (!visibleTabs.some((t) => t.key === active)) {
+      setActive("usuarios");
+    }
+  }, [visibleTabs, active]);
+
+  const activeIndex = React.useMemo(
+    () => visibleTabs.findIndex((t) => t.key === active),
+    [visibleTabs, active],
+  );
+
+  const selectByIndex = React.useCallback(
+    (idx: number) => {
+      const clamped = Math.max(0, Math.min(idx, visibleTabs.length - 1));
+      setActive(visibleTabs[clamped].key);
+    },
+    [visibleTabs],
+  );
+
+  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "ArrowRight") {
+      e.preventDefault();
+      selectByIndex(activeIndex + 1);
+    } else if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      selectByIndex(activeIndex - 1);
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      selectByIndex(0);
+    } else if (e.key === "End") {
+      e.preventDefault();
+      selectByIndex(visibleTabs.length - 1);
+    }
+  };
 
   /* --------------------------- Initial data loaders -------------------------- */
 
@@ -525,6 +549,9 @@ const Administration: React.FC = () => {
   const [pendingDeleteIdUser, setPendingDeleteIdUser] = React.useState<
     string | null
   >(null);
+  const [viewingContract, setViewingContract] = React.useState(false);
+
+  const canViewContracts = isIngeniero || isCostos;
 
   const handleAddUser = () => {
     if (loading) return;
@@ -554,8 +581,7 @@ const Administration: React.FC = () => {
             celular: pendingPayloadUser.celular,
             id_tipo_personal_salud: pendingPayloadUser.id_tipo_personal_salud,
             id_municipio: pendingPayloadUser.id_municipio,
-            // password NO se envía; backend lo genera
-            creado_por: pendingPayloadUser.creado_por!, // viene seteado en el form con userId
+            creado_por: pendingPayloadUser.creado_por!, // set en FormUser
             actualizado_por: pendingPayloadUser.creado_por!,
           }),
         );
@@ -565,7 +591,6 @@ const Administration: React.FC = () => {
         );
       }
     } finally {
-      // Tras crear/editar, recarga lista completa (si quieres preservar filtros, pásalos aquí)
       await dispatchThunk(fetchUsers({}));
       setConfirmOpenUser(false);
       setShowFormUser(false);
@@ -584,6 +609,14 @@ const Administration: React.FC = () => {
     setShowFormUser(true);
   };
 
+  const handleViewContractUser = (row: IUserListItem) => {
+    if (loading) return;
+    setViewingContract(true);
+    setEditingUser(row);
+    setPendingPayloadUser(null);
+    setShowFormUser(true);
+  };
+
   const handleDeleteUser = (row: IUserListItem) => {
     if (loading) return;
     setPendingDeleteIdUser(String(row.id));
@@ -594,7 +627,7 @@ const Administration: React.FC = () => {
   const confirmDeleteUser = async () => {
     if (pendingDeleteIdUser) {
       await dispatchThunk(deleteUser(pendingDeleteIdUser));
-      await dispatchThunk(fetchUsers({})); // recarga lista completa tras borrar
+      await dispatchThunk(fetchUsers({}));
     }
     setConfirmOpenUser(false);
     setPendingDeleteIdUser(null);
@@ -615,7 +648,6 @@ const Administration: React.FC = () => {
       id_municipio: row.id_municipio,
       id_tipo_personal_salud: row.id_tipo_personal_salud,
       activo: row.activo,
-      // creado_por se setea dentro del FormUser con el userId actual
     };
   };
 
@@ -625,7 +657,6 @@ const Administration: React.FC = () => {
   const [fTipoPersonal, setFTipoPersonal] = React.useState<string>("");
   const [fActivo, setFActivo] = React.useState<"" | "Si" | "No">("");
 
-  // Opciones para selects (value = nombre)
   const municipioNames = React.useMemo(() => {
     const set = new Set(
       municipiosFromStore.map((m) => m.nombre).filter(Boolean),
@@ -640,22 +671,19 @@ const Administration: React.FC = () => {
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [personalTypesFromStore]);
 
-  // Aplica filtros al hacer clic en "Filtrar"
   const onFilterUsers = () => {
     const params: IFetchUsersFilters = {};
-    if (fMunicipio) params.municipio = fMunicipio; // nombre
-    if (fTipoPersonal) params.tipo_personal = fTipoPersonal; // nombre
-    if (fActivo) params.activos = fActivo === "Si" ? "true" : "false"; // string
-
+    if (fMunicipio) params.municipio = fMunicipio;
+    if (fTipoPersonal) params.tipo_personal = fTipoPersonal;
+    if (fActivo) params.activos = fActivo === "Si" ? "true" : "false";
     dispatchThunk(fetchUsers(params));
   };
 
-  // Limpia filtros
   const onClearFilters = () => {
     setFMunicipio("");
     setFTipoPersonal("");
     setFActivo("");
-    dispatchThunk(fetchUsers({})); // trae todos sin filtros
+    dispatchThunk(fetchUsers({}));
   };
 
   /* ----------------------------------- UI ---------------------------------- */
@@ -668,7 +696,7 @@ const Administration: React.FC = () => {
           aria-label={t("administration.title", "Administración")}
           onKeyDown={onKeyDown}
         >
-          {tabsConfig.map(({ key, labelKey, icon: Icon }) => {
+          {visibleTabs.map(({ key, labelKey, icon: Icon }) => {
             const selected = key === active;
             return (
               <TabButton
@@ -927,10 +955,17 @@ const Administration: React.FC = () => {
                     title={t("administration.tabs.usuarios")}
                     columns={usuarioCols}
                     data={usersFromStore}
-                    onAdd={handleAddUser}
-                    addLabel={t("administration.users.form.newTitle")}
-                    onEdit={handleEditUser}
-                    onDelete={handleDeleteUser}
+                    onAdd={isCostos ? undefined : handleAddUser}
+                    addLabel={
+                      isCostos
+                        ? undefined
+                        : t("administration.users.form.newTitle")
+                    }
+                    onEdit={isCostos ? undefined : handleEditUser}
+                    onDelete={isCostos ? undefined : handleDeleteUser}
+                    onViewContract={
+                      canViewContracts ? handleViewContractUser : undefined
+                    }
                   />
                 </>
               ) : (
@@ -941,7 +976,9 @@ const Administration: React.FC = () => {
                     setShowFormUser(false);
                     setEditingUser(null);
                     setPendingPayloadUser(null);
+                    setViewingContract(false);
                   }}
+                  contractMode={viewingContract}
                 />
               )}
 
