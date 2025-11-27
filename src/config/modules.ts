@@ -53,7 +53,7 @@ export const MODULES: Module[] = [
     id: 4,
     name: "Registrar Demanda Insatisfecha",
     icon: FilePlus,
-    allowedRoles: [4, 5, 6, 11],
+    allowedRoles: [],
     component: UnsatisfiedDemand,
     path: "/dashboard/demanda-insatisfecha",
     bgColor: "#FCE7F3",
