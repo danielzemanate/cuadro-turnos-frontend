@@ -11,11 +11,11 @@ export interface ISubReportTypes {
   id_tipo_reporte: number;
 }
 
-export interface IReportPatientsRegisterData {
-  anio: number;
-  mes: number;
+export interface IReportFiltersData {
+  anio?: number;
+  mes?: number;
   id_municipio: number;
-  id_tipo_personal_salud: number;
+  id_tipo_personal_salud?: number;
 }
 
 export interface IReportsActions {

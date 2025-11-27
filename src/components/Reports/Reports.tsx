@@ -10,6 +10,11 @@ import {
   fetchReportTypes,
   fetchReportSubTypes,
   fetchDownloadReportPatientsRegister,
+  fetchDownloadReportAnualComparative,
+  fetchDownloadReportCostDetail,
+  fetchDownloadReportCostMonth,
+  fetchDownloadReportCostYear,
+  fetchDownloadReportMonthDetails,
 } from "../../redux/actions/reportsActions";
 import { fetchScheduleOptions } from "../../redux/actions/scheduleActions";
 
@@ -18,7 +23,7 @@ import { sortPeriodos, findPeriodo } from "../../helpers/ScheduleHelper";
 
 // Interfaces
 import {
-  IReportPatientsRegisterData,
+  IReportFiltersData,
   IReportTypes,
   ISubReportTypes,
 } from "../../interfaces/reports";
@@ -41,6 +46,13 @@ import {
   SectionTitle,
   Spacer,
 } from "./ReportsStyles";
+
+// Toasts
+import {
+  setOpenToast,
+  setVariantToast,
+  setMessageToast,
+} from "../../redux/actions/helpersActions";
 
 const Reports: React.FC = () => {
   const { t } = useTranslation();
@@ -133,14 +145,103 @@ const Reports: React.FC = () => {
   const canShowFilters = selectedType != null && selectedSubType != null;
 
   const handleDownload = () => {
-    const payload: IReportPatientsRegisterData = {
+    if (
+      !selectedPeriodo ||
+      selectedMunicipio == null ||
+      selectedTipoPersonal == null ||
+      selectedType == null ||
+      selectedSubType == null
+    ) {
+      dispatchThunk((dispatch) => {
+        dispatch(setOpenToast(true));
+        dispatch(setVariantToast("error"));
+        dispatch(
+          setMessageToast(
+            t("alerts.missingFilters", {
+              defaultValue: "Por favor completa todos los filtros.",
+            }) as string,
+          ),
+        );
+      });
+      return;
+    }
+
+    const payload: IReportFiltersData = {
       anio: selectedPeriodo.anio,
       mes: selectedPeriodo.mes,
       id_municipio: selectedMunicipio,
       id_tipo_personal_salud: selectedTipoPersonal,
     };
 
-    dispatchThunk(fetchDownloadReportPatientsRegister(payload));
+    const selectedTypeObj = (reportTypes ?? []).find(
+      (rt: IReportTypes) => rt.id === selectedType,
+    );
+    const selectedSubTypeObj = (subReportTypes ?? []).find(
+      (st: ISubReportTypes) => st.id === selectedSubType,
+    );
+
+    const typeName = selectedTypeObj?.nombre?.toLowerCase() || "";
+    const subTypeName = selectedSubTypeObj?.nombre?.toLowerCase() || "";
+
+    const noReportMessage = t("reports.noReportAvailable");
+
+    const showNoReportToast = () => {
+      dispatchThunk((dispatch) => {
+        dispatch(setOpenToast(true));
+        dispatch(setVariantToast("error"));
+        dispatch(setMessageToast(noReportMessage));
+      });
+    };
+
+    // ===== RUTEO SEGÚN TIPO / SUBTIPO =====
+
+    // 1) COSTOS
+    if (subTypeName === "costos") {
+      if (typeName === "mensual detallado") {
+        dispatchThunk(fetchDownloadReportCostDetail(payload));
+        return;
+      }
+      if (typeName === "mensual comparativo") {
+        dispatchThunk(fetchDownloadReportCostMonth(payload));
+        return;
+      }
+      if (typeName === "anual") {
+        dispatchThunk(fetchDownloadReportCostYear(payload));
+        return;
+      }
+
+      showNoReportToast();
+      return;
+    }
+
+    // 2) PACIENTES ATENDIDOS / SIAU
+    const isPacientesAtendidos = subTypeName === "pacientes atendidos";
+    const isSiau =
+      subTypeName.startsWith("siau") || subTypeName.includes("siau");
+
+    if (isPacientesAtendidos || isSiau) {
+      if (typeName === "mensual detallado") {
+        // Mensual detallado → fetchDownloadReportMonthDetails
+        dispatchThunk(fetchDownloadReportMonthDetails(payload));
+        return;
+      }
+      if (typeName === "mensual comparativo") {
+        // Mensual comparativo → fetchDownloadReportPatientsRegister
+        dispatchThunk(fetchDownloadReportPatientsRegister(payload));
+        return;
+      }
+      if (typeName === "anual") {
+        // Anual → fetchDownloadReportAnualComparative
+        dispatchThunk(fetchDownloadReportAnualComparative(payload));
+        return;
+      }
+
+      showNoReportToast();
+      return;
+    }
+
+    // 3) Cualquier otro subtipo (Oportunidad, Productividad, etc.)
+    showNoReportToast();
   };
 
   return (
