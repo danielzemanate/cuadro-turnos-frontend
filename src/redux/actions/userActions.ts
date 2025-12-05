@@ -4,7 +4,7 @@ import {
   ISignInValues,
   IUserRegister,
 } from "../../interfaces/signIn";
-import { IUserInfo } from "../../interfaces/user";
+import { IResponseRegister, IUserInfo } from "../../interfaces/user";
 import AuthService from "../../services/auth/auth";
 import { constants, ThunkResult } from "../../types/types";
 import { persistor } from "../store/store";
@@ -58,21 +58,33 @@ export const logoutUser = (): ThunkResult<void> => async (dispatch) => {
 // Register
 export const registerUser = (
   data: IUserRegister,
-): ThunkResult<Promise<void>> => {
+): ThunkResult<
+  Promise<{ success: boolean; status: number; data: IResponseRegister | null }>
+> => {
   return async (dispatch) => {
     dispatch(setLoading(true));
     try {
       const response = await AuthService.register(data);
+
       if (response.status === 200) {
         dispatch(setOpenToast(true));
         dispatch(setVariantToast("success"));
         dispatch(setMessageToast(t("alerts.createSuccess")));
       }
+      return { success: true, status: 200, data: response.data };
     } catch (error) {
       dispatch(setOpenToast(true));
       dispatch(setVariantToast("error"));
-      dispatch(setMessageToast(t("alerts.genericError")));
-      console.log(error?.message || error);
+      const errorMessage = error?.response?.data?.detail
+        ? t(error.response.data.detail)
+        : t("alerts.genericError");
+      dispatch(setMessageToast(errorMessage));
+      console.error(error?.message || error);
+      return {
+        success: false,
+        status: error?.response?.status || 500,
+        data: null,
+      };
     } finally {
       dispatch(setLoading(false));
     }
@@ -87,10 +99,11 @@ export const FetchChangePassword = (
     dispatch(setLoading(true));
     try {
       const response = await AuthService.changePassword(data);
-      if (response.status === 200) {
+      if (response.status === 200 || response.status === 204) {
         dispatch(setOpenToast(true));
         dispatch(setVariantToast("success"));
         dispatch(setMessageToast(t("alerts.updateSuccess")));
+        dispatch(logoutUser());
         return; // éxito
       }
       // por si acaso
