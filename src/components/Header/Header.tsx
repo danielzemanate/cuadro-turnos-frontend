@@ -38,7 +38,7 @@ const HeaderComponent: FC = () => {
 
   const handleLogout = async () => {
     setIsDropdownOpen(false);
-    await dispatchThunk(logoutUser());
+    dispatchThunk(logoutUser());
     navigate("/"); // vuelve al login
   };
 

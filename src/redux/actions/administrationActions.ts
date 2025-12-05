@@ -446,7 +446,7 @@ export const fetchUsers = (
 export const updateUser = (
   data: Partial<IUserRegister>,
   id: string,
-): ThunkResult<Promise<void>> => {
+): ThunkResult<Promise<{ success: boolean; status: number }>> => {
   return async (dispatch) => {
     dispatch(setLoading(true));
     try {
@@ -455,14 +455,16 @@ export const updateUser = (
         dispatch(setOpenToast(true));
         dispatch(setVariantToast("success"));
         dispatch(setMessageToast(t("alerts.updateSuccess")));
+        return { success: true, status: res.status };
       } else {
-        throw new Error(`Unexpected status: ${res.status}`);
+        return { success: false, status: res.status };
       }
     } catch (error) {
       dispatch(setOpenToast(true));
       dispatch(setVariantToast("error"));
       dispatch(setMessageToast(t("alerts.genericError")));
       console.log(error?.message || error);
+      return { success: false, status: error?.response?.status || 500 };
     } finally {
       dispatch(setLoading(false));
     }
