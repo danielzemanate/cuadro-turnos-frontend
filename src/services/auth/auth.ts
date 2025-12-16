@@ -1,3 +1,4 @@
+import { AxiosResponse } from "axios";
 import {
   IDataChangePassword,
   IDataResetPassword,
@@ -5,6 +6,7 @@ import {
   IUserRegister,
 } from "../../interfaces/signIn";
 import api from "../../lib/api";
+import { IResponseRegister } from "../../interfaces/user";
 
 const AuthService = {
   login: async (data: ISignInValues) => {
@@ -13,7 +15,9 @@ const AuthService = {
       data,
     );
   },
-  register: async (data: IUserRegister) => {
+  register: async (
+    data: IUserRegister,
+  ): Promise<AxiosResponse<IResponseRegister>> => {
     return await api.post(
       `${import.meta.env.VITE_APP_BACK_ESE}auth/auth/register`,
       data,

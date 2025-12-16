@@ -37,7 +37,7 @@ import { IUserForm } from "../../../../interfaces/user";
 /* ---------------------------- Tipos del formulario ---------------------------- */
 
 interface Props {
-  onSubmit: (_payload: IUserForm) => void;
+  onSubmit: (_payload: IUserForm, _roleId?: number) => void;
   onCancel: () => void;
   defaultValue?: Partial<IUserForm & { id?: number }>;
   contractMode?: boolean;
@@ -50,11 +50,17 @@ interface IDataUserRol {
 }
 
 type FormField = keyof IUserForm;
-type TouchedFields = Record<FormField, boolean>;
+
+// Agregamos "rol" porque lo manejamos como campo tocado aunque no esté en IUserForm
+type TouchedFields = Record<FormField | "rol", boolean>;
 
 /* ------------------------------ Validaciones -------------------------------- */
 
-const useFormValidation = (form: IUserForm) => {
+const useFormValidation = (
+  form: IUserForm,
+  roleRequired: boolean,
+  selectedRoleId?: number,
+) => {
   return useMemo(() => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -68,6 +74,9 @@ const useFormValidation = (form: IUserForm) => {
         form.id_tipo_personal_salud <= 0,
       id_municipio:
         !Number.isInteger(form.id_municipio) || form.id_municipio <= 0,
+      // rol obligatorio solo cuando roleRequired = true (creación)
+      rol:
+        roleRequired && (!selectedRoleId || typeof selectedRoleId !== "number"),
       // sin estado
       creado_por: false,
       actualizado_por: false,
@@ -77,7 +86,7 @@ const useFormValidation = (form: IUserForm) => {
       errors,
       hasErrors: Object.values(errors).some(Boolean),
     };
-  }, [form]);
+  }, [form, roleRequired, selectedRoleId]);
 };
 
 /* ------------------------------- Hook Roles -------------------------------- */
@@ -164,7 +173,6 @@ const FormUser: React.FC<Props> = ({
   const [touched, setTouched] = useState<Partial<TouchedFields>>({});
 
   // Hooks personalizados
-  const { errors, hasErrors } = useFormValidation(form);
   const {
     userRol,
     selectedRoleId,
@@ -172,6 +180,12 @@ const FormUser: React.FC<Props> = ({
     reloadUserRol,
     clearUserRol,
   } = useUserRoles(isEditing, editingUserId);
+
+  const { errors, hasErrors } = useFormValidation(
+    form,
+    !isEditing, // El rol es obligatorio solo en creación
+    typeof selectedRoleId === "number" ? selectedRoleId : undefined,
+  );
 
   // Diálogos de confirmación (Eliminar / Actualizar rol)
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
@@ -195,7 +209,11 @@ const FormUser: React.FC<Props> = ({
   );
 
   const markFieldAsTouched = useCallback(
-    (field: FormField) => setTouched((prev) => ({ ...prev, [field]: true })),
+    (field: FormField) =>
+      setTouched((prev) => ({
+        ...prev,
+        [field]: true,
+      })),
     [],
   );
 
@@ -216,6 +234,7 @@ const FormUser: React.FC<Props> = ({
           celular: true,
           id_tipo_personal_salud: true,
           id_municipio: true,
+          rol: true,
           creado_por: true,
           actualizado_por: true,
         });
@@ -230,9 +249,12 @@ const FormUser: React.FC<Props> = ({
         actualizado_por: userId,
       };
 
-      onSubmit(payload);
+      const roleIdToSend =
+        typeof selectedRoleId === "number" ? selectedRoleId : undefined;
+
+      onSubmit(payload, roleIdToSend);
     },
-    [hasErrors, form, userId, onSubmit],
+    [hasErrors, form, userId, onSubmit, selectedRoleId],
   );
 
   // Handlers de roles con ConfirmDialog (solo en edición)
@@ -345,6 +367,7 @@ const FormUser: React.FC<Props> = ({
     if (!userRol) return t("administration.users.roles.none");
     return rolesFromStore.find((r) => r.id === userRol.id_rol)?.nombre ?? "—";
   }, [userRol, rolesFromStore, t]);
+
   if (contractMode) {
     return <FormUserContracts userId={editingUserId} onCancel={onCancel} />;
   }
@@ -401,6 +424,7 @@ const FormUser: React.FC<Props> = ({
           "id_municipio",
           municipios,
         )}
+
         <Field>
           <Label htmlFor="user-activo">
             {t("administration.users.form.active")}
@@ -414,6 +438,41 @@ const FormUser: React.FC<Props> = ({
             <option value="false">No</option>
           </Select>
         </Field>
+
+        {/* Selección de rol solo en creación */}
+        {!isEditing && (
+          <Field>
+            <Label htmlFor="user-role-create">
+              {t("administration.users.roles.selectRole")}
+            </Label>
+            <Select
+              id="user-role-create"
+              value={String(selectedRoleId ?? "")}
+              onChange={(e) =>
+                setSelectedRoleId(e.target.value ? Number(e.target.value) : "")
+              }
+              onBlur={() =>
+                setTouched((prev) => ({
+                  ...prev,
+                  rol: true,
+                }))
+              }
+              aria-invalid={Boolean(touched.rol && errors.rol)}
+            >
+              <option value="">{t("common.selectPlaceholder")}</option>
+              {rolesFromStore.map((role) => (
+                <option key={role.id} value={role.id}>
+                  {role.nombre}
+                </option>
+              ))}
+            </Select>
+            {touched.rol && errors.rol && (
+              <ErrorText role="alert">
+                {t("administration.users.form.errors.required")}
+              </ErrorText>
+            )}
+          </Field>
+        )}
       </GridThree>
 
       <Actions>
@@ -456,7 +515,12 @@ const FormUser: React.FC<Props> = ({
                 <Select
                   id="user-role-select"
                   value={String(selectedRoleId ?? "")}
-                  onChange={(e) => setSelectedRoleId(Number(e.target.value))}
+                  onChange={(e) =>
+                    setSelectedRoleId(
+                      e.target.value ? Number(e.target.value) : "",
+                    )
+                  }
+                  disabled={loading}
                 >
                   <option value="">{t("common.selectPlaceholder")}</option>
                   {rolesFromStore.map((role) => (

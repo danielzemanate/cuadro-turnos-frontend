@@ -41,6 +41,8 @@ import {
   fetchMunicipios,
   deleteUser,
   updateUser,
+  // ROLES DE USUARIO
+  updateUserRol,
 } from "../../redux/actions/administrationActions";
 import { IRoles, IUserForm } from "../../interfaces/user";
 import {
@@ -546,6 +548,9 @@ const Administration: React.FC = () => {
   const [confirmOpenUser, setConfirmOpenUser] = React.useState(false);
   const [pendingPayloadUser, setPendingPayloadUser] =
     React.useState<IUserForm | null>(null);
+  const [pendingRoleIdUser, setPendingRoleIdUser] = React.useState<
+    number | undefined
+  >(undefined);
   const [pendingDeleteIdUser, setPendingDeleteIdUser] = React.useState<
     string | null
   >(null);
@@ -557,12 +562,14 @@ const Administration: React.FC = () => {
     if (loading) return;
     setEditingUser(null);
     setPendingPayloadUser(null);
+    setPendingRoleIdUser(undefined);
     setShowFormUser(true);
   };
 
-  // Recibe el payload del FormUser
-  const handleFormSubmitUser = (payload: IUserForm) => {
+  // Recibe el payload del FormUser (incluye roleId para creación)
+  const handleFormSubmitUser = (payload: IUserForm, roleId?: number) => {
     setPendingPayloadUser(payload);
+    setPendingRoleIdUser(roleId);
     setConfirmKindUser(editingUser ? "update" : "create");
     setConfirmOpenUser(true);
   };
@@ -572,8 +579,10 @@ const Administration: React.FC = () => {
     if (!pendingPayloadUser) return;
 
     try {
+      let success = false;
+
       if (confirmKindUser === "create") {
-        await dispatchThunk(
+        const result = await dispatchThunk(
           registerUser({
             nombre: pendingPayloadUser.nombre,
             apellidos: pendingPayloadUser.apellidos,
@@ -581,22 +590,50 @@ const Administration: React.FC = () => {
             celular: pendingPayloadUser.celular,
             id_tipo_personal_salud: pendingPayloadUser.id_tipo_personal_salud,
             id_municipio: pendingPayloadUser.id_municipio,
-            creado_por: pendingPayloadUser.creado_por!, // set en FormUser
+            creado_por: pendingPayloadUser.creado_por!,
             actualizado_por: pendingPayloadUser.creado_por!,
           }),
         );
+
+        success = result?.status === 200; // Ajusta según tu respuesta
+
+        // Si se creó bien y se seleccionó un rol, asignarlo
+        if (success && pendingRoleIdUser) {
+          const newUserId = result?.data?.id;
+
+          if (newUserId) {
+            await dispatchThunk(
+              updateUserRol({
+                id_usuario: Number(newUserId),
+                id_rol: pendingRoleIdUser,
+              }),
+            );
+          } else {
+            console.warn(
+              "No se pudo obtener el ID de usuario de la respuesta de registerUser",
+            );
+          }
+        }
       } else if (confirmKindUser === "update" && editingUser) {
-        await dispatchThunk(
+        const result = await dispatchThunk(
           updateUser(pendingPayloadUser, String(editingUser.id)),
         );
+        success = result?.status === 200;
       }
-    } finally {
-      await dispatchThunk(fetchUsers({}));
+
       setConfirmOpenUser(false);
-      setShowFormUser(false);
-      setEditingUser(null);
-      setPendingPayloadUser(null);
-      setConfirmKindUser(null);
+      // Solo ejecutar cleanup si fue exitoso
+      if (success) {
+        await dispatchThunk(fetchUsers({}));
+        setShowFormUser(false);
+        setEditingUser(null);
+        setPendingPayloadUser(null);
+        setPendingRoleIdUser(undefined);
+        setConfirmKindUser(null);
+      }
+    } catch (error) {
+      // Manejar error si es necesario
+      console.error("Error en la operación:", error);
     }
   };
 
@@ -606,6 +643,7 @@ const Administration: React.FC = () => {
     if (loading) return;
     setEditingUser(row);
     setPendingPayloadUser(null);
+    setPendingRoleIdUser(undefined);
     setShowFormUser(true);
   };
 
@@ -614,6 +652,7 @@ const Administration: React.FC = () => {
     setViewingContract(true);
     setEditingUser(row);
     setPendingPayloadUser(null);
+    setPendingRoleIdUser(undefined);
     setShowFormUser(true);
   };
 
@@ -976,6 +1015,7 @@ const Administration: React.FC = () => {
                     setShowFormUser(false);
                     setEditingUser(null);
                     setPendingPayloadUser(null);
+                    setPendingRoleIdUser(undefined);
                     setViewingContract(false);
                   }}
                   contractMode={viewingContract}

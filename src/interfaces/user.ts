@@ -65,3 +65,16 @@ export interface IUserForm {
   creado_por?: number;
   actualizado_por?: number;
 }
+
+export interface IResponseRegister {
+  detail: string;
+  nombre: string;
+  apellidos: string;
+  correo: string;
+  celular: string;
+  id_tipo_personal_salud: number;
+  id_municipio: number;
+  id: number;
+  activo: boolean;
+  es_personal_salud: boolean;
+}

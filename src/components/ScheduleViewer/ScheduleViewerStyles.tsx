@@ -7,6 +7,7 @@ const theme = {
   colors: {
     // Primary colors
     primary: "#6fb830",
+    primaryButton: "#0F2167",
     primaryHover: "#5da028",
     primaryLight: "#f8faf8",
 
@@ -340,7 +341,7 @@ export const FormButton = styled.button`
   ${buttonBase}
   height: 46px;
   padding: 0 ${theme.spacing.xl};
-  background: ${theme.colors.primary};
+  background: ${theme.colors.primaryButton};
   color: ${theme.colors.white};
   font-size: ${theme.fontSizes.base};
   letter-spacing: 0.4px;
@@ -417,6 +418,7 @@ export const TableControls = styled.div`
 
 export const TableContainer = styled.div`
   position: relative;
+  max-width: 100%;
   overflow-x: auto;
   border-radius: ${theme.borderRadius.md};
   box-shadow: ${theme.shadows.lg};
@@ -453,10 +455,10 @@ export const TableContainer = styled.div`
 export const DataTable = styled.table`
   width: 100%;
   min-width: 800px;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   background: ${theme.colors.white};
   font-size: ${theme.fontSizes.sm};
-  overflow: hidden;
 
   ${media.md} {
     font-size: ${theme.fontSizes.xs};
@@ -466,6 +468,13 @@ export const DataTable = styled.table`
   ${media.sm} {
     min-width: 600px;
   }
+`;
+
+export const stickyFirstColumn = css`
+  position: sticky;
+  left: 0;
+  z-index: 20;
+  background: ${theme.colors.gray50};
 `;
 
 export const TableHead = styled.thead`
@@ -492,11 +501,9 @@ export const HeaderCell = styled.th<{ $sticky?: boolean }>`
   ${(props) =>
     props.$sticky &&
     css`
-      position: sticky;
-      left: 0;
-      z-index: 15;
-      min-width: 180px;
-      max-width: 220px;
+      ${stickyFirstColumn};
+      background: ${theme.colors
+        .tableHeader}; // para que no se note el solapado
     `}
 
   div:last-child {
@@ -558,14 +565,14 @@ export const DataCell = styled.td<{ $center?: boolean }>`
 `;
 
 export const StaffNameCell = styled.td`
+  ${stickyFirstColumn};
+
   padding: ${theme.spacing.md} ${theme.spacing.sm};
   font-weight: ${theme.fontWeights.bold};
   color: ${theme.colors.textPrimary};
   background: ${theme.colors.gray50};
   border-bottom: 1px solid ${theme.colors.tableBorder};
-  position: sticky;
-  left: 0;
-  z-index: 5;
+  z-index: 15; // un poco debajo del header pero por encima del resto
   min-width: 180px;
   max-width: 220px;
   text-align: left;
@@ -670,7 +677,7 @@ export const BackButton = styled(ActionButton)`
 `;
 
 export const DownloadButton = styled(ActionButton)`
-  background: ${theme.colors.primary};
+  background: ${theme.colors.primaryButton};
   color: ${theme.colors.white};
   justify-self: end;
 
@@ -777,5 +784,18 @@ export const SlideIn = styled.div`
       opacity: 1;
       transform: translateX(0);
     }
+  }
+`;
+
+// SUPPORT STAFF BUTTON
+export const SupportStaffButton = styled(ActionButton)`
+  background: ${theme.colors.primaryButton};
+  color: ${theme.colors.white};
+  justify-self: end;
+
+  ${media.md} {
+    align-self: flex-end;
+    padding: ${theme.spacing.sm} ${theme.spacing.md};
+    font-size: ${theme.fontSizes.sm};
   }
 `;

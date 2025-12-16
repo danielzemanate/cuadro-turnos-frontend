@@ -10,6 +10,8 @@ import {
   IDataAddPatient,
   ISiauTypesResponse,
   IDataAddUnmetDemand,
+  IChangeSupportStaff,
+  ICreateSupportStaff,
 } from "../../interfaces/schedule";
 import {
   setLoading,
@@ -280,6 +282,67 @@ export const addUnmetDemand = (
       if (response.status === 200) {
         // Despachar algo si se requiere guardar en el store
         // dispatch({ type: constants.scheduleAddTotalPatients, payload: response.data });
+
+        dispatch(setOpenToast(true));
+        dispatch(setVariantToast("success"));
+        dispatch(setMessageToast(t("alerts.updateSuccess")));
+      }
+    } catch (error) {
+      dispatch(setOpenToast(true));
+      dispatch(setVariantToast("error"));
+      dispatch(setMessageToast(t("alerts.genericError")));
+      console.log(error?.message || error);
+    } finally {
+      dispatch(setLoading(false));
+    }
+  };
+};
+
+/**
+ * Agrega personal de apoyo al cuadro de turnos
+ */
+export const createSupportStaff = (
+  data: ICreateSupportStaff,
+): ThunkResult<Promise<void>> => {
+  return async (dispatch) => {
+    dispatch(setLoading(true));
+    try {
+      const response = await ScheduleService.postCreateSupportStaff(data);
+
+      // Normalmente el backend responde 200 o 201 en creación
+      if (response.status === 200 || response.status === 201) {
+        // Si luego necesitas guardar data en store, aquí lo haces:
+        // dispatch({ type: constants.scheduleCreateSupportStaff, payload: response.data });
+
+        dispatch(setOpenToast(true));
+        dispatch(setVariantToast("success"));
+        dispatch(setMessageToast(t("alerts.updateSuccess")));
+      }
+    } catch (error) {
+      dispatch(setOpenToast(true));
+      dispatch(setVariantToast("error"));
+      dispatch(setMessageToast(t("alerts.genericError")));
+      console.log(error?.message || error);
+    } finally {
+      dispatch(setLoading(false));
+    }
+  };
+};
+
+/**
+ * Cambia (reemplaza/actualiza) personal de apoyo en el cuadro de turnos
+ */
+export const changeSupportStaff = (
+  data: IChangeSupportStaff,
+): ThunkResult<Promise<void>> => {
+  return async (dispatch) => {
+    dispatch(setLoading(true));
+    try {
+      const response = await ScheduleService.postChangeSupportStaff(data);
+
+      if (response.status === 200) {
+        // Si luego necesitas guardar data en store, aquí lo haces:
+        // dispatch({ type: constants.scheduleChangeSupportStaff, payload: response.data });
 
         dispatch(setOpenToast(true));
         dispatch(setVariantToast("success"));
