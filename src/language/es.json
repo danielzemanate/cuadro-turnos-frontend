@@ -55,7 +55,34 @@
     "totalPatientsTreated": "Total pacientes atendidos",
     "siauTypes": "Tipos de SIAU",
     "siauSectionTitle": "SIAU – Tipos",
-    "healthPersonnelType": "Tipo personal de salud"
+    "healthPersonnelType": "Tipo personal de salud",
+    "closeSupportStaff": "Cerrar personal de apoyo",
+    "supportStaffTitle": "Personal de apoyo",
+    "supportStaff": {
+      "title": "Personal de apoyo",
+      "tabCreate": "Agregar personal asistencial",
+      "tabChange": "Cambiar personal asistencial",
+
+      "selectedMonthId": "Mes seleccionado (ID)",
+      "selectedTypeId": "Tipo seleccionado (ID)",
+
+      "isSupportLabel": "¿Es apoyo?",
+      "yes": "Sí",
+      "no": "No",
+
+      "userLabel": "Usuario",
+      "incomingUserLabel": "Usuario entrante",
+      "outgoingUserLabel": "Usuario saliente",
+
+      "entryDayLabel": "Día de entrada",
+      "entryDayPlaceholder": "Ej: 15",
+
+      "selectPlaceholder": "Seleccione…",
+      "selectIncomingFirst": "Seleccione primero entrante…",
+
+      "savePerson": "Agregar Persona",
+      "changePerson": "Cambiar Persona"
+    }
   },
   "alerts": {
     "credentialsError": "Credenciales no validas",

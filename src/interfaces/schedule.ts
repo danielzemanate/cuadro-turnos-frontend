@@ -27,6 +27,7 @@ export interface Dia {
   es_novedad: boolean;
   tipo_atencion: string | null;
   horas: number;
+  justificacion: string;
 }
 
 export interface IOptionsResponse {
@@ -113,4 +114,20 @@ export interface IDataAddUnmetDemand {
   dia: number;
   id_tipos_siau: number;
   valor: number;
+}
+
+export interface ICreateSupportStaff {
+  id_cuadro_mes: number;
+  id_usuario: number;
+  es_apoyo: boolean;
+  id_tipo_personal_salud: number;
+}
+
+export interface IChangeSupportStaff {
+  id_cuadro_mes: number;
+  id_usuario_entrante: number;
+  id_usuario_saliente: number;
+  dia_entrada: number;
+  es_apoyo: boolean;
+  id_tipo_personal_salud: number;
 }
