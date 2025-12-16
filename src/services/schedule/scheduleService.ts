@@ -1,4 +1,6 @@
 import {
+  IChangeSupportStaff,
+  ICreateSupportStaff,
   IDataAddPatient,
   IDataAddUnmetDemand,
   IDataEditScheduleData,
@@ -61,6 +63,18 @@ const ScheduleService = {
   postUnmetDemand: async (data: IDataAddUnmetDemand) => {
     return await api.post(
       `${import.meta.env.VITE_APP_BACK_ESE}api/reportes/demanda-insatisfecha`,
+      data,
+    );
+  },
+  postCreateSupportStaff: async (data: ICreateSupportStaff) => {
+    return await api.post(
+      `${import.meta.env.VITE_APP_BACK_ESE}api/cuadros/agregar-personal`,
+      data,
+    );
+  },
+  postChangeSupportStaff: async (data: IChangeSupportStaff) => {
+    return await api.post(
+      `${import.meta.env.VITE_APP_BACK_ESE}api/cuadros/cambiar-personal`,
       data,
     );
   },

@@ -86,7 +86,7 @@ export const formatPersonName = (nombre: string, apellidos: string): string =>
 
 export const getNoveltyJustifications = (novedades: Dia[]): string =>
   novedades
-    .map((n) => n.tipo_atencion || "")
+    .map((n) => n.justificacion || "")
     .filter(Boolean)
     .join(" / ");
 
