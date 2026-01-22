@@ -65,23 +65,19 @@
 
       "selectedMonthId": "Mes seleccionado (ID)",
       "selectedTypeId": "Tipo seleccionado (ID)",
-
       "isSupportLabel": "¿Es apoyo?",
       "yes": "Sí",
       "no": "No",
-
       "userLabel": "Usuario",
       "incomingUserLabel": "Usuario entrante",
       "outgoingUserLabel": "Usuario saliente",
-
       "entryDayLabel": "Día de entrada",
       "entryDayPlaceholder": "Ej: 15",
-
       "selectPlaceholder": "Seleccione…",
       "selectIncomingFirst": "Seleccione primero entrante…",
-
       "savePerson": "Agregar Persona",
-      "changePerson": "Cambiar Persona"
+      "changePerson": "Cambiar Persona",
+      "noAvailableUsers": "No hay usuarios disponibles"
     }
   },
   "alerts": {

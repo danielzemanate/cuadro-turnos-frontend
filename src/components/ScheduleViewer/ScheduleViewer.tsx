@@ -88,6 +88,7 @@ import {
 } from "../../constants/schedule.constants";
 import { SiauTypesTable } from "./siau/SiauTypesTable";
 import { SupportStaff } from "./supportStaff/SupportStaff";
+import { getPatientsTraffic } from "../../helpers/PatientsColor";
 
 interface ScheduleViewerProps {
   editable?: boolean;
@@ -716,6 +717,25 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
     ],
   );
 
+  //CALCULO DOCTORES POR DIA CON CE
+  const ceDoctorsByDay = useMemo(() => {
+    const counts: Record<number, number> = {};
+
+    // Inicializar en 0 para cada día
+    (days || []).forEach((d) => (counts[d] = 0));
+
+    (monthData?.personal_de_salud || []).forEach((person) => {
+      const buckets = createDayBuckets(person.dias);
+
+      (days || []).forEach((d) => {
+        const sigla = buckets[d]?.normal?.tipo_atencion || "";
+        if (sigla === "CE") counts[d] += 1;
+      });
+    });
+
+    return counts; // { 1: 3, 2: 5, ... }
+  }, [monthData?.personal_de_salud, days]);
+
   const staffInSchedule = useMemo(() => {
     const list = (monthData?.personal_de_salud ?? []).map((p) => ({
       id: p.id_usuario,
@@ -735,6 +755,12 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
           </StaffNameCell>
           {days.map((day) => {
             const key = `${person.id_usuario}-${day}`;
+            const raw = patientsInput[key] ?? "";
+            const currentPatients = raw === "" ? 0 : parseInt(raw, 10);
+            const traffic = getPatientsTraffic(
+              Number.isNaN(currentPatients) ? 0 : currentPatients,
+            );
+
             return (
               <DataCell key={`patients-${person.id_usuario}-${day}`} $center>
                 {canManagePatients ? (
@@ -742,7 +768,8 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
                     type="text"
                     inputMode="numeric"
                     pattern="[0-9]*"
-                    value={patientsInput[key] ?? ""}
+                    value={raw}
+                    $traffic={traffic}
                     onChange={(e) =>
                       handlePatientsChange(
                         person.id_usuario,
@@ -1318,11 +1345,12 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
               days={days}
               monthLabel={MONTHS[monthIndex0]}
               siauTypes={siauTypes ?? []}
-              canEdit={canManageSiau} // <- solo 4/5 editan; el resto ve
+              canEdit={canManageSiau}
               valuesByKey={siauUnmetByKey}
               inputsByKey={siauInputs}
               onChangeCell={handleSiauChange}
               onBlurCell={handleSiauBlur}
+              ceDoctorsByDay={ceDoctorsByDay}
             />
           </TableSection>
         )}
