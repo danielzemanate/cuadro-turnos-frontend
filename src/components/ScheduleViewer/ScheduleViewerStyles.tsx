@@ -1,4 +1,5 @@
 import styled, { css } from "styled-components";
+import { PatientsTraffic } from "../../helpers/PatientsColor";
 
 // ======================
 // DESIGN TOKENS
@@ -419,7 +420,11 @@ export const TableControls = styled.div`
 export const TableContainer = styled.div`
   position: relative;
   max-width: 100%;
-  overflow-x: auto;
+
+  /* ✅ Scroll vertical + horizontal dentro del contenedor */
+  max-height: calc(100vh - 260px); /* ajusta este valor a tu layout */
+  overflow: auto;
+
   border-radius: ${theme.borderRadius.md};
   box-shadow: ${theme.shadows.lg};
   border: 1px solid ${theme.colors.borderLight};
@@ -427,6 +432,7 @@ export const TableContainer = styled.div`
   /* Custom scrollbar */
   &::-webkit-scrollbar {
     height: 8px;
+    width: 8px;
   }
 
   &::-webkit-scrollbar-track {
@@ -477,11 +483,7 @@ export const stickyFirstColumn = css`
   background: ${theme.colors.gray50};
 `;
 
-export const TableHead = styled.thead`
-  position: sticky;
-  top: 0;
-  z-index: 10;
-`;
+export const TableHead = styled.thead``;
 
 export const TableBody = styled.tbody``;
 
@@ -498,12 +500,18 @@ export const HeaderCell = styled.th<{ $sticky?: boolean }>`
   max-width: 80px;
   font-size: ${theme.fontSizes.sm};
 
+  /* ✅ Sticky header (días del mes) */
+  position: sticky;
+  top: 0px;
+  z-index: 50;
+
   ${(props) =>
     props.$sticky &&
     css`
-      ${stickyFirstColumn};
-      background: ${theme.colors
-        .tableHeader}; // para que no se note el solapado
+      /* ✅ Esquina superior izquierda (Año): sticky X + Y */
+      left: 0;
+      z-index: 60;
+      background: ${theme.colors.tableHeader};
     `}
 
   div:last-child {
@@ -572,7 +580,10 @@ export const StaffNameCell = styled.td`
   color: ${theme.colors.textPrimary};
   background: ${theme.colors.gray50};
   border-bottom: 1px solid ${theme.colors.tableBorder};
-  z-index: 15; // un poco debajo del header pero por encima del resto
+
+  /* ✅ Por debajo del header sticky */
+  z-index: 15;
+
   min-width: 180px;
   max-width: 220px;
   text-align: left;
@@ -704,21 +715,47 @@ export const LoadingOverlay = styled.div`
   backdrop-filter: blur(2px);
 `;
 
-export const InputField = styled.input`
+export const InputField = styled.input<{ $traffic?: PatientsTraffic }>`
   ${inputBase}
   width: 60px;
   text-align: center;
-  padding: ${theme.spacing.xs} ${theme.spacing.xs};
+  padding: ${theme.spacing.xs};
   font-size: ${theme.fontSizes.sm};
+
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease;
+
+  ${(props) => {
+    if (!props.$traffic || props.$traffic === "none") return "";
+
+    if (props.$traffic === "green") {
+      return `
+        background-color: rgba(16, 185, 129, 0.25);
+        border-color: #10b981;
+      `;
+    }
+
+    if (props.$traffic === "yellow") {
+      return `
+        background-color: rgba(245, 158, 11, 0.25);
+        border-color: #f59e0b;
+      `;
+    }
+
+    return `
+      background-color: rgba(239, 68, 68, 0.25);
+      border-color: #ef4444;
+    `;
+  }}
+
+  &:focus {
+    outline: none;
+  }
 
   ${media.md} {
     width: 50px;
     font-size: ${theme.fontSizes.xs};
-    padding: ${theme.spacing.xs};
-  }
-
-  ${media.sm} {
-    width: 45px;
   }
 `;
 
@@ -798,4 +835,32 @@ export const SupportStaffButton = styled(ActionButton)`
     padding: ${theme.spacing.sm} ${theme.spacing.md};
     font-size: ${theme.fontSizes.sm};
   }
+`;
+
+export const SiauNameCell = styled(StaffNameCell)`
+  min-width: 320px;
+  max-width: 420px;
+
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  line-height: 1.2;
+`;
+
+export const SiauCalculatedRow = styled.tr`
+  /* Color diferente para distinguir */
+  background: #f0f9ff; /* azul muy suave */
+`;
+
+export const SiauCalculatedNameCell = styled(SiauNameCell)`
+  font-weight: ${theme.fontWeights.extrabold};
+  background: #e0f2fe; /* un poco más fuerte */
+`;
+
+export const SiauCalculatedCell = styled(DataCell)`
+  font-weight: ${theme.fontWeights.bold};
+  background: #f0f9ff;
+
+  /* Opcional: borde arriba para “sección calculada” */
+  border-top: 2px solid ${theme.colors.borderLight};
 `;
