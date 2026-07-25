@@ -514,7 +514,8 @@ export const fetchUserContracts = (
     try {
       const res = await AdministrationService.fetchUserContract(data);
       if (res.status === 200) {
-        return res.data as IUserContract[];
+        const payload = res.data;
+        return Array.isArray(payload) ? (payload as IUserContract[]) : [];
       }
       return null;
     } catch (error) {
@@ -541,7 +542,8 @@ export const fetchContractTypes = (): ThunkResult<
     try {
       const res = await AdministrationService.fetchContractsTypes();
       if (res.status === 200) {
-        return res.data as IGenericGetData[];
+        const payload = res.data;
+        return Array.isArray(payload) ? (payload as IGenericGetData[]) : [];
       }
       return null;
     } catch (error) {

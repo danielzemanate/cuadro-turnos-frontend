@@ -39,6 +39,8 @@ import {
 interface Props {
   userId: number;
   onCancel: () => void;
+  /** COSTOS solo consulta; INGENIERO puede CRUD */
+  readOnly?: boolean;
 }
 
 // Para el formulario local (creación/edición)
@@ -56,9 +58,36 @@ type TouchedFields = Record<FormField, boolean>;
 // id seleccionado puede ser numérico o "new" (nuevo contrato)
 type SelectedId = number | "new" | null;
 
+const emptyContractForm = (tipoId = 0): ContractForm => ({
+  id_tipo_contrato: tipoId,
+  n_contrato: "",
+  fecha_inicio: "",
+  fecha_fin: "",
+  salario_mes: "",
+});
+
+const asArray = <T,>(value: unknown): T[] =>
+  Array.isArray(value) ? (value as T[]) : [];
+
+const toInputString = (value: unknown): string => {
+  if (value === null || value === undefined) return "";
+  return String(value);
+};
+
+/** Input type="date" necesita YYYY-MM-DD; el backend a veces manda ISO completo */
+const toDateInputValue = (value: unknown): string => {
+  const raw = toInputString(value).trim();
+  if (!raw) return "";
+  return raw.includes("T") ? raw.slice(0, 10) : raw.slice(0, 10);
+};
+
 /* ---------------------------- Componente principal ---------------------------- */
 
-const FormUserContracts: React.FC<Props> = ({ userId, onCancel }) => {
+const FormUserContracts: React.FC<Props> = ({
+  userId,
+  onCancel,
+  readOnly = false,
+}) => {
   const { t } = useTranslation();
   const dispatchThunk = useAppDispatchThunk();
   const loading = useSelector((s: AppState) => s.helpers.loading);
@@ -104,19 +133,22 @@ const FormUserContracts: React.FC<Props> = ({ userId, onCancel }) => {
 
     const loadAll = async () => {
       // Tipos de contrato
-      const types = await dispatchThunk(fetchContractTypes());
-      if (mounted) setContractTypes(types ?? []);
+      const types = asArray<IGenericGetData>(
+        await dispatchThunk(fetchContractTypes()),
+      );
+      if (mounted) setContractTypes(types);
 
       // Contratos del usuario
-      const list = await dispatchThunk(
-        fetchUserContracts({ id_usuario: String(userId) }),
+      const list = asArray<IUserContract>(
+        await dispatchThunk(fetchUserContracts({ id_usuario: String(userId) })),
       );
       if (mounted) {
-        setContracts(list ?? []);
-        if (list && list.length > 0) {
+        setContracts(list);
+        if (list.length > 0) {
           setSelectedContractId(list[0].id);
         } else {
-          setSelectedContractId("new"); // si no hay, entrar en modo creación
+          // Sin contratos: COSTOS no puede crear; INGENIERO entra en modo alta
+          setSelectedContractId(readOnly ? null : "new");
         }
       }
     };
@@ -125,37 +157,30 @@ const FormUserContracts: React.FC<Props> = ({ userId, onCancel }) => {
     return () => {
       mounted = false;
     };
-  }, [dispatchThunk, userId]);
+  }, [dispatchThunk, readOnly, userId]);
 
   // Cuando cambia el seleccionado, setear form
   useEffect(() => {
     if (selectedContractId === "new" || !selectedContract) {
-      // Defaults para crear
-      setForm({
-        id_tipo_contrato: contractTypes[0]?.id ?? 0,
-        n_contrato: "",
-        fecha_inicio: "",
-        fecha_fin: "",
-        salario_mes: "",
-      });
+      setForm(emptyContractForm(contractTypes[0]?.id ?? 0));
       setTouched({});
       return;
     }
 
-    // Modo edición
+    // Modo edición: normalizar a strings para los inputs (evita crash si viene null/number)
     setForm({
-      id_tipo_contrato: selectedContract.id_tipo_contrato,
-      n_contrato: String(selectedContract.n_contrato),
-      fecha_inicio: selectedContract.fecha_inicio,
-      fecha_fin: selectedContract.fecha_fin,
-      salario_mes: selectedContract.salario_mes,
+      id_tipo_contrato: Number(selectedContract.id_tipo_contrato) || 0,
+      n_contrato: toInputString(selectedContract.n_contrato),
+      fecha_inicio: toDateInputValue(selectedContract.fecha_inicio),
+      fecha_fin: toDateInputValue(selectedContract.fecha_fin),
+      salario_mes: toInputString(selectedContract.salario_mes),
     });
     setTouched({});
   }, [selectedContractId, selectedContract, contractTypes]);
 
   // Validaciones
   const errors = useMemo(() => {
-    const clean = (s: string) => s.trim();
+    const clean = (s: unknown) => toInputString(s).trim();
     return {
       id_tipo_contrato:
         !Number.isFinite(Number(form.id_tipo_contrato)) ||
@@ -177,12 +202,14 @@ const FormUserContracts: React.FC<Props> = ({ userId, onCancel }) => {
 
   const isContractExpired = useMemo(() => {
     if (!selectedContract || selectedContractId === "new") return false;
-    const endDate = new Date(selectedContract.fecha_fin);
+    const endRaw = toDateInputValue(selectedContract.fecha_fin);
+    if (!endRaw) return false;
+    const endDate = new Date(`${endRaw}T00:00:00`);
+    if (Number.isNaN(endDate.getTime())) return false;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     return endDate < today;
   }, [selectedContract, selectedContractId]);
-
   // Setters
   const setField = useCallback(
     <K extends FormField>(key: K) =>
@@ -203,16 +230,16 @@ const FormUserContracts: React.FC<Props> = ({ userId, onCancel }) => {
 
   // Acciones CRUD
   const refetchContractsAndReselect = useCallback(async () => {
-    const list = await dispatchThunk(
-      fetchUserContracts({ id_usuario: String(userId) }),
+    const list = asArray<IUserContract>(
+      await dispatchThunk(fetchUserContracts({ id_usuario: String(userId) })),
     );
-    setContracts(list ?? []);
-    if (list && list.length > 0) {
+    setContracts(list);
+    if (list.length > 0) {
       setSelectedContractId(list[0].id);
     } else {
-      setSelectedContractId("new");
+      setSelectedContractId(readOnly ? null : "new");
     }
-  }, [dispatchThunk, userId]);
+  }, [dispatchThunk, readOnly, userId]);
 
   const handleCreate = useCallback(async () => {
     if (hasErrors) {
@@ -343,8 +370,10 @@ const FormUserContracts: React.FC<Props> = ({ userId, onCancel }) => {
 
   // UI
 
-  // Si no hay contratos, igualmente permitimos crear
+  // Si no hay contratos, igualmente permitimos crear (salvo readOnly)
   const hasAnyContract = contracts.length > 0;
+  const fieldsDisabled =
+    readOnly || (selectedContractId !== "new" && isContractExpired);
 
   return (
     <>
@@ -364,191 +393,212 @@ const FormUserContracts: React.FC<Props> = ({ userId, onCancel }) => {
           </div>
         )}
 
-        {/* Selector de contrato + opción de nuevo */}
-        <Field>
-          <Label htmlFor="contract-selector">
-            {t("administration.users.contracts.selectContract")}
-          </Label>
-          <Select
-            id="contract-selector"
-            value={String(selectedContractId ?? "")}
-            onChange={(e) => {
-              const v = e.target.value;
-              setSelectedContractId(v === "new" ? "new" : Number(v));
-            }}
-          >
-            {!hasAnyContract && <option value="new">{t("common.new")}</option>}
-            {contracts.map((contract) => (
-              <option key={contract.id} value={contract.id}>
-                {t("administration.users.contracts.contractNumber", {
-                  number: contract.n_contrato,
-                })}{" "}
-                - {contract.tipo_contrato_nombre}
-              </option>
-            ))}
-            {hasAnyContract && <option value="new">{t("common.new")}</option>}
-          </Select>
-        </Field>
+        {!hasAnyContract && readOnly ? (
+          <RoleInfo>
+            <RoleValue>
+              {t("administration.users.contracts.noContracts")}
+            </RoleValue>
+          </RoleInfo>
+        ) : (
+          <>
+            {/* Selector de contrato + opción de nuevo */}
+            <Field>
+              <Label htmlFor="contract-selector">
+                {t("administration.users.contracts.selectContract")}
+              </Label>
+              <Select
+                id="contract-selector"
+                value={String(selectedContractId ?? "")}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setSelectedContractId(v === "new" ? "new" : Number(v));
+                }}
+              >
+                {!hasAnyContract && !readOnly && (
+                  <option value="new">{t("common.new")}</option>
+                )}
+                {contracts.map((contract) => (
+                  <option key={contract.id} value={contract.id}>
+                    {t("administration.users.contracts.contractNumber", {
+                      number: contract.n_contrato,
+                    })}{" "}
+                    - {contract.tipo_contrato_nombre}
+                  </option>
+                ))}
+                {hasAnyContract && !readOnly && (
+                  <option value="new">{t("common.new")}</option>
+                )}
+              </Select>
+            </Field>
 
-        <SeparatorWithTitle>
-          {selectedContractId === "new"
-            ? t("administration.users.contracts.newContractData")
-            : t("administration.users.contracts.contractData")}
-        </SeparatorWithTitle>
+            {selectedContractId != null && (
+              <>
+                <SeparatorWithTitle>
+                  {selectedContractId === "new"
+                    ? t("administration.users.contracts.newContractData")
+                    : t("administration.users.contracts.contractData")}
+                </SeparatorWithTitle>
 
-        {/* Alerta de vencido (solo edición) */}
-        {selectedContractId !== "new" &&
-          selectedContract &&
-          (() => {
-            const end = new Date(selectedContract.fecha_fin);
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            if (end < today) {
-              return (
-                <div
-                  style={{
-                    background: "#fef2f2",
-                    border: "1px solid #fecaca",
-                    borderRadius: "0.5rem",
-                    padding: "1rem",
-                    marginBottom: "1.5rem",
-                    color: "#dc2626",
-                    fontSize: "0.875rem",
-                  }}
-                >
-                  <strong>
-                    ⚠ {t("administration.users.contracts.expiredWarningTitle")}
-                    :
-                  </strong>{" "}
-                  {t("administration.users.contracts.expiredWarningMessage")}
-                </div>
-              );
-            }
-            return null;
-          })()}
+                {/* Alerta de vencido (solo edición) */}
+                {selectedContractId !== "new" &&
+                  selectedContract &&
+                  isContractExpired && (
+                    <div
+                      style={{
+                        background: "#fef2f2",
+                        border: "1px solid #fecaca",
+                        borderRadius: "0.5rem",
+                        padding: "1rem",
+                        marginBottom: "1.5rem",
+                        color: "#dc2626",
+                        fontSize: "0.875rem",
+                      }}
+                    >
+                      <strong>
+                        ⚠{" "}
+                        {t(
+                          "administration.users.contracts.expiredWarningTitle",
+                        )}
+                        :
+                      </strong>{" "}
+                      {t(
+                        "administration.users.contracts.expiredWarningMessage",
+                      )}
+                    </div>
+                  )}
 
-        <GridThree>
-          {/* Tipo de contrato */}
-          <Field>
-            <Label htmlFor="contract-type">
-              {t("administration.users.contracts.fields.contractType")}
-            </Label>
-            <Select
-              id="contract-type"
-              value={String(form.id_tipo_contrato)}
-              onChange={(e) =>
-                setField("id_tipo_contrato")(Number(e.target.value))
-              }
-              onBlur={() => markFieldAsTouched("id_tipo_contrato")}
-              disabled={selectedContractId !== "new" && isContractExpired}
-            >
-              <option value="0">{t("common.selectPlaceholder")}</option>
-              {contractTypes.map((type) => (
-                <option key={type.id} value={type.id}>
-                  {type.nombre}
-                </option>
-              ))}
-            </Select>
-            {showError("id_tipo_contrato") && (
-              <ErrorText>
-                {t("administration.users.contracts.errors.required")}
-              </ErrorText>
+                <GridThree>
+                  {/* Tipo de contrato */}
+                  <Field>
+                    <Label htmlFor="contract-type">
+                      {t("administration.users.contracts.fields.contractType")}
+                    </Label>
+                    <Select
+                      id="contract-type"
+                      value={String(form.id_tipo_contrato)}
+                      onChange={(e) =>
+                        setField("id_tipo_contrato")(Number(e.target.value))
+                      }
+                      onBlur={() => markFieldAsTouched("id_tipo_contrato")}
+                      disabled={fieldsDisabled}
+                    >
+                      <option value="0">{t("common.selectPlaceholder")}</option>
+                      {contractTypes.map((type) => (
+                        <option key={type.id} value={type.id}>
+                          {type.nombre}
+                        </option>
+                      ))}
+                    </Select>
+                    {showError("id_tipo_contrato") && (
+                      <ErrorText>
+                        {t("administration.users.contracts.errors.required")}
+                      </ErrorText>
+                    )}
+                  </Field>
+
+                  {/* Número de contrato */}
+                  <Field>
+                    <Label htmlFor="contract-number">
+                      {t(
+                        "administration.users.contracts.fields.contractNumber",
+                      )}
+                    </Label>
+                    <Input
+                      id="contract-number"
+                      type="text"
+                      value={form.n_contrato}
+                      onChange={(e) => setField("n_contrato")(e.target.value)}
+                      onBlur={() => markFieldAsTouched("n_contrato")}
+                      placeholder={t(
+                        "administration.users.contracts.placeholders.contractNumber",
+                      )}
+                      disabled={fieldsDisabled}
+                    />
+                    {showError("n_contrato") && (
+                      <ErrorText>
+                        {t(
+                          "administration.users.contracts.errors.invalidNumber",
+                        )}
+                      </ErrorText>
+                    )}
+                  </Field>
+
+                  {/* Salario mensual */}
+                  <Field>
+                    <Label htmlFor="contract-salary">
+                      {t("administration.users.contracts.fields.monthlySalary")}
+                    </Label>
+                    <Input
+                      id="contract-salary"
+                      type="text"
+                      value={form.salario_mes}
+                      onChange={(e) => setField("salario_mes")(e.target.value)}
+                      onBlur={() => markFieldAsTouched("salario_mes")}
+                      placeholder={t(
+                        "administration.users.contracts.placeholders.monthlySalary",
+                      )}
+                      disabled={fieldsDisabled}
+                    />
+                    {showError("salario_mes") && (
+                      <ErrorText>
+                        {t(
+                          "administration.users.contracts.errors.invalidSalary",
+                        )}
+                      </ErrorText>
+                    )}
+                  </Field>
+
+                  {/* Fecha inicio */}
+                  <Field>
+                    <Label htmlFor="contract-start">
+                      {t("administration.users.contracts.fields.startDate")}
+                    </Label>
+                    <Input
+                      id="contract-start"
+                      type="date"
+                      value={form.fecha_inicio}
+                      onChange={(e) => setField("fecha_inicio")(e.target.value)}
+                      onBlur={() => markFieldAsTouched("fecha_inicio")}
+                      disabled={fieldsDisabled}
+                    />
+                    {showError("fecha_inicio") && (
+                      <ErrorText>
+                        {t("administration.users.contracts.errors.required")}
+                      </ErrorText>
+                    )}
+                  </Field>
+
+                  {/* Fecha fin */}
+                  <Field>
+                    <Label htmlFor="contract-end">
+                      {t("administration.users.contracts.fields.endDate")}
+                    </Label>
+                    <Input
+                      id="contract-end"
+                      type="date"
+                      value={form.fecha_fin}
+                      onChange={(e) => setField("fecha_fin")(e.target.value)}
+                      onBlur={() => markFieldAsTouched("fecha_fin")}
+                      disabled={fieldsDisabled}
+                    />
+                    {showError("fecha_fin") && (
+                      <ErrorText>
+                        {t("administration.users.contracts.errors.required")}
+                      </ErrorText>
+                    )}
+                  </Field>
+                </GridThree>
+              </>
             )}
-          </Field>
-
-          {/* Número de contrato */}
-          <Field>
-            <Label htmlFor="contract-number">
-              {t("administration.users.contracts.fields.contractNumber")}
-            </Label>
-            <Input
-              id="contract-number"
-              type="text"
-              value={form.n_contrato}
-              onChange={(e) => setField("n_contrato")(e.target.value)}
-              onBlur={() => markFieldAsTouched("n_contrato")}
-              placeholder={t(
-                "administration.users.contracts.placeholders.contractNumber",
-              )}
-              disabled={selectedContractId !== "new" && isContractExpired}
-            />
-            {showError("n_contrato") && (
-              <ErrorText>
-                {t("administration.users.contracts.errors.invalidNumber")}
-              </ErrorText>
-            )}
-          </Field>
-
-          {/* Salario mensual */}
-          <Field>
-            <Label htmlFor="contract-salary">
-              {t("administration.users.contracts.fields.monthlySalary")}
-            </Label>
-            <Input
-              id="contract-salary"
-              type="text"
-              value={form.salario_mes}
-              onChange={(e) => setField("salario_mes")(e.target.value)}
-              onBlur={() => markFieldAsTouched("salario_mes")}
-              placeholder={t(
-                "administration.users.contracts.placeholders.monthlySalary",
-              )}
-              disabled={selectedContractId !== "new" && isContractExpired}
-            />
-            {showError("salario_mes") && (
-              <ErrorText>
-                {t("administration.users.contracts.errors.invalidSalary")}
-              </ErrorText>
-            )}
-          </Field>
-
-          {/* Fecha inicio */}
-          <Field>
-            <Label htmlFor="contract-start">
-              {t("administration.users.contracts.fields.startDate")}
-            </Label>
-            <Input
-              id="contract-start"
-              type="date"
-              value={form.fecha_inicio}
-              onChange={(e) => setField("fecha_inicio")(e.target.value)}
-              onBlur={() => markFieldAsTouched("fecha_inicio")}
-              disabled={selectedContractId !== "new" && isContractExpired}
-            />
-            {showError("fecha_inicio") && (
-              <ErrorText>
-                {t("administration.users.contracts.errors.required")}
-              </ErrorText>
-            )}
-          </Field>
-
-          {/* Fecha fin */}
-          <Field>
-            <Label htmlFor="contract-end">
-              {t("administration.users.contracts.fields.endDate")}
-            </Label>
-            <Input
-              id="contract-end"
-              type="date"
-              value={form.fecha_fin}
-              onChange={(e) => setField("fecha_fin")(e.target.value)}
-              onBlur={() => markFieldAsTouched("fecha_fin")}
-              disabled={selectedContractId !== "new" && isContractExpired}
-            />
-            {showError("fecha_fin") && (
-              <ErrorText>
-                {t("administration.users.contracts.errors.required")}
-              </ErrorText>
-            )}
-          </Field>
-        </GridThree>
+          </>
+        )}
 
         <Actions>
           <Ghost type="button" onClick={onCancel}>
             {t("common.cancel")}
           </Ghost>
 
-          {selectedContractId === "new" ? (
+          {!readOnly && selectedContractId === "new" && (
             <Primary
               type="button"
               onClick={openCreateWithValidation}
@@ -556,34 +606,34 @@ const FormUserContracts: React.FC<Props> = ({ userId, onCancel }) => {
             >
               {t("common.create")}
             </Primary>
-          ) : (
-            <>
-              {/* Si está vencido: NO mostrar eliminar/actualizar */}
-              {!isContractExpired && (
-                <>
-                  <Danger
-                    type="button"
-                    onClick={() => {
-                      setOpenCreateDialog(false);
-                      setOpenUpdateDialog(false);
-                      setOpenDeleteDialog(true);
-                    }}
-                    disabled={loading}
-                  >
-                    {t("common.delete")}
-                  </Danger>
-
-                  <Primary
-                    type="button"
-                    onClick={openUpdateWithValidation}
-                    disabled={loading}
-                  >
-                    {t("common.update")}
-                  </Primary>
-                </>
-              )}
-            </>
           )}
+
+          {!readOnly &&
+            selectedContractId !== "new" &&
+            selectedContractId != null &&
+            !isContractExpired && (
+              <>
+                <Danger
+                  type="button"
+                  onClick={() => {
+                    setOpenCreateDialog(false);
+                    setOpenUpdateDialog(false);
+                    setOpenDeleteDialog(true);
+                  }}
+                  disabled={loading}
+                >
+                  {t("common.delete")}
+                </Danger>
+
+                <Primary
+                  type="button"
+                  onClick={openUpdateWithValidation}
+                  disabled={loading}
+                >
+                  {t("common.update")}
+                </Primary>
+              </>
+            )}
         </Actions>
       </PageBlock>
 

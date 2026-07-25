@@ -41,6 +41,8 @@ interface Props {
   onCancel: () => void;
   defaultValue?: Partial<IUserForm & { id?: number }>;
   contractMode?: boolean;
+  /** COSTOS solo consulta contratos */
+  contractsReadOnly?: boolean;
 }
 
 interface IDataUserRol {
@@ -138,6 +140,7 @@ const FormUser: React.FC<Props> = ({
   onCancel,
   defaultValue,
   contractMode = false,
+  contractsReadOnly = false,
 }) => {
   const { t } = useTranslation();
   const dispatchThunk = useAppDispatchThunk();
@@ -369,7 +372,27 @@ const FormUser: React.FC<Props> = ({
   }, [userRol, rolesFromStore, t]);
 
   if (contractMode) {
-    return <FormUserContracts userId={editingUserId} onCancel={onCancel} />;
+    if (!editingUserId) {
+      return (
+        <PageBlock onSubmit={(e) => e.preventDefault()}>
+          <Title>{t("administration.users.contracts.title")}</Title>
+          <ErrorText role="alert">{t("alerts.genericError")}</ErrorText>
+          <Actions>
+            <Ghost type="button" onClick={onCancel}>
+              {t("common.cancel")}
+            </Ghost>
+          </Actions>
+        </PageBlock>
+      );
+    }
+
+    return (
+      <FormUserContracts
+        userId={editingUserId}
+        onCancel={onCancel}
+        readOnly={contractsReadOnly}
+      />
+    );
   }
 
   return (

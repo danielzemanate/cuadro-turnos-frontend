@@ -18,7 +18,8 @@ type ConfirmDialogProps = {
   cancelText?: string;
   onConfirm: () => void;
   onCancel: () => void;
-  loading?: boolean; // <-- NUEVO
+  loading?: boolean;
+  confirmDisabled?: boolean;
 };
 
 const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
@@ -29,7 +30,8 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   cancelText = "Cancelar",
   onConfirm,
   onCancel,
-  loading = false, // <-- NUEVO
+  loading = false,
+  confirmDisabled = false,
 }) => {
   return (
     <Backdrop open={open} role="dialog" aria-modal="true">
@@ -42,7 +44,11 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
           <Button variant="ghost" onClick={onCancel} disabled={loading}>
             {cancelText}
           </Button>
-          <Button variant="primary" onClick={onConfirm} disabled={loading}>
+          <Button
+            variant="primary"
+            onClick={onConfirm}
+            disabled={loading || confirmDisabled}
+          >
             {loading ? (
               <span
                 style={{ display: "inline-flex", alignItems: "center", gap: 8 }}

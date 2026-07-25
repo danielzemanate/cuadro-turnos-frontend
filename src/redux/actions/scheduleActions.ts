@@ -7,6 +7,8 @@ import {
   IParamsGenericQuery,
   IAttentionTypesResponse,
   IDataEditScheduleData,
+  IDataEditScheduleDayInterval,
+  IScheduleDayInterval,
   IDataAddPatient,
   ISiauTypesResponse,
   IDataAddUnmetDemand,
@@ -65,6 +67,12 @@ export const fetchScheduleByMonth = (
         });
       }
     } catch (error) {
+      // 404 significa que no hay cuadro para esos filtros: es un resultado
+      // vacío, no un fallo. El componente muestra el estado "sin datos".
+      if (error?.response?.status === 404) {
+        dispatch({ type: constants.scheduleClearMonth });
+        return;
+      }
       dispatch(setOpenToast(true));
       dispatch(setVariantToast("error"));
       dispatch(setMessageToast(t("alerts.genericError")));
@@ -132,28 +140,115 @@ export const fetchAttentionTypes = (
 };
 
 /**
- * Edita un día del cuadro de turnos
+ * Edita un día del cuadro de turnos.
+ * Retorna `id_cuadro_dia` de la respuesta (necesario para intervalos CE/CEC/CED).
  */
 export const editScheduleDay = (
   data: IDataEditScheduleData,
-): ThunkResult<Promise<void>> => {
+  options?: { silent?: boolean },
+): ThunkResult<Promise<number | null>> => {
   return async (dispatch) => {
     dispatch(setLoading(true));
     try {
       const response = await ScheduleService.getEditScheduleDay(data);
-      if (response.status === 200) {
-        // Despachar algo si se requiere guardar en el store
-        // dispatch({ type: constants.scheduleUpdateDay, payload: response.data });
+      if (response.status === 200 || response.status === 201) {
+        const idCuadroDia =
+          response.data?.id_cuadro_dia ?? response.data?.id ?? null;
 
-        dispatch(setOpenToast(true));
-        dispatch(setVariantToast("success"));
-        dispatch(setMessageToast(t("alerts.updateSuccess")));
+        if (!options?.silent) {
+          dispatch(setOpenToast(true));
+          dispatch(setVariantToast("success"));
+          dispatch(setMessageToast(t("alerts.updateSuccess")));
+        }
+        return typeof idCuadroDia === "number" ? idCuadroDia : null;
       }
+      return null;
     } catch (error) {
       dispatch(setOpenToast(true));
       dispatch(setVariantToast("error"));
       dispatch(setMessageToast(t("alerts.genericError")));
       console.log(error?.message || error);
+      return null;
+    } finally {
+      dispatch(setLoading(false));
+    }
+  };
+};
+
+/**
+ * Guarda intervalos horarios de un día (tras editar-dia con CE/CEC/CED).
+ */
+export const editScheduleDayInterval = (
+  data: IDataEditScheduleDayInterval,
+): ThunkResult<Promise<boolean>> => {
+  return async (dispatch) => {
+    dispatch(setLoading(true));
+    try {
+      const response = await ScheduleService.postEditScheduleDayInterval(data);
+      if (response.status === 200 || response.status === 201) {
+        dispatch(setOpenToast(true));
+        dispatch(setVariantToast("success"));
+        dispatch(setMessageToast(t("alerts.updateSuccess")));
+        return true;
+      }
+      return false;
+    } catch (error) {
+      dispatch(setOpenToast(true));
+      dispatch(setVariantToast("error"));
+      dispatch(setMessageToast(t("alerts.genericError")));
+      console.log(error?.message || error);
+      return false;
+    } finally {
+      dispatch(setLoading(false));
+    }
+  };
+};
+
+/**
+ * Edita el día y luego guarda el intervalo horario (flujo CE/CEC/CED).
+ * Si falla el intervalo, el día ya pudo haberse guardado en el backend.
+ */
+export const editScheduleDayWithInterval = (
+  dayData: IDataEditScheduleData,
+  intervalos: IScheduleDayInterval[],
+): ThunkResult<Promise<boolean>> => {
+  return async (dispatch) => {
+    dispatch(setLoading(true));
+    try {
+      const dayResponse = await ScheduleService.getEditScheduleDay(dayData);
+      if (dayResponse.status !== 200 && dayResponse.status !== 201) {
+        return false;
+      }
+
+      const idCuadroDia =
+        dayResponse.data?.id_cuadro_dia ?? dayResponse.data?.id ?? null;
+
+      if (typeof idCuadroDia !== "number") {
+        dispatch(setOpenToast(true));
+        dispatch(setVariantToast("error"));
+        dispatch(setMessageToast(t("scheduleViewer.interval.missingDayId")));
+        return false;
+      }
+
+      const intervalResponse =
+        await ScheduleService.postEditScheduleDayInterval({
+          id_cuadro_dia: idCuadroDia,
+          intervalos,
+        });
+
+      if (intervalResponse.status === 200 || intervalResponse.status === 201) {
+        dispatch(setOpenToast(true));
+        dispatch(setVariantToast("success"));
+        dispatch(setMessageToast(t("alerts.updateSuccess")));
+        return true;
+      }
+      return false;
+    } catch (error) {
+      dispatch(setOpenToast(true));
+      dispatch(setVariantToast("error"));
+      dispatch(setMessageToast(t("alerts.genericError")));
+      console.log(error?.message || error);
+      return false;
     } finally {
       dispatch(setLoading(false));
     }

@@ -4,6 +4,7 @@ import {
   IDataAddPatient,
   IDataAddUnmetDemand,
   IDataEditScheduleData,
+  IDataEditScheduleDayInterval,
   IParamsGenericQuery,
   IScheduleMonthParams,
 } from "../../interfaces/schedule";
@@ -36,6 +37,12 @@ const ScheduleService = {
   getEditScheduleDay: async (data: IDataEditScheduleData) => {
     return await api.post(
       `${import.meta.env.VITE_APP_BACK_ESE}api/cuadros/editar-dia`,
+      data,
+    );
+  },
+  postEditScheduleDayInterval: async (data: IDataEditScheduleDayInterval) => {
+    return await api.post(
+      `${import.meta.env.VITE_APP_BACK_ESE}api/cuadros/editar-dia-intervalo`,
       data,
     );
   },

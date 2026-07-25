@@ -54,7 +54,7 @@ interface SupportStaffProps {
   municipioNombre: string;
   tipoPersonalNombre: string;
 
-  // ✅ NUEVO: lista de usuarios que YA están en el cuadro de turnos
+  // Lista de usuarios que YA están en el cuadro de turnos
   scheduleStaff: IScheduleStaffItem[];
 
   onSuccess?: () => void;
@@ -128,17 +128,17 @@ export const SupportStaff: React.FC<SupportStaffProps> = ({
     return list;
   }, [users, formatUserLabel]);
 
-  // ✅ IDs presentes en cuadro (para comparar)
+  // IDs presentes en cuadro (para comparar)
   const scheduleStaffIds = useMemo(() => {
     return new Set((scheduleStaff ?? []).map((s) => s.id));
   }, [scheduleStaff]);
 
-  // ✅ Disponibles: NO están en el cuadro (para CREATE + ENTRANTE)
+  // Disponibles: NO están en el cuadro (para CREATE + ENTRANTE)
   const availableUsers = useMemo(() => {
     return sortedUsers.filter((u) => !scheduleStaffIds.has(u.id));
   }, [sortedUsers, scheduleStaffIds]);
 
-  // ✅ Salientes: SOLO los que están en el cuadro (fuente: scheduleStaff)
+  // Salientes: SOLO los que están en el cuadro (fuente: scheduleStaff)
   const scheduleStaffOptions = useMemo(() => {
     const list = [...(scheduleStaff ?? [])];
     list.sort((a, b) =>
