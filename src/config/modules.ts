@@ -5,6 +5,7 @@ import {
   FilePlus,
   Settings,
   Shield,
+  CalendarCheck2,
 } from "lucide-react";
 import { Module } from "../types/types";
 import ScheduleViewer from "../components/ScheduleViewer/ScheduleViewer";
@@ -13,6 +14,7 @@ import UnsatisfiedDemand from "../components/Unsatisfied-demand/UnsatisfiedDeman
 import React, { ComponentType } from "react";
 import UsersConfig from "../components/UsersConfig/UsersConfig";
 import Administration from "../components/Administration/Administration";
+import Appointments from "../components/Appointments/Appointments";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const ScheduleViewerEditable: ComponentType<any> = (props) =>
@@ -78,5 +80,15 @@ export const MODULES: Module[] = [
     path: "/dashboard/administracion",
     bgColor: "#DBEAFE",
     hoverColor: "#1E40AF",
+  },
+  {
+    id: 7,
+    name: "Citas",
+    icon: CalendarCheck2,
+    allowedRoles: [11],
+    component: Appointments,
+    path: "/dashboard/citas",
+    bgColor: "#E0F2FE",
+    hoverColor: "#0284C7",
   },
 ];

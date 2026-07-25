@@ -88,6 +88,21 @@ export interface IDataEditScheduleData {
   editor_user_id: number;
 }
 
+export interface IScheduleDayInterval {
+  hora_inicio: string;
+  hora_fin: string;
+  activo: boolean;
+}
+
+export interface IDataEditScheduleDayInterval {
+  id_cuadro_dia: number;
+  intervalos: IScheduleDayInterval[];
+}
+
+export interface IEditScheduleDayResponse {
+  id_cuadro_dia: number;
+}
+
 export interface IDataAddPatient {
   id_usuario: number;
   id_cuadro_mes: number;

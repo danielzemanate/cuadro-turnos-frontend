@@ -49,6 +49,9 @@ import {
   InputField,
   SelectField,
   SupportStaffButton,
+  EmptyState,
+  EmptyStateTitle,
+  EmptyStateText,
 } from "./ScheduleViewerStyles";
 
 import { AppState } from "../../redux/reducers/rootReducer";
@@ -60,6 +63,7 @@ import {
   fetchEditableOptions,
   fetchAttentionTypes,
   editScheduleDay,
+  editScheduleDayWithInterval,
   addPatients,
   fetchTotalPatientsByMonth,
   fetchSiauTypes,
@@ -82,17 +86,34 @@ import {
 import { IDownloadSchedule } from "../../interfaces/utils";
 import { fetchDownloadSchedule } from "../../redux/actions/utilsActions";
 import {
+  PersonalTypesDatabase,
   RoleId,
   Roles,
   RolesDatabase,
+  requiresScheduleInterval,
 } from "../../constants/schedule.constants";
 import { SiauTypesTable } from "./siau/SiauTypesTable";
 import { SupportStaff } from "./supportStaff/SupportStaff";
 import { getPatientsTraffic } from "../../helpers/PatientsColor";
+import ConfirmDialog from "../Common/confirmDialog/ConfirmDialog";
+import FormScheduleDayInterval from "./forms/FormScheduleDayInterval";
+import {
+  createEmptyInterval,
+  IntervalHhMm,
+  isValidScheduleIntervals,
+  toApiTime,
+} from "../../helpers/ScheduleIntervalHelper";
 
 interface ScheduleViewerProps {
   editable?: boolean;
 }
+
+type PendingIntervalEdit = {
+  cellKey: string;
+  previousSigla: string;
+  payload: IDataEditScheduleData;
+  sigla: string;
+};
 
 interface FetchPatientsResponse {
   data: IPatientsData[];
@@ -101,6 +122,24 @@ interface FetchPatientsResponse {
 interface FetchDataAddUnmetDemandResponse {
   data: IDataAddUnmetDemand[];
 }
+
+// Deja solo dígitos y un signo negativo al inicio (las horas de novedad pueden restar)
+const sanitizeSignedInt = (raw: string): string => {
+  const cleaned = raw.replace(/[^\d-]/g, "");
+  const digits = cleaned.replace(/-/g, "");
+  return cleaned.startsWith("-") ? `-${digits}` : digits;
+};
+
+const parseSignedInt = (raw: string | undefined): number => {
+  const parsed = parseInt(raw ?? "", 10);
+  return Number.isNaN(parsed) ? 0 : parsed;
+};
+
+const NOVELTY_EDITOR_ROLES: readonly number[] = [
+  RolesDatabase.COORDINADOR,
+  RolesDatabase.ADMINISTRADOR,
+  RolesDatabase.INGENIERO,
+];
 
 const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
   editable = false,
@@ -160,6 +199,49 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
     selectedMunicipio: null,
   });
 
+  // SIAU solo aplica cuando el tipo de personal seleccionado es Médico
+  const isMedicoSelected =
+    formState.selectedTipo === PersonalTypesDatabase.MEDICO;
+
+  const today = new Date();
+  const todayYear = today.getFullYear();
+  const todayMonth = today.getMonth() + 1;
+  const todayDay = today.getDate();
+  const selectedPeriod = formState.selectedPeriodo;
+  const isCurrentSelectedMonth =
+    selectedPeriod?.anio === todayYear && selectedPeriod?.mes === todayMonth;
+  const previousMonth = new Date(todayYear, todayMonth - 2, 1);
+  const isPreviousSelectedMonth =
+    selectedPeriod?.anio === previousMonth.getFullYear() &&
+    selectedPeriod?.mes === previousMonth.getMonth() + 1;
+  const canEditPreviousMonthNovelties =
+    !editable &&
+    isPreviousSelectedMonth &&
+    roleIdNum !== undefined &&
+    NOVELTY_EDITOR_ROLES.includes(roleIdNum);
+
+  // Los turnos solo se editan en meses futuros (posteriores al mes calendario actual).
+  // El mes actual y anteriores quedan en solo lectura: para eso están las novedades.
+  const selectedMonthValue = selectedPeriod
+    ? selectedPeriod.anio * 12 + selectedPeriod.mes
+    : null;
+  const currentMonthValue = todayYear * 12 + todayMonth;
+  const isFutureSelectedMonth =
+    selectedMonthValue !== null && selectedMonthValue > currentMonthValue;
+  const canEditTurnos = editable && isFutureSelectedMonth;
+
+  const canShowNoveltyToggle = !editable || isCurrentSelectedMonth;
+
+  const canEditNoveltyDay = useCallback(
+    (day: number) => {
+      if (editable) {
+        return isCurrentSelectedMonth && day <= todayDay;
+      }
+      return canEditPreviousMonthNovelties;
+    },
+    [canEditPreviousMonthNovelties, editable, isCurrentSelectedMonth, todayDay],
+  );
+
   // --- UI toggles ---
   const [showTable, setShowTable] = useState<boolean>(false);
   const [showNovedades, setShowNovedades] = useState<boolean>(false);
@@ -170,12 +252,22 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
   const [attentionByCell, setAttentionByCell] = useState<
     Record<string, string>
   >({});
+  const [pendingIntervalEdit, setPendingIntervalEdit] =
+    useState<PendingIntervalEdit | null>(null);
+  const [intervalForm, setIntervalForm] = useState<IntervalHhMm[]>([
+    createEmptyInterval(),
+  ]);
 
   // --- Novedades: tipo por celda (sigla) ---
-  // Nota: nos confirmaste que SOLO hay 1 novedad por día y SI se guarda tipo_atencion en novedades ✅
+  // Nota: solo hay 1 novedad por día y se guarda tipo_atencion en novedades
   const [noveltyByCell, setNoveltyByCell] = useState<Record<string, string>>(
     {},
   );
+
+  // --- Novedades: horas digitadas por celda (admiten negativos) ---
+  const [noveltyHoursByCell, setNoveltyHoursByCell] = useState<
+    Record<string, string>
+  >({});
 
   // --- Patients (por usuario/día) ---
   const [patientsDataByKey, setPatientsDataByKey] = useState<
@@ -250,13 +342,18 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
   }, [dispatchThunk, editable, JSON.stringify(editableParams)]);
 
   useEffect(() => {
-    if (editable && formState.selectedTipo) {
+    if ((editable || canEditPreviousMonthNovelties) && formState.selectedTipo) {
       const attentionParams = {
         id_tipo_personal_salud: formState.selectedTipo,
       };
       dispatchThunk(fetchAttentionTypes(attentionParams));
     }
-  }, [dispatchThunk, editable, formState.selectedTipo]);
+  }, [
+    canEditPreviousMonthNovelties,
+    dispatchThunk,
+    editable,
+    formState.selectedTipo,
+  ]);
 
   // Cargar pacientes al abrir la vista de pacientes (PARA TODOS LOS ROLES: ver/editar según permiso)
   useEffect(() => {
@@ -305,28 +402,37 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
 
     const nextNormal: Record<string, string> = {};
     const nextNovelty: Record<string, string> = {};
+    const nextNoveltyHours: Record<string, string> = {};
 
     monthData.personal_de_salud.forEach((p) => {
       const buckets = createDayBuckets(p.dias);
       days.forEach((d) => {
-        // Normal
-        nextNormal[`${p.id_usuario}-${d}`] =
-          buckets[d]?.normal?.tipo_atencion || "";
+        const key = `${p.id_usuario}-${d}`;
 
-        // Novedad (confirmaste: solo una novedad por día y guarda tipo_atencion)
+        // Normal
+        nextNormal[key] = buckets[d]?.normal?.tipo_atencion || "";
+
+        // Novedad (solo una novedad por día y guarda tipo_atencion)
         const nov = (buckets[d]?.novedades || [])[0];
-        nextNovelty[`${p.id_usuario}-${d}`] = nov?.tipo_atencion || "";
+        nextNovelty[key] = nov?.tipo_atencion || "";
+        nextNoveltyHours[key] = nov ? String(nov.horas ?? 0) : "";
       });
     });
 
     setAttentionByCell(nextNormal);
     setNoveltyByCell(nextNovelty);
+    setNoveltyHoursByCell(nextNoveltyHours);
   }, [monthData, days]);
 
-  // Forzar ocultar toggle SIAU al entrar a modo editable
+  // Forzar ocultar toggle SIAU al entrar a modo editable o si no es Médico
   useEffect(() => {
-    if (editable && showSiau) setShowSiau(false);
-  }, [editable, showSiau]);
+    if ((editable || !isMedicoSelected) && showSiau) setShowSiau(false);
+  }, [editable, isMedicoSelected, showSiau]);
+
+  // En gestión, las novedades solo se muestran para el mes actual
+  useEffect(() => {
+    if (!canShowNoveltyToggle && showNovedades) setShowNovedades(false);
+  }, [canShowNoveltyToggle, showNovedades]);
 
   // Cargar tipos SIAU al activar el toggle (si no hay)
   useEffect(() => {
@@ -428,6 +534,7 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
     setShowTable(false);
     setAttentionByCell({});
     setNoveltyByCell({});
+    setNoveltyHoursByCell({});
     setPatientsDataByKey({});
     setPatientsInput({});
     setSiauUnmetByKey({});
@@ -443,13 +550,18 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
 
   const handleAttentionChange = useCallback(
     (idUsuario: number, day: number, newSigla: string) => {
+      if (!canEditTurnos) return;
       const key = `${idUsuario}-${day}`;
-      setAttentionByCell((prev) => ({ ...prev, [key]: newSigla }));
-
-      const selectedType = attentionMapBySigla.get(newSigla) || null;
       const person = monthData?.personal_de_salud.find(
         (p) => p.id_usuario === idUsuario,
       );
+      const dayBuckets = person ? createDayBuckets(person.dias) : {};
+      const previousSigla =
+        attentionByCell[key] ?? dayBuckets[day]?.normal?.tipo_atencion ?? "";
+
+      setAttentionByCell((prev) => ({ ...prev, [key]: newSigla }));
+
+      const selectedType = attentionMapBySigla.get(newSigla) || null;
       const id_cuadro_personal = person?.id_cuadro_personal;
 
       if (!selectedType || !id_cuadro_personal) return;
@@ -462,51 +574,141 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
         es_novedad: false,
         editor_user_id: userData.user.id,
       };
+
+      // CE / CEC / CED en médico: pedir intervalo (>= 8 h) antes de guardar
+      if (isMedicoSelected && requiresScheduleInterval(newSigla)) {
+        setIntervalForm([createEmptyInterval(newSigla)]);
+        setPendingIntervalEdit({
+          cellKey: key,
+          previousSigla,
+          payload,
+          sigla: newSigla,
+        });
+        return;
+      }
+
       dispatchThunk(editScheduleDay(payload));
     },
     [
+      attentionByCell,
       attentionMapBySigla,
+      canEditTurnos,
+      dispatchThunk,
+      isMedicoSelected,
       monthData?.personal_de_salud,
       userData.user.id,
-      dispatchThunk,
     ],
   );
 
-  // ===== NOVEDADES: Sigla obligatoria + payload dinámico =====
-  const handleNoveltyTypeChange = useCallback(
-    (person: PersonalDeSalud, day: number, newSigla: string) => {
-      const key = `${person.id_usuario}-${day}`;
-      setNoveltyByCell((prev) => ({ ...prev, [key]: newSigla }));
+  const handleCancelIntervalEdit = useCallback(() => {
+    if (!pendingIntervalEdit) return;
+    setAttentionByCell((prev) => ({
+      ...prev,
+      [pendingIntervalEdit.cellKey]: pendingIntervalEdit.previousSigla,
+    }));
+    setPendingIntervalEdit(null);
+  }, [pendingIntervalEdit]);
 
-      // Sigla obligatoria: si lo limpian, solo bloqueamos edición (no enviamos)
-      if (!newSigla) return;
+  const handleConfirmIntervalEdit = useCallback(async () => {
+    if (!pendingIntervalEdit) return;
+    if (!isValidScheduleIntervals(intervalForm, pendingIntervalEdit.sigla)) {
+      return;
+    }
 
-      const selectedType = attentionMapBySigla.get(newSigla);
+    const ok = await dispatchThunk(
+      editScheduleDayWithInterval(
+        pendingIntervalEdit.payload,
+        intervalForm.map((item) => ({
+          hora_inicio: toApiTime(item.horaInicio),
+          hora_fin: toApiTime(item.horaFin),
+          activo: true,
+        })),
+      ),
+    );
+
+    if (ok) {
+      setPendingIntervalEdit(null);
+    } else {
+      setAttentionByCell((prev) => ({
+        ...prev,
+        [pendingIntervalEdit.cellKey]: pendingIntervalEdit.previousSigla,
+      }));
+      setPendingIntervalEdit(null);
+    }
+  }, [dispatchThunk, intervalForm, pendingIntervalEdit]);
+
+  // ===== NOVEDADES: sigla obligatoria; las horas se digitan (admiten negativos) =====
+  const submitNovelty = useCallback(
+    (person: PersonalDeSalud, day: number, sigla: string, horas: number) => {
+      if (!canEditNoveltyDay(day)) return;
+
+      const selectedType = attentionMapBySigla.get(sigla);
       if (!selectedType) return;
 
-      // Mantener valores actuales (1 novedad por día)
-      const dayBuckets = createDayBuckets(person.dias);
-      const nov = (dayBuckets[day]?.novedades || [])[0];
-      const currentHours =
-        nov?.horas ?? sumNoveltyHours(dayBuckets[day]?.novedades || []);
-      const currentJustification =
-        (nov?.justificacion ??
-          getNoveltyJustifications(dayBuckets[day]?.novedades || [])) ||
+      // La justificación ya no se edita en el cuadro: se reenvía la guardada
+      const novedades = createDayBuckets(person.dias)[day]?.novedades || [];
+      const justificacion =
+        (novedades[0]?.justificacion ?? getNoveltyJustifications(novedades)) ||
         "";
 
       const payload: IDataEditScheduleData = {
         id_cuadro_personal: person.id_cuadro_personal,
         dia: day,
-        id_tipo_atencion: selectedType.id, // ✅ dinámico
-        horas: Number(currentHours) || 0,
+        id_tipo_atencion: selectedType.id,
+        horas,
         es_novedad: true,
-        justificacion: currentJustification,
+        justificacion,
         editor_user_id: userData.user.id,
       };
 
       dispatchThunk(editScheduleDay(payload));
     },
-    [attentionMapBySigla, dispatchThunk, userData.user.id],
+    [attentionMapBySigla, canEditNoveltyDay, dispatchThunk, userData.user.id],
+  );
+
+  const handleNoveltyTypeChange = useCallback(
+    (person: PersonalDeSalud, day: number, newSigla: string) => {
+      if (!canEditNoveltyDay(day)) return;
+
+      const key = `${person.id_usuario}-${day}`;
+      setNoveltyByCell((prev) => ({ ...prev, [key]: newSigla }));
+
+      // Sigla obligatoria: si la limpian, solo bloqueamos edición (no enviamos)
+      if (!newSigla) return;
+
+      const horas = parseSignedInt(noveltyHoursByCell[key]);
+      setNoveltyHoursByCell((prev) => ({ ...prev, [key]: String(horas) }));
+      submitNovelty(person, day, newSigla, horas);
+    },
+    [canEditNoveltyDay, noveltyHoursByCell, submitNovelty],
+  );
+
+  const handleNoveltyHoursChange = useCallback(
+    (userId: number, day: number, value: string) => {
+      if (!canEditNoveltyDay(day)) return;
+
+      const key = `${userId}-${day}`;
+      setNoveltyHoursByCell((prev) => ({
+        ...prev,
+        [key]: sanitizeSignedInt(value),
+      }));
+    },
+    [canEditNoveltyDay],
+  );
+
+  const handleNoveltyHoursBlur = useCallback(
+    (person: PersonalDeSalud, day: number) => {
+      if (!canEditNoveltyDay(day)) return;
+
+      const key = `${person.id_usuario}-${day}`;
+      const sigla = noveltyByCell[key];
+      if (!sigla) return;
+
+      const horas = parseSignedInt(noveltyHoursByCell[key]);
+      setNoveltyHoursByCell((prev) => ({ ...prev, [key]: String(horas) }));
+      submitNovelty(person, day, sigla, horas);
+    },
+    [canEditNoveltyDay, noveltyByCell, noveltyHoursByCell, submitNovelty],
   );
 
   // Patients handlers
@@ -587,89 +789,6 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
     }, 300);
   }, [dispatchThunk, forceMunicipio, formState, isFormValid]);
 
-  // Novedades: edición de justificación (requiere sigla)
-  const handleNoveltyJustificationBlur = useCallback(
-    (person: PersonalDeSalud, day: number, value: string) => {
-      const key = `${person.id_usuario}-${day}`;
-      const noveltySigla = noveltyByCell[key];
-
-      // 🚫 Sigla requerida
-      if (!noveltySigla) return;
-
-      const selectedType = attentionMapBySigla.get(noveltySigla);
-      if (!selectedType) return;
-
-      const dayBuckets = createDayBuckets(person.dias);
-      const nov = (dayBuckets[day]?.novedades || [])[0];
-      const noveltyHours =
-        Number(
-          nov?.horas ?? sumNoveltyHours(dayBuckets[day]?.novedades || []),
-        ) || 0;
-
-      const payload: IDataEditScheduleData = {
-        id_cuadro_personal: person.id_cuadro_personal,
-        dia: day,
-        id_tipo_atencion: selectedType.id, // ✅ dinámico
-        horas: noveltyHours,
-        es_novedad: true,
-        justificacion: value,
-        editor_user_id: userData.user.id,
-      };
-
-      dispatchThunk(editScheduleDay(payload)).then(refetchMonthAfterEdit);
-    },
-    [
-      noveltyByCell,
-      attentionMapBySigla,
-      dispatchThunk,
-      userData.user.id,
-      refetchMonthAfterEdit,
-    ],
-  );
-
-  // Novedades: edición de horas (requiere sigla) + solo numérico
-  const handleNoveltyHoursBlur = useCallback(
-    (person: PersonalDeSalud, day: number, rawValue: string) => {
-      const key = `${person.id_usuario}-${day}`;
-      const noveltySigla = noveltyByCell[key];
-
-      // 🚫 Sigla requerida
-      if (!noveltySigla) return;
-
-      const selectedType = attentionMapBySigla.get(noveltySigla);
-      if (!selectedType) return;
-
-      const numericValue = parseInt(rawValue, 10);
-      if (isNaN(numericValue) || numericValue < 0) return;
-
-      const dayBuckets = createDayBuckets(person.dias);
-      const nov = (dayBuckets[day]?.novedades || [])[0];
-      const currentJustification =
-        (nov?.justificacion ??
-          getNoveltyJustifications(dayBuckets[day]?.novedades || [])) ||
-        "";
-
-      const payload: IDataEditScheduleData = {
-        id_cuadro_personal: person.id_cuadro_personal,
-        dia: day,
-        id_tipo_atencion: selectedType.id, // ✅ dinámico
-        horas: numericValue,
-        es_novedad: true,
-        justificacion: currentJustification,
-        editor_user_id: userData.user.id,
-      };
-
-      dispatchThunk(editScheduleDay(payload)).then(refetchMonthAfterEdit);
-    },
-    [
-      noveltyByCell,
-      attentionMapBySigla,
-      dispatchThunk,
-      userData.user.id,
-      refetchMonthAfterEdit,
-    ],
-  );
-
   // SIAU unmet handlers (por tipo/día)
   const handleSiauChange = useCallback(
     (tipoId: number, day: number, value: string) => {
@@ -735,6 +854,12 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
 
     return counts; // { 1: 3, 2: 5, ... }
   }, [monthData?.personal_de_salud, days]);
+
+  // El backend responde 404 cuando no existe cuadro para los filtros elegidos
+  const hasScheduleData = useMemo(
+    () => (monthData?.personal_de_salud?.length ?? 0) > 0,
+    [monthData?.personal_de_salud],
+  );
 
   const staffInSchedule = useMemo(() => {
     const list = (monthData?.personal_de_salud ?? []).map((p) => ({
@@ -823,7 +948,7 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
 
               return (
                 <DataCell key={`${person.id_usuario}-${day}`} $center>
-                  {editable ? (
+                  {canEditTurnos ? (
                     attentionTypes && attentionTypes.length > 0 ? (
                       <SelectField
                         value={currentSigla || ""}
@@ -873,7 +998,7 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
               const horasFromType =
                 attentionMapBySigla.get(selectedSigla)?.horas ?? 0;
               const backendHoras = dayBuckets[day]?.normal?.horas || 0;
-              const value = editable ? horasFromType : backendHoras;
+              const value = canEditTurnos ? horasFromType : backendHoras;
 
               return (
                 <DataCell key={`hn-${person.id_usuario}-${day}`} $center>
@@ -894,10 +1019,11 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
                     (dayBuckets[day]?.novedades || [])[0]?.tipo_atencion || "";
                   const currentNoveltySigla =
                     noveltyByCell[key] ?? backendNoveltySigla;
+                  const canEditDay = canEditNoveltyDay(day);
 
                   return (
                     <DataCell key={`sn-${person.id_usuario}-${day}`} $center>
-                      {editable ? (
+                      {canEditDay ? (
                         <SelectField
                           value={currentNoveltySigla || ""}
                           onChange={(e) =>
@@ -927,53 +1053,7 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
                 })}
               </NoveltyDataRow>
 
-              {/* === JUSTIFICACIÓN NOVEDADES (solo editable si hay sigla) === */}
-              <NoveltyDataRow>
-                <StaffNameCell>
-                  {t("scheduleViewer.justificationsUpdates").toUpperCase()}
-                </StaffNameCell>
-                {days.map((day) => {
-                  const novedades = dayBuckets[day]?.novedades || [];
-                  const nov = novedades[0];
-                  const justifications =
-                    (nov?.justificacion ??
-                      getNoveltyJustifications(novedades)) ||
-                    "";
-
-                  const key = `${person.id_usuario}-${day}`;
-                  const noveltySigla =
-                    noveltyByCell[key] ?? nov?.tipo_atencion ?? "";
-                  const canEditCell = !!noveltySigla;
-
-                  return (
-                    <DataCell key={`jn-${person.id_usuario}-${day}`} $center>
-                      {editable ? (
-                        <InputField
-                          type="text"
-                          defaultValue={justifications}
-                          disabled={!canEditCell}
-                          placeholder={!canEditCell ? "Seleccione sigla" : ""}
-                          onBlur={(e) =>
-                            handleNoveltyJustificationBlur(
-                              person,
-                              day,
-                              e.target.value,
-                            )
-                          }
-                          aria-label={`Justificación novedad día ${day} - ${formatPersonName(
-                            person.nombre,
-                            person.apellidos,
-                          )}`}
-                        />
-                      ) : (
-                        justifications
-                      )}
-                    </DataCell>
-                  );
-                })}
-              </NoveltyDataRow>
-
-              {/* === HORAS NOVEDADES (solo editable si hay sigla) === */}
+              {/* === HORAS NOVEDADES (digitadas, admiten negativos) === */}
               <NoveltyDataRow $hours>
                 <StaffNameCell>
                   {t("scheduleViewer.hoursUpdates").toUpperCase()}
@@ -981,39 +1061,38 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
                 {days.map((day) => {
                   const novedades = dayBuckets[day]?.novedades || [];
                   const nov = novedades[0];
-                  const noveltyHours =
-                    Number(nov?.horas ?? sumNoveltyHours(novedades)) || 0;
-
                   const key = `${person.id_usuario}-${day}`;
                   const noveltySigla =
                     noveltyByCell[key] ?? nov?.tipo_atencion ?? "";
-                  const canEditCell = !!noveltySigla;
+                  const canEditDay = canEditNoveltyDay(day);
+                  const canEditCell = canEditDay && !!noveltySigla;
+                  const backendHoras =
+                    Number(nov?.horas ?? sumNoveltyHours(novedades)) || 0;
 
                   return (
                     <DataCell key={`hnv-${person.id_usuario}-${day}`} $center>
-                      {editable ? (
+                      {canEditDay ? (
                         <InputField
                           type="text"
                           inputMode="numeric"
-                          pattern="[0-9]*"
-                          defaultValue={String(noveltyHours)}
+                          value={noveltyHoursByCell[key] ?? ""}
                           disabled={!canEditCell}
                           placeholder={!canEditCell ? "Seleccione sigla" : ""}
-                          onChange={(e) => {
-                            // solo numérico mientras escribe
-                            e.currentTarget.value =
-                              e.currentTarget.value.replace(/\D/g, "");
-                          }}
-                          onBlur={(e) =>
-                            handleNoveltyHoursBlur(person, day, e.target.value)
+                          onChange={(e) =>
+                            handleNoveltyHoursChange(
+                              person.id_usuario,
+                              day,
+                              e.target.value,
+                            )
                           }
+                          onBlur={() => handleNoveltyHoursBlur(person, day)}
                           aria-label={`Horas novedad día ${day} - ${formatPersonName(
                             person.nombre,
                             person.apellidos,
                           )}`}
                         />
                       ) : (
-                        noveltyHours
+                        backendHoras
                       )}
                     </DataCell>
                   );
@@ -1030,13 +1109,15 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
       attentionByCell,
       attentionMapBySigla,
       attentionTypes,
+      canEditNoveltyDay,
+      canEditTurnos,
       days,
-      editable,
       handleAttentionChange,
       handleNoveltyHoursBlur,
-      handleNoveltyJustificationBlur,
+      handleNoveltyHoursChange,
       handleNoveltyTypeChange,
       noveltyByCell,
+      noveltyHoursByCell,
       renderPatientsRow,
       showNovedades,
       t,
@@ -1060,14 +1141,26 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
               const buckets = createDayBuckets(person.dias);
               const backendHoras = buckets[day]?.normal?.horas || 0;
 
-              const novelty = showNovedades
+              const noveltySigla =
+                noveltyByCell[key] ??
+                (buckets[day]?.novedades || [])[0]?.tipo_atencion ??
+                "";
+              const typedNoveltyHours = noveltySigla
+                ? parseSignedInt(noveltyHoursByCell[key])
+                : 0;
+              const backendNoveltyHours = showNovedades
                 ? Number(
                     (buckets[day]?.novedades || [])[0]?.horas ??
                       sumNoveltyHours(buckets[day]?.novedades || []),
                   ) || 0
                 : 0;
 
-              const base = editable ? horasFromType : backendHoras;
+              const base = canEditTurnos ? horasFromType : backendHoras;
+              const novelty = showNovedades
+                ? canEditNoveltyDay(day)
+                  ? typedNoveltyHours
+                  : backendNoveltyHours
+                : 0;
               return total + base + novelty;
             },
             0,
@@ -1084,9 +1177,12 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
     [
       attentionByCell,
       attentionMapBySigla,
+      canEditNoveltyDay,
+      canEditTurnos,
       days,
-      editable,
       monthData?.personal_de_salud,
+      noveltyByCell,
+      noveltyHoursByCell,
       showNovedades,
       t,
     ],
@@ -1198,6 +1294,17 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
       }).toUpperCase()
     : "";
 
+  const selectedTipoNombre =
+    (options?.tipos_personal_salud || []).find(
+      (tipo) => tipo.id === formState.selectedTipo,
+    )?.nombre || t("scheduleViewer.healthPersonnelType");
+
+  const selectedMunicipioId = forceMunicipio ?? formState.selectedMunicipio;
+  const selectedMunicipioNombre =
+    (options?.municipios || []).find(
+      (municipio) => municipio.id === selectedMunicipioId,
+    )?.nombre || "";
+
   return (
     <PageContainer>
       <ContentWrapper>
@@ -1212,7 +1319,7 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
               <span>{MONTHS[monthIndex0]}</span>
             </SectionTitle>
 
-            {!editable && (
+            {!editable && hasScheduleData && (
               <DownloadButton
                 onClick={handleDownload}
                 disabled={!isFormValid || loading}
@@ -1221,7 +1328,7 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
                 {t("scheduleViewer.download").toUpperCase()}
               </DownloadButton>
             )}
-            {editable && isAdminRole && (
+            {editable && isAdminRole && hasScheduleData && (
               <SupportStaffButton
                 type="button"
                 onClick={() => setShowSupportStaff((prev) => !prev)}
@@ -1234,7 +1341,25 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
               </SupportStaffButton>
             )}
           </TableHeader>
-          {showSupportStaff ? (
+          {!hasScheduleData ? (
+            <EmptyState>
+              {loading ? (
+                <LoadingSpinner />
+              ) : (
+                <>
+                  <EmptyStateTitle>
+                    {t("scheduleViewer.noDataTitle")}
+                  </EmptyStateTitle>
+                  <EmptyStateText>
+                    {t("scheduleViewer.noDataDescription", {
+                      tipoPersonal: selectedTipoNombre,
+                      municipio: selectedMunicipioNombre,
+                    })}
+                  </EmptyStateText>
+                </>
+              )}
+            </EmptyState>
+          ) : showSupportStaff ? (
             <SupportStaff
               idCuadroMes={monthData.mes}
               idTipoPersonalSalud={formState.selectedTipo!}
@@ -1250,14 +1375,16 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
           ) : (
             <>
               <TableControls>
-                <FormLabel>
-                  <FormCheckbox
-                    type="checkbox"
-                    checked={showNovedades}
-                    onChange={(e) => setShowNovedades(e.target.checked)}
-                  />
-                  <span>{t("scheduleViewer.news")}</span>
-                </FormLabel>
+                {canShowNoveltyToggle && (
+                  <FormLabel>
+                    <FormCheckbox
+                      type="checkbox"
+                      checked={showNovedades}
+                      onChange={(e) => setShowNovedades(e.target.checked)}
+                    />
+                    <span>{t("scheduleViewer.news")}</span>
+                  </FormLabel>
+                )}
 
                 {/* Pacientes: mostrar toggle a TODOS (verán data; solo DILIGENCIADOR edita) */}
                 <FormLabel>
@@ -1269,8 +1396,8 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
                   <span>{t("scheduleViewer.totalPatientsTreated")}</span>
                 </FormLabel>
 
-                {/* SIAU: mostrar toggle a TODOS en modo viewer; solo roles 4/5 editan */}
-                {!editable && (
+                {/* SIAU: solo para Médico en modo viewer; solo roles SIAU editan */}
+                {!editable && isMedicoSelected && (
                   <FormLabel>
                     <FormCheckbox
                       type="checkbox"
@@ -1283,6 +1410,12 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
                   </FormLabel>
                 )}
               </TableControls>
+
+              {editable && !isFutureSelectedMonth && (
+                <EmptyStateText style={{ margin: "0 0 0.75rem" }}>
+                  {t("scheduleViewer.turnosReadOnlyHint")}
+                </EmptyStateText>
+              )}
 
               <TableContainer>
                 {loading && (
@@ -1324,8 +1457,8 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
           )}
         </TableSection>
 
-        {/* === Tabla SIAU === */}
-        {!editable && showSiau && (
+        {/* === Tabla SIAU (solo Médico) === */}
+        {!editable && isMedicoSelected && showSiau && hasScheduleData && (
           <TableSection>
             <TableHeader>
               <div />
@@ -1355,6 +1488,29 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
           </TableSection>
         )}
       </ContentWrapper>
+
+      <ConfirmDialog
+        open={Boolean(pendingIntervalEdit)}
+        title={t("scheduleViewer.interval.title")}
+        description={
+          pendingIntervalEdit ? (
+            <FormScheduleDayInterval
+              sigla={pendingIntervalEdit.sigla}
+              values={intervalForm}
+              onChange={setIntervalForm}
+            />
+          ) : null
+        }
+        confirmText={t("scheduleViewer.interval.confirm")}
+        cancelText={t("common.cancel")}
+        onConfirm={handleConfirmIntervalEdit}
+        onCancel={handleCancelIntervalEdit}
+        loading={loading}
+        confirmDisabled={
+          !pendingIntervalEdit ||
+          !isValidScheduleIntervals(intervalForm, pendingIntervalEdit.sigla)
+        }
+      />
     </PageContainer>
   );
 };

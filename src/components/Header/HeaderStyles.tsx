@@ -1,88 +1,167 @@
 import styled from "styled-components";
+import { BreakpointsUx } from "../../constants/breakpoints";
 
 export const Header = styled.header`
   background-color: #ffffff;
-  padding: 1rem 2rem;
+  padding: 0.75rem 1.5rem;
   box-shadow:
     0 4px 6px -1px rgba(0, 0, 0, 0.1),
-    0 2px 4px -2px rgba(0, 0, 0, 0.1); // sombra solo inferior
+    0 2px 4px -2px rgba(0, 0, 0, 0.1);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  position: sticky; /* opcional, para que quede fijo arriba */
+  gap: 0.75rem;
+  position: sticky;
   top: 0;
   z-index: 50;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+
+  @media screen and (max-width: ${BreakpointsUx.tabletMedium}) {
+    padding: 0.5rem 0.75rem;
+    gap: 0.5rem;
+  }
 `;
 
 export const LogoSection = styled.div`
+  flex-shrink: 0;
+  min-width: 0;
+
   img {
-    height: 100px;
-    max-width: 200px;
+    height: 72px;
+    max-width: 160px;
+    width: auto;
     object-fit: contain;
+    display: block;
+  }
+
+  @media screen and (max-width: ${BreakpointsUx.tabletMedium}) {
+    img {
+      height: 48px;
+      max-width: 110px;
+    }
+  }
+
+  @media screen and (max-width: ${BreakpointsUx.mobileLarge}) {
+    img {
+      height: 40px;
+      max-width: 90px;
+    }
   }
 `;
 
 export const UserSection = styled.div`
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.75rem;
+  min-width: 0;
+  flex: 1;
+  justify-content: flex-end;
+
+  @media screen and (max-width: ${BreakpointsUx.tabletMedium}) {
+    gap: 0.35rem;
+  }
 `;
 
 export const UserInfo = styled.div`
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.75rem;
+  min-width: 0;
+
+  @media screen and (max-width: ${BreakpointsUx.tabletMedium}) {
+    gap: 0.4rem;
+  }
 `;
 
 export const UserIcon = styled.div`
-  width: 50px;
-  height: 50px;
+  width: 44px;
+  height: 44px;
   background-color: #011e62;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   color: white;
+  flex-shrink: 0;
+
+  @media screen and (max-width: ${BreakpointsUx.tabletMedium}) {
+    width: 36px;
+    height: 36px;
+  }
 `;
 
 export const UserDetails = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.1rem;
+  min-width: 0;
+  overflow: hidden;
+
+  @media screen and (max-width: ${BreakpointsUx.mobileLarge}) {
+    display: none;
+  }
 `;
 
 export const Greeting = styled.span`
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   color: #6b7280;
   font-weight: 400;
+
+  @media screen and (max-width: ${BreakpointsUx.tabletMedium}) {
+    display: none;
+  }
 `;
 
 export const UserName = styled.span`
-  font-size: 1rem;
+  font-size: 0.9375rem;
   font-weight: 600;
   color: #374151;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+
+  @media screen and (max-width: ${BreakpointsUx.tabletMedium}) {
+    font-size: 0.8125rem;
+    max-width: 130px;
+  }
 `;
 
 export const UserRole = styled.span`
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   color: #6b7280;
   font-weight: 400;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  @media screen and (max-width: ${BreakpointsUx.tabletMedium}) {
+    font-size: 0.75rem;
+  }
 `;
 
 export const Separator = styled.div`
   width: 1px;
-  height: 40px;
+  height: 36px;
   background-color: #e5e7eb;
-  margin: 0 0.5rem;
+  margin: 0 0.25rem;
+  flex-shrink: 0;
+
+  @media screen and (max-width: ${BreakpointsUx.tabletMedium}) {
+    display: none;
+  }
 `;
 
 export const ConfigSection = styled.div`
   position: relative;
+  flex-shrink: 0;
 `;
 
 export const ConfigButton = styled.button`
-  padding: 0.75rem 1rem;
+  padding: 0.6rem 0.85rem;
   background-color: transparent;
   color: #374151;
   border: none;
@@ -93,10 +172,21 @@ export const ConfigButton = styled.button`
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.4rem;
+  white-space: nowrap;
 
   &:hover {
     background-color: #f3f4f6;
+  }
+
+  @media screen and (max-width: ${BreakpointsUx.tabletMedium}) {
+    padding: 0.5rem;
+  }
+`;
+
+export const ConfigLabel = styled.span`
+  @media screen and (max-width: ${BreakpointsUx.tabletMedium}) {
+    display: none;
   }
 `;
 

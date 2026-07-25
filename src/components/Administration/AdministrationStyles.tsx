@@ -7,6 +7,9 @@ export const AdminCard = styled.section`
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
   padding: 1rem;
   margin: 0 auto;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
 `;
 
 // Wrapper de tabs completo
@@ -66,6 +69,9 @@ export const TabPanel = styled.div`
   border-radius: 0.75rem;
   padding: 1.25rem;
   min-height: 220px;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
 `;
 
 // Título interno opcional
