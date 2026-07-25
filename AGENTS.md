@@ -461,7 +461,7 @@ Al **quitar** UI, borra también su clave en `es.json`: no dejes texto muerto. V
 
 ## Despliegue
 
-- `Dockerfile`: multi-stage Node 22 Alpine → build → `nginx:stable-alpine`. Copia `.env.production` como `.env` antes del build.
+- `Dockerfile`: multi-stage Node 22 Alpine → build → `nginx:stable-alpine`. Copia `.env.production` como `.env` antes del build. Instala el binario Rollup musl según `TARGETARCH` (`arm64` en Mac Apple Silicon, `amd64`/`x64` en servidores). `HUSKY=0` en build para no fallar sin `.git`.
 - `nginx.conf`: SPA `try_files`; cache largo en `/assets/`; proxy `/api/` comentado (no activo).
 - `vite-plugin-remove-console` elimina `console.*` en build.
 
