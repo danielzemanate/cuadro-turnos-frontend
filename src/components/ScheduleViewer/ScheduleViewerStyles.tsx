@@ -417,11 +417,40 @@ export const TableControls = styled.div`
   }
 `;
 
+export const EmptyState = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: ${theme.spacing.sm};
+  min-height: 220px;
+  padding: ${theme.spacing.xl};
+  margin-top: ${theme.spacing.md};
+
+  background: ${theme.colors.white};
+  border: 1px dashed ${theme.colors.borderLight};
+  border-radius: ${theme.borderRadius.md};
+  text-align: center;
+`;
+
+export const EmptyStateTitle = styled.p`
+  margin: 0;
+  font-size: ${theme.fontSizes.lg};
+  font-weight: ${theme.fontWeights.bold};
+  color: ${theme.colors.textPrimary};
+`;
+
+export const EmptyStateText = styled.p`
+  margin: 0;
+  font-size: ${theme.fontSizes.base};
+  color: ${theme.colors.textSecondary};
+`;
+
 export const TableContainer = styled.div`
   position: relative;
   max-width: 100%;
 
-  /* ✅ Scroll vertical + horizontal dentro del contenedor */
+  /* Scroll vertical + horizontal dentro del contenedor */
   max-height: calc(100vh - 260px); /* ajusta este valor a tu layout */
   overflow: auto;
 
@@ -500,7 +529,7 @@ export const HeaderCell = styled.th<{ $sticky?: boolean }>`
   max-width: 80px;
   font-size: ${theme.fontSizes.sm};
 
-  /* ✅ Sticky header (días del mes) */
+  /* Sticky header (días del mes) */
   position: sticky;
   top: 0px;
   z-index: 50;
@@ -508,7 +537,7 @@ export const HeaderCell = styled.th<{ $sticky?: boolean }>`
   ${(props) =>
     props.$sticky &&
     css`
-      /* ✅ Esquina superior izquierda (Año): sticky X + Y */
+      /* Esquina superior izquierda (Año): sticky X + Y */
       left: 0;
       z-index: 60;
       background: ${theme.colors.tableHeader};
@@ -581,7 +610,7 @@ export const StaffNameCell = styled.td`
   background: ${theme.colors.gray50};
   border-bottom: 1px solid ${theme.colors.tableBorder};
 
-  /* ✅ Por debajo del header sticky */
+  /* Por debajo del header sticky */
   z-index: 15;
 
   min-width: 180px;

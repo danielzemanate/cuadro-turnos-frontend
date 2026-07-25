@@ -1,10 +1,15 @@
 import styled from "styled-components";
 
+export type TableLayout = "fill" | "fit";
+
 export const TableCard = styled.div`
   background: #ffffff;
   border-radius: 1rem;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
   padding: 1rem;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
 `;
 
 export const Toolbar = styled.div`
@@ -47,25 +52,47 @@ export const AddButton = styled.button`
 export const TableScroller = styled.div`
   overflow-x: auto;
   width: 100%;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
 `;
 
-export const Table = styled.table`
-  width: 100%;
-  min-width: 720px;
+export const Table = styled.table<{ $layout?: TableLayout }>`
+  width: ${({ $layout }) => ($layout === "fit" ? "max-content" : "100%")};
+  min-width: ${({ $layout }) => ($layout === "fit" ? "0" : "100%")};
   border-collapse: separate;
   border-spacing: 0;
+  table-layout: auto;
+  font-size: 0.75rem;
 `;
 
-export const Th = styled.th`
+export const Th = styled.th<{ $actions?: boolean; $layout?: TableLayout }>`
   text-align: left;
   background: #f3f4f6;
   color: #374151;
   font-weight: 700;
-  padding: 0.75rem 0.9rem;
+  font-size: 0.6875rem;
+  padding: 0.4rem 0.3rem;
   border-bottom: 1px solid #e5e7eb;
   position: sticky;
   top: 0;
   z-index: 1;
+  white-space: nowrap;
+  ${({ $layout }) =>
+    $layout === "fit" &&
+    `
+    width: 1%;
+  `}
+  ${({ $actions, $layout }) =>
+    $actions &&
+    ($layout === "fit"
+      ? `
+    width: 1%;
+    min-width: 11.5rem;
+    padding-right: 0.75rem;
+  `
+      : `
+    width: 1%;
+  `)}
 `;
 
 export const Tr = styled.tr`
@@ -74,20 +101,45 @@ export const Tr = styled.tr`
   }
 `;
 
-export const Td = styled.td`
-  padding: 0.75rem 0.9rem;
+export const Td = styled.td<{ $layout?: TableLayout }>`
+  padding: 0.4rem 0.3rem;
   color: #374151;
   vertical-align: middle;
   background: #ffffff;
+  font-size: 0.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  ${({ $layout }) =>
+    $layout === "fit"
+      ? `
+    width: 1%;
+    max-width: 14rem;
+  `
+      : `
+    max-width: 28rem;
+  `}
 `;
 
-export const ActionsCell = styled.td`
-  padding: 0.5rem 0.9rem;
+export const ActionsCell = styled.td<{ $layout?: TableLayout }>`
+  padding: 0.3rem 0.4rem;
+  white-space: nowrap;
+  width: 1%;
+  vertical-align: middle;
+  ${({ $layout }) =>
+    $layout === "fit" &&
+    `
+    min-width: 11.5rem;
+    padding-right: 0.75rem;
+  `}
 `;
 
 export const ActionsGroup = styled.div`
   display: inline-flex;
-  gap: 0.5rem;
+  flex-wrap: nowrap;
+  gap: 0.35rem;
+  align-items: center;
+  min-height: 1.75rem;
 `;
 
 export const ActionButton = styled.button<{ variant?: "edit" | "delete" }>`
@@ -97,10 +149,15 @@ export const ActionButton = styled.button<{ variant?: "edit" | "delete" }>`
     variant === "delete" ? "#fff1f2" : "#f9fafb"};
   color: ${({ variant }) => (variant === "delete" ? "#be123c" : "#0f2167")};
   font-weight: 600;
-  padding: 0.45rem 0.7rem;
-  border-radius: 0.5rem;
+  font-size: 0.75rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 0.4rem;
   cursor: pointer;
   transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  flex-shrink: 0;
 
   &:hover {
     transform: translateY(-1px);

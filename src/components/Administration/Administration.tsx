@@ -507,7 +507,7 @@ const Administration: React.FC = () => {
     {
       key: "celular",
       header: t("administration.users.columns.celular", "Celular"),
-      width: "160px",
+      width: "120px",
       render: (row) => row.celular,
     },
     {
@@ -526,13 +526,13 @@ const Administration: React.FC = () => {
     {
       key: "rol_nombre",
       header: t("administration.users.columns.rol", "Rol"),
-      width: "180px",
+      width: "150px",
       render: (row) => row.rol_nombre ?? "—",
     },
     {
       key: "activo",
       header: t("administration.users.form.activo", "Activo"),
-      width: "180px",
+      width: "80px",
       render: (row) => (row.activo ? "Si" : "No"),
     },
   ];
@@ -1019,6 +1019,7 @@ const Administration: React.FC = () => {
                     setViewingContract(false);
                   }}
                   contractMode={viewingContract}
+                  contractsReadOnly={isCostos}
                 />
               )}
 

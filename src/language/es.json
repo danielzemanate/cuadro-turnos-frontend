@@ -12,6 +12,11 @@
     "switchToDark": "Cambiar a oscuro",
     "profile": "Perfil"
   },
+  "breadcrumb": {
+    "aria": "Ruta de navegación",
+    "home": "Inicio",
+    "profile": "Perfil"
+  },
   "profile": {
     "title": "Perfil",
     "subtitle": "Información de tu cuenta",
@@ -36,8 +41,10 @@
     "rowHours": "N° De Horas",
     "rowTotalHours": "Total Horas",
     "csvFilename": "turnos_{{month}}_{{year}}.csv",
-    "justificationsUpdates": "Justificación Novedades",
     "hoursUpdates": "Horas Novedades",
+    "noDataTitle": "Sin datos para este mes",
+    "noDataDescription": "No hay un cuadro de turnos registrado para este mes para el personal de {{tipoPersonal}} en el municipio de {{municipio}}.",
+    "turnosReadOnlyHint": "Este mes no admite edición de turnos: solo se pueden editar los turnos de meses posteriores al actual. Para el mes en curso utiliza las novedades.",
     "months": [
       "ENERO",
       "FEBRERO",
@@ -78,6 +85,23 @@
       "savePerson": "Agregar Persona",
       "changePerson": "Cambiar Persona",
       "noAvailableUsers": "No hay usuarios disponibles"
+    },
+    "interval": {
+      "title": "Horario del turno",
+      "description": "Define uno o más intervalos para {{sigla}} en formato 12 horas (AM/PM). La suma total debe ser exactamente {{hours}} horas. Cada intervalo siguiente no puede empezar antes de que termine el anterior.",
+      "itemLabel": "Intervalo {{number}}",
+      "start": "Hora inicio",
+      "end": "Hora fin",
+      "duration": "Duración: {{hours}} h",
+      "totalDuration": "Total: {{hours}} h / {{required}} h",
+      "add": "Agregar intervalo",
+      "remove": "Quitar",
+      "minHoursError": "Revisa los intervalos: deben sumar las horas exactas requeridas.",
+      "exactHoursError": "Para {{sigla}} la suma debe ser exactamente {{hours}} horas (ni más ni menos).",
+      "sequenceError": "Cada intervalo debe empezar a la misma hora en que terminó el anterior o después; no se permite ir hacia atrás.",
+      "rowError": "En cada intervalo la hora fin debe ser posterior a la hora inicio.",
+      "confirm": "Guardar turno",
+      "missingDayId": "No se recibió el identificador del día para guardar el intervalo."
     }
   },
   "alerts": {
@@ -345,5 +369,91 @@
     "type": "Tipo de reporte",
     "subtype": "Subtipo de reporte",
     "noReportAvailable": "Aún no hay reportes disponibles para descargar para este tipo y subtipo. Estamos trabajando en ello y próximamente estarán disponibles."
+  },
+  "appointments": {
+    "title": "Citas programadas",
+    "selectMunicipalityHint": "Selecciona un municipio y pulsa Filtrar para consultar las citas.",
+    "filters": {
+      "municipality": "Municipio",
+      "doctorName": "Nombre del médico",
+      "doctorNamePlaceholder": "Buscar por nombre…",
+      "healthStaff": "Personal de salud",
+      "dateFrom": "Fecha desde",
+      "dateTo": "Fecha hasta",
+      "category": "Categoría paciente",
+      "status": "Estado",
+      "origin": "Origen",
+      "code": "Código confirmación",
+      "codePlaceholder": "Ej. TP260601002501"
+    },
+    "columns": {
+      "code": "Código",
+      "patient": "Paciente",
+      "category": "Categoría",
+      "doctor": "Médico",
+      "municipality": "Municipio",
+      "site": "Sede",
+      "attentionType": "Tipo atención",
+      "date": "Fecha",
+      "start": "Inicio",
+      "end": "Fin",
+      "status": "Estado",
+      "origin": "Origen"
+    },
+    "categories": {
+      "GENERAL": "General",
+      "GESTANTE": "Gestante",
+      "CRONICO": "Crónico"
+    },
+    "statuses": {
+      "PENDIENTE": "Pendiente",
+      "CONFIRMADA": "Confirmada",
+      "CANCELADA": "Cancelada",
+      "ATENDIDA": "Atendida"
+    },
+    "origins": {
+      "WEB": "Web",
+      "WHATSAPP": "WhatsApp"
+    },
+    "actions": {
+      "reschedule": "Reprogramar"
+    },
+    "form": {
+      "newTitle": "Nueva cita",
+      "documentType": "Tipo de documento",
+      "documentNumber": "Número de documento",
+      "fullName": "Nombre completo",
+      "phone": "Teléfono de contacto",
+      "siteId": "ID sede",
+      "date": "Fecha",
+      "startTime": "Hora inicio",
+      "duration": "Duración (min)",
+      "notes": "Observaciones",
+      "errors": {
+        "required": "Campo requerido",
+        "invalidDuration": "Ingrese una duración válida mayor a 0"
+      }
+    },
+    "cancel": {
+      "title": "Cancelar cita",
+      "question": "¿Deseas cancelar la cita {{code}} de {{patient}}?",
+      "reason": "Motivo",
+      "reasonPlaceholder": "Indica el motivo de la cancelación…",
+      "confirm": "Cancelar cita",
+      "success": "Cita cancelada correctamente"
+    },
+    "reschedule": {
+      "title": "Reprogramar cita",
+      "subtitle": "Cita {{code}} — {{patient}}",
+      "confirm": "Reprogramar",
+      "success": "Cita reprogramada correctamente"
+    }
+  },
+  "pagination": {
+    "showing": "Mostrando {{from}}–{{to}} de {{total}}",
+    "perPage": "Resultados por página",
+    "perPageOption": "{{count}} / pág.",
+    "previous": "Anterior",
+    "next": "Siguiente"
   }
 }

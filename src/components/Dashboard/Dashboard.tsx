@@ -1,6 +1,5 @@
 import React, { useEffect } from "react";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
-import { Home } from "lucide-react";
 import { MODULES } from "../../config/modules";
 import { filterModulesByRole } from "../../utils/permissions";
 import {
@@ -10,8 +9,6 @@ import {
   ModuleCard,
   ModuleIcon,
   ModuleName,
-  BackButtonContainer,
-  BackButton,
 } from "./DashboardStyles";
 import { useSelector } from "react-redux";
 import { AppState } from "../../redux/reducers/rootReducer";
@@ -20,6 +17,7 @@ import {
   clearScheduleOptions,
 } from "../../redux/actions/scheduleActions";
 import { useAppDispatchThunk } from "../../hooks/storeHooks";
+import Breadcrumb from "../Common/breadcrumb/Breadcrumb";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -38,13 +36,11 @@ const Dashboard = () => {
   };
 
   const handleBackToDashboard = () => {
-    // Limpia al usar el botón
     dispatchThunk(clearScheduleMonth());
     dispatchThunk(clearScheduleOptions());
     navigate("/dashboard");
   };
 
-  // Limpia cada vez que entras a /dashboard (incluye primer render si ya estás allí)
   useEffect(() => {
     if (isOnDashboardHome) {
       dispatchThunk(clearScheduleMonth());
@@ -56,11 +52,7 @@ const Dashboard = () => {
     return (
       <DashboardContainer>
         <MainContent>
-          <BackButtonContainer>
-            <BackButton onClick={handleBackToDashboard}>
-              <Home />
-            </BackButton>
-          </BackButtonContainer>
+          <Breadcrumb onNavigateHome={handleBackToDashboard} />
           <Outlet />
         </MainContent>
       </DashboardContainer>

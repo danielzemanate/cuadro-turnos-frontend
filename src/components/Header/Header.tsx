@@ -16,6 +16,7 @@ import {
   Separator,
   ConfigSection,
   ConfigButton,
+  ConfigLabel,
   DropdownMenu,
   DropdownItem,
 } from "./HeaderStyles";
@@ -61,7 +62,7 @@ const HeaderComponent: FC = () => {
       <UserSection>
         <UserInfo>
           <UserIcon>
-            <User size={25} color="#ffffff" />
+            <User size={22} color="#ffffff" />
           </UserIcon>
           <UserDetails>
             <Greeting>{t("header.greeting")}</Greeting>
@@ -73,9 +74,12 @@ const HeaderComponent: FC = () => {
         <Separator />
 
         <ConfigSection>
-          <ConfigButton onClick={toggleDropdown}>
+          <ConfigButton
+            onClick={toggleDropdown}
+            aria-label={t("header.configuration")}
+          >
             <Settings size={16} color="#6b7280" />
-            {t("header.configuration")}
+            <ConfigLabel>{t("header.configuration")}</ConfigLabel>
             <ChevronDown
               size={16}
               color="#6b7280"

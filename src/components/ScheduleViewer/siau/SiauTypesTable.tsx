@@ -19,7 +19,6 @@ import {
 
 type ISiauType = { id: number; nombre: string };
 
-// IDs existentes (según tu lista)
 const SIAU_IDS = {
   GESTANTES: 6,
   CRONICOS: 5,
@@ -31,12 +30,13 @@ const SIAU_IDS = {
   SOL_CE_TOTAL: 2,
 } as const;
 
+// Tipos que siguen guardándose pero no se muestran en el cuadro
+const HIDDEN_SIAU_IDS: readonly number[] = [SIAU_IDS.SOL_CE_ATENDIDA];
+
 const toNumberSafe = (v: unknown): number => {
   const n = typeof v === "number" ? v : parseFloat(String(v ?? "0"));
   return Number.isFinite(n) ? n : 0;
 };
-
-// const round0 = (n: number) => Math.round(n);
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -74,13 +74,16 @@ export const SiauTypesTable: React.FC<{
     return toNumberSafe(valuesByKey[key] ?? 0);
   };
 
-  // ✅ Calculados por día
+  const visibleSiauTypes = useMemo(
+    () => (siauTypes || []).filter((t) => !HIDDEN_SIAU_IDS.includes(t.id)),
+    [siauTypes],
+  );
+
   const calculatedByDay = useMemo(() => {
     const out: Record<
       number,
       {
         totalTurnos: number;
-        ambulatoriosProgramados: number;
         medicosCE: number;
         citasOfertadas: number;
         tasaEficienciaPct: number; // 0..100
@@ -92,33 +95,30 @@ export const SiauTypesTable: React.FC<{
       const cronicos = getValue(SIAU_IDS.CRONICOS, d);
       const gestantes = getValue(SIAU_IDS.GESTANTES, d);
       const medGen = getValue(SIAU_IDS.MEDICINA_GENERAL, d);
-
-      const atendida = getValue(SIAU_IDS.SOL_CE_ATENDIDA, d);
+      const peydt = getValue(SIAU_IDS.PEYDT, d);
       const inasistentes = getValue(SIAU_IDS.INASISTENTES, d);
       const totalSolicitudes = getValue(SIAU_IDS.SOL_CE_TOTAL, d);
 
       const medicosCE = toNumberSafe(ceDoctorsByDay[d] ?? 0);
 
-      // Fórmulas
-      const totalTurnos = cronicos * 1.33 + gestantes * 3 + medGen;
-
-      const ambulatoriosProgramados = atendida + inasistentes;
+      const totalTurnos = round2(
+        cronicos * 1.33 + gestantes * 3 + medGen + peydt * 2 + inasistentes * 1,
+      );
 
       const citasOfertadas = medicosCE * 32;
 
       const tasaEficienciaPct =
-        totalSolicitudes > 0 ? (atendida / totalSolicitudes) * 100 : 0;
+        citasOfertadas > 0 ? (totalTurnos / citasOfertadas) * 100 : 0;
 
       const indicadorDemandaInsatisfechaPct =
         totalSolicitudes > 0
-          ? ((totalSolicitudes - atendida) / totalSolicitudes) * 100
+          ? ((totalSolicitudes - totalTurnos) / totalSolicitudes) * 100
           : 0;
 
       out[d] = {
-        totalTurnos: totalTurnos,
-        ambulatoriosProgramados: ambulatoriosProgramados,
-        medicosCE: medicosCE,
-        citasOfertadas: citasOfertadas,
+        totalTurnos,
+        medicosCE,
+        citasOfertadas,
         tasaEficienciaPct: round2(tasaEficienciaPct),
         indicadorDemandaInsatisfechaPct: round2(
           indicadorDemandaInsatisfechaPct,
@@ -176,7 +176,7 @@ export const SiauTypesTable: React.FC<{
           </tr>
 
           {/* Filas SIAU normales (persistidas/editables) */}
-          {(siauTypes || []).map((tipo) => (
+          {visibleSiauTypes.map((tipo) => (
             <tr key={`siau-row-${tipo.id}`}>
               <SiauNameCell title={tipo.nombre}>{tipo.nombre}</SiauNameCell>
               {days.map((d) => {
@@ -205,17 +205,10 @@ export const SiauTypesTable: React.FC<{
             </tr>
           ))}
 
-          {/* ===========================
-              ✅ NUEVAS FILAS CALCULADAS
-              =========================== */}
+          {/* === FILAS CALCULADAS === */}
           {renderCalculatedRow(
             "N° TOTAL DE TURNOS",
             (d) => calculatedByDay[d]?.totalTurnos ?? 0,
-          )}
-
-          {renderCalculatedRow(
-            "N° AMBULATORIOS PROGRAMADOS",
-            (d) => calculatedByDay[d]?.ambulatoriosProgramados ?? 0,
           )}
 
           {renderCalculatedRow(
