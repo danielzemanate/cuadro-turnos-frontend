@@ -5,7 +5,7 @@ import { AppState } from "../../redux/reducers/rootReducer";
 import { useAppDispatchThunk } from "../../hooks/storeHooks";
 import {
   fetchMunicipios,
-  fetchUsers,
+  searchUsers,
 } from "../../redux/actions/administrationActions";
 import {
   cancelAppointment,
@@ -22,6 +22,7 @@ import {
   ICreateAppointmentPayload,
   IRescheduleAppointmentPayload,
 } from "../../interfaces/appointments";
+import { IUserListItem } from "../../interfaces/administration";
 import { Column, DataTable } from "../Common/table/DataTable";
 import Pagination from "../Common/pagination/Pagination";
 import LoadingSpinner from "../Shared/LoadingSpinner/LoadingSpinner";
@@ -33,7 +34,9 @@ import {
   APPOINTMENT_ORIGINS,
   APPOINTMENT_STATUSES,
   DEFAULT_APPOINTMENTS_PER_PAGE,
+  DOCTORS_SEARCH_PER_PAGE,
 } from "../../constants/appointments.constants";
+import { PersonalTypesDatabase } from "../../constants/schedule.constants";
 import {
   AppointmentsCard,
   DialogField,
@@ -84,9 +87,6 @@ const Appointments: React.FC = () => {
   const { loading } = useSelector((state: AppState) => state.helpers);
   const municipios =
     useSelector((state: AppState) => state.administration?.municipios) ?? [];
-  const usersFromStore = useSelector(
-    (state: AppState) => state.administration?.users,
-  );
 
   const [filters, setFilters] = useState<FilterForm>(initialFilters);
   const [appliedFilters, setAppliedFilters] =
@@ -99,28 +99,49 @@ const Appointments: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [editingAppointment, setEditingAppointment] =
     useState<IAppointment | null>(null);
+  const [doctors, setDoctors] = useState<IUserListItem[]>([]);
 
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<IAppointment | null>(null);
   const [cancelMotivo, setCancelMotivo] = useState("");
   const [cancelTouched, setCancelTouched] = useState(false);
 
-  const healthStaff = useMemo(
-    () => (usersFromStore ?? []).filter((u) => u.es_personal_salud),
-    [usersFromStore],
-  );
+  const municipioNombre = useMemo(() => {
+    const id = appliedFilters.id_municipio || filters.id_municipio;
+    if (!id) return "";
+    return municipios.find((m) => m.id === Number(id))?.nombre ?? "";
+  }, [appliedFilters.id_municipio, filters.id_municipio, municipios]);
 
-  const staffOptions = useMemo(() => {
-    if (!filters.id_municipio) return healthStaff;
-    return healthStaff.filter(
-      (u) => Number(u.id_municipio) === Number(filters.id_municipio),
-    );
-  }, [filters.id_municipio, healthStaff]);
+  const loadDoctors = useCallback(
+    async (idMunicipio: number) => {
+      const list = await dispatchThunk(
+        searchUsers({
+          id_municipio: idMunicipio,
+          id_tipo_personal_salud: PersonalTypesDatabase.MEDICO,
+          es_personal_salud: true,
+          activo: true,
+          page: 1,
+          per_page: DOCTORS_SEARCH_PER_PAGE,
+          sort_by: "id",
+          sort_dir: "asc",
+        }),
+      );
+      setDoctors(list);
+    },
+    [dispatchThunk],
+  );
 
   useEffect(() => {
     dispatchThunk(fetchMunicipios());
-    dispatchThunk(fetchUsers({ activos: "true" }));
   }, [dispatchThunk]);
+
+  useEffect(() => {
+    if (!filters.id_municipio) {
+      setDoctors([]);
+      return;
+    }
+    loadDoctors(Number(filters.id_municipio));
+  }, [filters.id_municipio, loadDoctors]);
 
   const buildQuery = useCallback(
     (source: FilterForm, nextPage: number, nextPerPage: number) => {
@@ -185,6 +206,7 @@ const Appointments: React.FC = () => {
     setTotal(0);
     setPage(1);
     setHasSearched(false);
+    setDoctors([]);
   };
 
   const handlePageChange = (nextPage: number) => {
@@ -246,6 +268,19 @@ const Appointments: React.FC = () => {
     refreshList();
   };
 
+  const openCreate = async () => {
+    const idMunicipio = Number(appliedFilters.id_municipio);
+    if (!idMunicipio) return;
+    await loadDoctors(idMunicipio);
+    setViewMode("create");
+  };
+
+  const openReschedule = async (row: IAppointment) => {
+    setEditingAppointment(row);
+    await loadDoctors(Number(row.id_municipio));
+    setViewMode("reschedule");
+  };
+
   const columns: Column<IAppointment>[] = useMemo(
     () => [
       {
@@ -301,18 +336,14 @@ const Appointments: React.FC = () => {
     [t],
   );
 
-  if (viewMode === "create") {
+  if (viewMode === "create" && appliedFilters.id_municipio) {
     return (
       <AppointmentsCard>
         {loading && <LoadingSpinner />}
         <FormAppointment
-          municipios={municipios}
-          healthStaff={healthStaff}
-          defaultMunicipioId={
-            appliedFilters.id_municipio
-              ? Number(appliedFilters.id_municipio)
-              : undefined
-          }
+          idMunicipio={Number(appliedFilters.id_municipio)}
+          municipioNombre={municipioNombre}
+          doctors={doctors}
           loading={loading}
           onSubmit={handleCreate}
           onCancel={() => setViewMode("list")}
@@ -327,7 +358,7 @@ const Appointments: React.FC = () => {
         {loading && <LoadingSpinner />}
         <FormRescheduleAppointment
           appointment={editingAppointment}
-          healthStaff={healthStaff}
+          doctors={doctors}
           loading={loading}
           onSubmit={handleReschedule}
           onCancel={() => {
@@ -397,7 +428,7 @@ const Appointments: React.FC = () => {
             disabled={loading || !filters.id_municipio}
           >
             <option value="">{t("common.all")}</option>
-            {staffOptions.map((u) => (
+            {doctors.map((u) => (
               <option key={u.id} value={u.id}>
                 {`${u.nombre} ${u.apellidos}`.trim()}
               </option>
@@ -540,11 +571,8 @@ const Appointments: React.FC = () => {
             columns={columns}
             data={items}
             addLabel={t("appointments.form.newTitle")}
-            onAdd={() => setViewMode("create")}
-            onEdit={(row) => {
-              setEditingAppointment(row);
-              setViewMode("reschedule");
-            }}
+            onAdd={openCreate}
+            onEdit={openReschedule}
             editLabel={t("appointments.actions.reschedule")}
             canEdit={(row) => row.estado === "PENDIENTE"}
             onDelete={openCancel}

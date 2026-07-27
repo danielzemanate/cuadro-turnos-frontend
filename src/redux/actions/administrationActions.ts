@@ -16,6 +16,8 @@ import {
   IGenericGetData,
   IMunicipio,
   IPersonalType,
+  ISearchUsersFilters,
+  ISearchUsersResponse,
   IUserContract,
   IUserListItem,
 } from "../../interfaces/administration";
@@ -434,6 +436,46 @@ export const fetchUsers = (
       dispatch(setVariantToast("error"));
       dispatch(setMessageToast(t("alerts.genericError")));
       console.log(error?.message || error);
+    } finally {
+      dispatch(setLoading(false));
+    }
+  };
+};
+
+const normalizeSearchUsersResponse = (payload: unknown): IUserListItem[] => {
+  if (Array.isArray(payload)) {
+    return payload as IUserListItem[];
+  }
+  if (payload && typeof payload === "object") {
+    const data = payload as Partial<ISearchUsersResponse> & {
+      data?: IUserListItem[];
+    };
+    if (Array.isArray(data.items)) return data.items;
+    if (Array.isArray(data.data)) return data.data;
+  }
+  return [];
+};
+
+/**
+ * Busca usuarios (p. ej. médicos activos por municipio). Retorna la lista sin guardar en el store.
+ */
+export const searchUsers = (
+  params: ISearchUsersFilters,
+): ThunkResult<Promise<IUserListItem[]>> => {
+  return async (dispatch) => {
+    dispatch(setLoading(true));
+    try {
+      const res = await AdministrationService.searchUsers(params);
+      if (res.status === 200) {
+        return normalizeSearchUsersResponse(res.data);
+      }
+      return [];
+    } catch (error) {
+      dispatch(setOpenToast(true));
+      dispatch(setVariantToast("error"));
+      dispatch(setMessageToast(t("alerts.genericError")));
+      console.log(error?.message || error);
+      return [];
     } finally {
       dispatch(setLoading(false));
     }

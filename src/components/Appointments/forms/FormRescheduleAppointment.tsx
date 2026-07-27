@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   IAppointment,
@@ -22,7 +22,7 @@ import {
 
 type Props = {
   appointment: IAppointment;
-  healthStaff: IUserListItem[];
+  doctors: IUserListItem[];
   loading?: boolean;
   onSubmit: (_payload: IRescheduleAppointmentPayload) => void;
   onCancel: () => void;
@@ -40,7 +40,7 @@ const toTimeInput = (raw: string): string => {
 
 const FormRescheduleAppointment: React.FC<Props> = ({
   appointment,
-  healthStaff,
+  doctors,
   loading = false,
   onSubmit,
   onCancel,
@@ -55,15 +55,6 @@ const FormRescheduleAppointment: React.FC<Props> = ({
     toTimeInput(appointment.hora_inicio),
   );
   const [motivo, setMotivo] = useState("");
-
-  const staffOptions = useMemo(() => {
-    const byMunicipio = healthStaff.filter(
-      (u) =>
-        u.es_personal_salud &&
-        Number(u.id_municipio) === Number(appointment.id_municipio),
-    );
-    return byMunicipio.length > 0 ? byMunicipio : healthStaff;
-  }, [appointment.id_municipio, healthStaff]);
 
   const errors = {
     id_personal_salud: !idPersonalSalud,
@@ -102,9 +93,7 @@ const FormRescheduleAppointment: React.FC<Props> = ({
 
         <Grid>
           <Field>
-            <Label htmlFor="rs-staff">
-              {t("appointments.filters.healthStaff")}
-            </Label>
+            <Label htmlFor="rs-staff">{t("appointments.form.doctor")}</Label>
             <Select
               id="rs-staff"
               value={idPersonalSalud}
@@ -113,7 +102,7 @@ const FormRescheduleAppointment: React.FC<Props> = ({
               }
             >
               <option value="">{t("common.selectPlaceholder")}</option>
-              {staffOptions.map((u) => (
+              {doctors.map((u) => (
                 <option key={u.id} value={u.id}>
                   {`${u.nombre} ${u.apellidos}`.trim()}
                 </option>
