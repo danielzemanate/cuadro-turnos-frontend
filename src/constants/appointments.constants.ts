@@ -25,3 +25,6 @@ export const APPOINTMENT_ORIGINS: readonly AppointmentOrigin[] = [
 export const DOCUMENT_TYPES = ["CC", "TI", "CE", "PA", "RC"] as const;
 
 export const DEFAULT_APPOINTMENTS_PER_PAGE = 10;
+
+/** Página grande para llenar selects de médicos sin paginar en UI */
+export const DOCTORS_SEARCH_PER_PAGE = 100;

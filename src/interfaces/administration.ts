@@ -40,6 +40,24 @@ export interface IFetchUsersFilters {
   activos?: string;
 }
 
+export interface ISearchUsersFilters {
+  id_municipio: number;
+  id_tipo_personal_salud: number;
+  es_personal_salud?: boolean;
+  activo?: boolean;
+  page?: number;
+  per_page?: number;
+  sort_by?: string;
+  sort_dir?: "asc" | "desc";
+}
+
+export interface ISearchUsersResponse {
+  total: number;
+  page: number;
+  per_page: number;
+  items: IUserListItem[];
+}
+
 export interface IFetchContractUserFilters {
   id_usuario?: string;
 }
