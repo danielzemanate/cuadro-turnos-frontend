@@ -135,12 +135,6 @@ const parseSignedInt = (raw: string | undefined): number => {
   return Number.isNaN(parsed) ? 0 : parsed;
 };
 
-const NOVELTY_EDITOR_ROLES: readonly number[] = [
-  RolesDatabase.COORDINADOR,
-  RolesDatabase.ADMINISTRADOR,
-  RolesDatabase.INGENIERO,
-];
-
 const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
   editable = false,
 }) => {
@@ -210,15 +204,6 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
   const selectedPeriod = formState.selectedPeriodo;
   const isCurrentSelectedMonth =
     selectedPeriod?.anio === todayYear && selectedPeriod?.mes === todayMonth;
-  const previousMonth = new Date(todayYear, todayMonth - 2, 1);
-  const isPreviousSelectedMonth =
-    selectedPeriod?.anio === previousMonth.getFullYear() &&
-    selectedPeriod?.mes === previousMonth.getMonth() + 1;
-  const canEditPreviousMonthNovelties =
-    !editable &&
-    isPreviousSelectedMonth &&
-    roleIdNum !== undefined &&
-    NOVELTY_EDITOR_ROLES.includes(roleIdNum);
 
   // Los turnos solo se editan en meses futuros (posteriores al mes calendario actual).
   // El mes actual y anteriores quedan en solo lectura: para eso están las novedades.
@@ -230,16 +215,27 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
     selectedMonthValue !== null && selectedMonthValue > currentMonthValue;
   const canEditTurnos = editable && isFutureSelectedMonth;
 
+  // Novedades: en Visualización solo informativo; edición solo en Editar Turnos (mes actual).
   const canShowNoveltyToggle = !editable || isCurrentSelectedMonth;
 
   const canEditNoveltyDay = useCallback(
     (day: number) => {
-      if (editable) {
-        return isCurrentSelectedMonth && day <= todayDay;
-      }
-      return canEditPreviousMonthNovelties;
+      if (!editable) return false;
+      return isCurrentSelectedMonth && day <= todayDay;
     },
-    [canEditPreviousMonthNovelties, editable, isCurrentSelectedMonth, todayDay],
+    [editable, isCurrentSelectedMonth, todayDay],
+  );
+
+  // Total pacientes: en Visualización se muestra solo lectura; en Editar Turnos
+  // mismas reglas temporales que novedades (mes actual; días 1..hoy).
+  const canShowPatientsToggle = !editable || isCurrentSelectedMonth;
+
+  const canEditPatientsDay = useCallback(
+    (day: number) => {
+      if (!editable) return false;
+      return isCurrentSelectedMonth && day <= todayDay;
+    },
+    [editable, isCurrentSelectedMonth, todayDay],
   );
 
   // --- UI toggles ---
@@ -342,18 +338,13 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
   }, [dispatchThunk, editable, JSON.stringify(editableParams)]);
 
   useEffect(() => {
-    if ((editable || canEditPreviousMonthNovelties) && formState.selectedTipo) {
+    if (editable && formState.selectedTipo) {
       const attentionParams = {
         id_tipo_personal_salud: formState.selectedTipo,
       };
       dispatchThunk(fetchAttentionTypes(attentionParams));
     }
-  }, [
-    canEditPreviousMonthNovelties,
-    dispatchThunk,
-    editable,
-    formState.selectedTipo,
-  ]);
+  }, [dispatchThunk, editable, formState.selectedTipo]);
 
   // Cargar pacientes al abrir la vista de pacientes (PARA TODOS LOS ROLES: ver/editar según permiso)
   useEffect(() => {
@@ -433,6 +424,11 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
   useEffect(() => {
     if (!canShowNoveltyToggle && showNovedades) setShowNovedades(false);
   }, [canShowNoveltyToggle, showNovedades]);
+
+  // Pacientes: en gestión solo mes actual; en viewer el toggle siempre puede mostrarse
+  useEffect(() => {
+    if (!canShowPatientsToggle && showPacientes) setShowPacientes(false);
+  }, [canShowPatientsToggle, showPacientes]);
 
   // Cargar tipos SIAU al activar el toggle (si no hay)
   useEffect(() => {
@@ -714,15 +710,16 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
   // Patients handlers
   const handlePatientsChange = useCallback(
     (userId: number, day: number, value: string) => {
+      if (!canEditPatientsDay(day)) return;
       const key = `${userId}-${day}`;
       setPatientsInput((prev) => ({ ...prev, [key]: value }));
     },
-    [],
+    [canEditPatientsDay],
   );
 
   const handlePatientsBlur = useCallback(
     (userId: number, day: number) => {
-      if (!monthData?.mes) return;
+      if (!canEditPatientsDay(day) || !monthData?.mes) return;
       const key = `${userId}-${day}`;
       const value = patientsInput[key] || "0";
       const numericValue = parseInt(value, 10);
@@ -760,7 +757,13 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
           }));
         });
     },
-    [monthData?.mes, patientsInput, dispatchThunk, getPatientsForPersonDay],
+    [
+      canEditPatientsDay,
+      monthData?.mes,
+      patientsInput,
+      dispatchThunk,
+      getPatientsForPersonDay,
+    ],
   );
 
   const handleDownload = useCallback(() => {
@@ -885,10 +888,11 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
             const traffic = getPatientsTraffic(
               Number.isNaN(currentPatients) ? 0 : currentPatients,
             );
+            const canEditDay = canManagePatients && canEditPatientsDay(day);
 
             return (
               <DataCell key={`patients-${person.id_usuario}-${day}`} $center>
-                {canManagePatients ? (
+                {canEditDay ? (
                   <InputField
                     type="text"
                     inputMode="numeric"
@@ -921,6 +925,7 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
       showPacientes,
       days,
       canManagePatients,
+      canEditPatientsDay,
       patientsInput,
       getPatientsForPersonDay,
       handlePatientsChange,
@@ -1386,15 +1391,17 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
                   </FormLabel>
                 )}
 
-                {/* Pacientes: mostrar toggle a TODOS (verán data; solo DILIGENCIADOR edita) */}
-                <FormLabel>
-                  <FormCheckbox
-                    type="checkbox"
-                    checked={showPacientes}
-                    onChange={(e) => setShowPacientes(e.target.checked)}
-                  />
-                  <span>{t("scheduleViewer.totalPatientsTreated")}</span>
-                </FormLabel>
+                {/* Pacientes: visible en viewer (solo lectura) y en Editar Turnos (mes actual) */}
+                {canShowPatientsToggle && (
+                  <FormLabel>
+                    <FormCheckbox
+                      type="checkbox"
+                      checked={showPacientes}
+                      onChange={(e) => setShowPacientes(e.target.checked)}
+                    />
+                    <span>{t("scheduleViewer.totalPatientsTreated")}</span>
+                  </FormLabel>
+                )}
 
                 {/* SIAU: solo para Médico en modo viewer; solo roles SIAU editan */}
                 {!editable && isMedicoSelected && (

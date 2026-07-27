@@ -268,7 +268,7 @@ Base: `${import.meta.env.VITE_APP_BACK_ESE}`
 
 ### Administration — `services/administration/administration.service.ts`
 
-CRUD bajo `api/config/` (roles, tipos-atencion, tipos-personal-salud, municipios, usuarios-detalle) + `auth/usuarios/:id` + contratos `auth/contrato/*`.
+CRUD bajo `api/config/` (roles, tipos-atencion, tipos-personal-salud, municipios, usuarios-detalle) + `auth/usuarios/:id` + contratos `auth/contrato/*` + búsqueda paginada `POST auth/usuarios/search` (`searchUsers`, usada por Citas para médicos).
 
 ### Users config — `services/users-config/users-config.service.ts`
 
@@ -284,6 +284,25 @@ CRUD bajo `api/config/` (roles, tipos-atencion, tipos-personal-salud, municipios
 | `rescheduleAppointment` | POST | `{VITE_APP_BACK_APPOINTMENTS}api/citas/{id}/reprogramar` (`id_personal_salud`, `fecha`, `hora_inicio`, `motivo`, `actor_tipo: WEB`) |
 
 UI: `components/Appointments/Appointments.tsx`. Solo rol INGENIERO (`allowedRoles: [11]`). Lista en estado local (no slice Redux). Paginador reutilizable: `components/Common/pagination/Pagination.tsx` (opciones 10 / 20 / 50; el frontend **no** sobrescribe `per_page` con el valor de la respuesta). En alta, `id_sede` se digita a mano hasta existir catálogo de sedes.
+
+**Médicos (alta / filtro / reprogramar):** no se usa el listado genérico `GET usuarios-detalle`. Se busca con `POST {BACK_ESE}auth/usuarios/search` (`AdministrationService.searchUsers` / thunk `searchUsers`, retorna lista **sin** guardar en el slice `administration.users`) con body fijo de tipo médico:
+
+```json
+{
+  "id_municipio": <del filtro o de la cita>,
+  "id_tipo_personal_salud": 1,
+  "es_personal_salud": true,
+  "activo": true,
+  "page": 1,
+  "per_page": 100,
+  "sort_by": "id",
+  "sort_dir": "asc"
+}
+```
+
+(`PersonalTypesDatabase.MEDICO` = 1; `DOCTORS_SEARCH_PER_PAGE` en `appointments.constants.ts`.) El thunk normaliza respuesta `{ items }`, `{ data }` o array plano.
+
+**Municipio en crear cita:** se toma del filtro aplicado de la tabla (`appliedFilters.id_municipio`); en el formulario se muestra solo lectura. No se permite elegir otro municipio al crear (cambiar el filtro de la lista primero).
 
 Columnas de la tabla: código, paciente, categoría, médico, tipo atención, fecha, inicio, fin, estado, origen (+ Acciones). No se muestran municipio, sede ni dirección de atención.
 
@@ -318,7 +337,7 @@ Componente monolítico (~1360 líneas) que sirve **vista y edición**:
 - Selectores: periodo / mes / año / tipo personal / municipio.
 - Roles `COORDINADOR` / `PERSONAL_SALUD`: municipio forzado al del usuario.
 - Flags de capacidad (calculados por rol):
-  - `canManagePatients`: DILIGENCIADOR (3) o INGENIERO (11)
+  - `canManagePatients`: DILIGENCIADOR (3) o INGENIERO (11) — edición solo en **Editar Turnos**; en Visualización la fila es solo lectura. Ver sección “Total pacientes atendidos”
   - `canManageSiau`: COORDINADOR_SIAU (4), SIAU (5) o INGENIERO (11) — solo en modo viewer
   - Personal de apoyo: ADMINISTRADOR (6) o INGENIERO (11), solo en modo editable
   - Toggle y tabla SIAU: solo si el tipo de personal seleccionado es **Médico** (`PersonalTypesDatabase.MEDICO` = 1)
@@ -354,10 +373,26 @@ Cuando el toggle **Novedades** está activo se pintan dos filas por persona:
 - Las horas se sanean con `sanitizeSignedInt` (solo dígitos y un `-` inicial) y se parsean con `parseSignedInt` (vacío → `0`).
 - `submitNovelty` centraliza el envío a `editScheduleDay`: lo llaman el cambio de sigla y el blur de horas.
 - **No existe fila de “Justificación Novedades”** en el cuadro. El campo `justificacion` sigue en el backend y se **reenvía tal cual** desde `submitNovelty` para no borrar lo guardado.
-- En **Visualización Turnos**, solo COORDINADOR (1), ADMINISTRADOR (6) e INGENIERO (11) pueden editar novedades y únicamente para el mes calendario anterior al actual. Todos los días de ese mes son editables.
-- En **Editar Turnos y Novedades**, el toggle de novedades solo aparece para el mes calendario actual. Se pueden editar los días desde el 1 hasta la fecha actual; los días posteriores se muestran en modo lectura. Para meses futuros el toggle no se renderiza y `showNovedades` se fuerza a `false`.
-- `canEditNoveltyDay` centraliza esas reglas temporales y de rol. Los handlers también lo validan antes de modificar estado o llamar al backend.
+- En **Visualización Turnos**, el toggle de novedades se muestra (cualquier mes) pero las celdas son **solo lectura**: no se puede editar desde este módulo.
+- En **Editar Turnos y Novedades**, el toggle de novedades solo aparece para el mes calendario actual. Se pueden editar los días desde el 1 hasta la fecha actual (`day <= todayDay`); los días posteriores se muestran en modo lectura. Para meses futuros el toggle no se renderiza y `showNovedades` se fuerza a `false`.
+- `canEditNoveltyDay` centraliza esas reglas temporales. Los handlers también lo validan antes de modificar estado o llamar al backend.
 - La fila `TOTAL HORAS` usa las horas digitadas cuando `canEditNoveltyDay(day)` es verdadero (por eso los negativos restan); en días de solo lectura usa las horas del backend.
+
+#### Total pacientes atendidos
+
+Visible en **Visualización Turnos** y en **Editar Turnos y Novedades**. La edición **solo** en Editar Turnos.
+
+| Concern | Visualización (`editable=false`) | Editar Turnos (`editable=true`) |
+|---|---|---|
+| Mostrar toggle | Siempre (`canShowPatientsToggle`) | Solo mes calendario actual; en otros meses se oculta y `showPacientes` se fuerza a `false` |
+| Editar celda | Nunca (`canEditPatientsDay` → `false`) | `isCurrentSelectedMonth && day <= todayDay` — del 1 al día de hoy; días futuros solo lectura |
+| Quién edita | Nadie (solo lectura) | Además del día, rol `canManagePatients`: DILIGENCIADOR (3) o INGENIERO (11). Otros roles ven el valor en solo lectura |
+
+- Fila: una por persona con label `scheduleViewer.totalPatientsTreated`; input numérico (semáforo vía `PatientsColor`) solo si `canManagePatients && canEditPatientsDay(day)`; si no, texto del valor guardado.
+- Persistencia: blur → `addPatients` (`POST api/reportes/registro-pacientes`). Carga al abrir toggle: `fetchTotalPatientsByMonth`.
+- Los handlers `handlePatientsChange` / `handlePatientsBlur` hacen early-return si `!canEditPatientsDay(day)`.
+
+Igual que novedades en Visualización: se puede **ver** la fila; no se puede **editar** desde ese módulo.
 
 #### Tabla SIAU (`siau/SiauTypesTable.tsx`)
 
@@ -493,6 +528,8 @@ Al **quitar** UI, borra también su clave en `es.json`: no dejes texto muerto. V
 - No usar emojis en comentarios ni en nombres de variables. Los únicos glifos permitidos son los que el usuario ve en pantalla (p. ej. el `⚠` de contrato vencido en `FormUserContracts.tsx`).
 - No dejar claves huérfanas en `es.json` tras eliminar UI.
 - No derivar las horas de novedad desde el tipo de atención: las digita el usuario y pueden ser negativas.
+- No permitir editar **novedades** ni **total pacientes** desde Visualización Turnos (solo lectura / informativo). La edición (mes actual, días ≤ hoy; pacientes además rol Diligenciador/Ingeniero) solo en Editar Turnos.
+- No cargar médicos de citas con `GET usuarios-detalle`; usar `POST auth/usuarios/search` con `id_tipo_personal_salud: 1` y el municipio del filtro/cita.
 - No crear archivos markdown extra salvo que te lo pidan.
 - No commitear `.env` con secretos; no tocar git config.
 
@@ -504,10 +541,12 @@ Al **quitar** UI, borra también su clave en `es.json`: no dejes texto muerto. V
 | Nueva llamada API | `services/<dominio>/`, action en `redux/actions/`, tipos en `interfaces/` |
 | Cambiar permisos de un módulo | `config/modules.ts` → `allowedRoles` |
 | Cambiar lógica de celdas del cuadro | `ScheduleViewer.tsx` + `ScheduleHelper.ts` + `scheduleActions.ts` |
+| Reglas de novedades / total pacientes (días editables) | `ScheduleViewer.tsx` (`canEditNoveltyDay`, `canShowPatientsToggle`, `canEditPatientsDay`) + esta sección en AGENTS.md |
 | Cambiar fórmulas o filas de la tabla SIAU | `ScheduleViewer/siau/SiauTypesTable.tsx` (`SIAU_IDS`, `HIDDEN_SIAU_IDS`, `calculatedByDay`) + tabla de fórmulas en este archivo |
 | Nuevo reporte PDF | `reports.service.ts` + `reportsActions.ts` + routing por nombre en `Reports.tsx` |
 | Nuevo tab de administración | `Administration.tsx` + form en `forms/` + service/actions |
 | Citas (agenda / cancelar / reprogramar) | `Appointments.tsx` + forms + `appointmentsActions.ts` + `appointments.service.ts` + `interfaces/appointments.ts` + `constants/appointments.constants.ts` |
+| Búsqueda de médicos para citas | `administration.service.ts` (`searchUsers`) + `administrationActions.searchUsers` + `Appointments.tsx` |
 | Estilos / colores | `constants/theme.tsx` + `*Styles.tsx` de la feature |
 | Textos | `language/es.json` |
 

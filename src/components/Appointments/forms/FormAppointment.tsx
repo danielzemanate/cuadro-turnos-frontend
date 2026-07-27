@@ -5,7 +5,7 @@ import {
   AppointmentOrigin,
   ICreateAppointmentPayload,
 } from "../../../interfaces/appointments";
-import { IMunicipio, IUserListItem } from "../../../interfaces/administration";
+import { IUserListItem } from "../../../interfaces/administration";
 import {
   APPOINTMENT_CATEGORIES,
   APPOINTMENT_ORIGINS,
@@ -27,9 +27,9 @@ import {
 } from "./FormAppointmentStyles";
 
 type Props = {
-  municipios: IMunicipio[];
-  healthStaff: IUserListItem[];
-  defaultMunicipioId?: number;
+  idMunicipio: number;
+  municipioNombre?: string;
+  doctors: IUserListItem[];
   loading?: boolean;
   onSubmit: (_payload: ICreateAppointmentPayload) => void;
   onCancel: () => void;
@@ -42,7 +42,6 @@ type FormState = {
   telefono_contacto: string;
   categoria_paciente: AppointmentCategory | "";
   id_personal_salud: number | "";
-  id_municipio: number | "";
   id_sede: number | "";
   fecha: string;
   hora_inicio: string;
@@ -52,9 +51,9 @@ type FormState = {
 };
 
 const FormAppointment: React.FC<Props> = ({
-  municipios,
-  healthStaff,
-  defaultMunicipioId,
+  idMunicipio,
+  municipioNombre,
+  doctors,
   loading = false,
   onSubmit,
   onCancel,
@@ -68,7 +67,6 @@ const FormAppointment: React.FC<Props> = ({
     telefono_contacto: "",
     categoria_paciente: "GENERAL",
     id_personal_salud: "",
-    id_municipio: defaultMunicipioId ?? "",
     id_sede: "",
     fecha: "",
     hora_inicio: "",
@@ -86,7 +84,6 @@ const FormAppointment: React.FC<Props> = ({
       telefono_contacto: !form.telefono_contacto.trim(),
       categoria_paciente: !form.categoria_paciente,
       id_personal_salud: !form.id_personal_salud,
-      id_municipio: !form.id_municipio,
       id_sede: !form.id_sede || Number(form.id_sede) <= 0,
       fecha: !form.fecha,
       hora_inicio: !form.hora_inicio,
@@ -96,15 +93,6 @@ const FormAppointment: React.FC<Props> = ({
   }, [form]);
 
   const hasErrors = Object.values(errors).some(Boolean);
-
-  const staffForMunicipio = useMemo(() => {
-    if (!form.id_municipio) return healthStaff;
-    return healthStaff.filter(
-      (u) =>
-        u.es_personal_salud &&
-        Number(u.id_municipio) === Number(form.id_municipio),
-    );
-  }, [form.id_municipio, healthStaff]);
 
   const setField =
     <K extends keyof FormState>(key: K) =>
@@ -126,7 +114,7 @@ const FormAppointment: React.FC<Props> = ({
       telefono_contacto: form.telefono_contacto.trim(),
       categoria_paciente: form.categoria_paciente as AppointmentCategory,
       id_personal_salud: Number(form.id_personal_salud),
-      id_municipio: Number(form.id_municipio),
+      id_municipio: idMunicipio,
       id_sede: Number(form.id_sede),
       fecha: form.fecha,
       hora_inicio,
@@ -227,34 +215,16 @@ const FormAppointment: React.FC<Props> = ({
             <Label htmlFor="ap-municipio">
               {t("appointments.filters.municipality")}
             </Label>
-            <Select
+            <Input
               id="ap-municipio"
-              value={form.id_municipio}
-              onChange={(e) => {
-                const value = e.target.value ? Number(e.target.value) : "";
-                setForm((prev) => ({
-                  ...prev,
-                  id_municipio: value,
-                  id_personal_salud: "",
-                }));
-              }}
-            >
-              <option value="">{t("common.selectPlaceholder")}</option>
-              {municipios.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.nombre}
-                </option>
-              ))}
-            </Select>
-            {showError("id_municipio") && (
-              <ErrorText>{t("appointments.form.errors.required")}</ErrorText>
-            )}
+              value={municipioNombre ?? String(idMunicipio)}
+              readOnly
+              disabled
+            />
           </Field>
 
           <Field>
-            <Label htmlFor="ap-staff">
-              {t("appointments.filters.healthStaff")}
-            </Label>
+            <Label htmlFor="ap-staff">{t("appointments.form.doctor")}</Label>
             <Select
               id="ap-staff"
               value={form.id_personal_salud}
@@ -265,7 +235,7 @@ const FormAppointment: React.FC<Props> = ({
               }
             >
               <option value="">{t("common.selectPlaceholder")}</option>
-              {staffForMunicipio.map((u) => (
+              {doctors.map((u) => (
                 <option key={u.id} value={u.id}>
                   {`${u.nombre} ${u.apellidos}`.trim()}
                 </option>

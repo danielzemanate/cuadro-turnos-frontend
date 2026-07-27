@@ -4,6 +4,7 @@ import {
   IFetchContractUserFilters,
   IFetchUsersFilters,
   IPersonalType,
+  ISearchUsersFilters,
   IUserContract,
 } from "../../interfaces/administration";
 import { IUserRegister } from "../../interfaces/signIn";
@@ -125,6 +126,13 @@ const AdministrationService = {
 
     return await api.get(
       `${import.meta.env.VITE_APP_BACK_ESE}api/config/usuarios-detalle?${params}`,
+    );
+  },
+
+  searchUsers: async (data: ISearchUsersFilters) => {
+    return await api.post(
+      `${import.meta.env.VITE_APP_BACK_ESE}auth/usuarios/search`,
+      data,
     );
   },
 
