@@ -62,6 +62,7 @@ export interface IUserForm {
   id_tipo_personal_salud: number;
   id_municipio: number;
   activo: boolean;
+  es_personal_salud?: boolean;
   creado_por?: number;
   actualizado_por?: number;
 }

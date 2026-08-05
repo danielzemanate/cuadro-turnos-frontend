@@ -85,7 +85,7 @@ export const MODULES: Module[] = [
     id: 7,
     name: "Citas",
     icon: CalendarCheck2,
-    allowedRoles: [11],
+    allowedRoles: [4, 5, 11],
     component: Appointments,
     path: "/dashboard/citas",
     bgColor: "#E0F2FE",

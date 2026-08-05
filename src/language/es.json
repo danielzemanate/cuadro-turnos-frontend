@@ -65,6 +65,7 @@
     "healthPersonnelType": "Tipo personal de salud",
     "closeSupportStaff": "Cerrar personal de apoyo",
     "supportStaffTitle": "Personal de apoyo",
+    "supportStaffBadge": "Apoyo",
     "supportStaff": {
       "title": "Personal de apoyo",
       "tabCreate": "Agregar personal asistencial",
@@ -84,7 +85,8 @@
       "selectIncomingFirst": "Seleccione primero entrante…",
       "savePerson": "Agregar Persona",
       "changePerson": "Cambiar Persona",
-      "noAvailableUsers": "No hay usuarios disponibles"
+      "noAvailableUsers": "No hay usuarios disponibles",
+      "noScheduleStaff": "No hay personal en el cuadro"
     },
     "interval": {
       "title": "Horario del turno",

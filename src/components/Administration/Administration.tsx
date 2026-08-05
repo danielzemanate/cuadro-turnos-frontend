@@ -590,6 +590,7 @@ const Administration: React.FC = () => {
             celular: pendingPayloadUser.celular,
             id_tipo_personal_salud: pendingPayloadUser.id_tipo_personal_salud,
             id_municipio: pendingPayloadUser.id_municipio,
+            es_personal_salud: Boolean(pendingPayloadUser.es_personal_salud),
             creado_por: pendingPayloadUser.creado_por!,
             actualizado_por: pendingPayloadUser.creado_por!,
           }),

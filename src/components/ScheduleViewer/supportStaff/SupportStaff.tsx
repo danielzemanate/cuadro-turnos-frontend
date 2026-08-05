@@ -73,7 +73,6 @@ export const SupportStaff: React.FC<SupportStaffProps> = ({
 
   const { loading } = useSelector((state: AppState) => state.helpers);
 
-  // OJO: ajusta el selector según tu reducer real
   const users = useSelector(
     (state: AppState) => (state.administration?.users ?? []) as IUserListItem[],
   );
@@ -91,7 +90,6 @@ export const SupportStaff: React.FC<SupportStaffProps> = ({
   const [outgoingUserId, setOutgoingUserId] = useState<number | "">("");
   const [diaEntrada, setDiaEntrada] = useState<string>("");
 
-  // === Cargar usuarios según filtros (nombre municipio / tipo personal) ===
   useEffect(() => {
     if (!municipioNombre || !tipoPersonalNombre) return;
 
@@ -117,7 +115,6 @@ export const SupportStaff: React.FC<SupportStaffProps> = ({
     return full || `Usuario #${s.id}`;
   }, []);
 
-  // Opciones ordenadas (por nombre) - fuente: users del fetch
   const sortedUsers = useMemo(() => {
     const list = [...users];
     list.sort((a, b) =>
@@ -128,17 +125,14 @@ export const SupportStaff: React.FC<SupportStaffProps> = ({
     return list;
   }, [users, formatUserLabel]);
 
-  // IDs presentes en cuadro (para comparar)
   const scheduleStaffIds = useMemo(() => {
     return new Set((scheduleStaff ?? []).map((s) => s.id));
   }, [scheduleStaff]);
 
-  // Disponibles: NO están en el cuadro (para CREATE + ENTRANTE)
   const availableUsers = useMemo(() => {
     return sortedUsers.filter((u) => !scheduleStaffIds.has(u.id));
   }, [sortedUsers, scheduleStaffIds]);
 
-  // Salientes: SOLO los que están en el cuadro (fuente: scheduleStaff)
   const scheduleStaffOptions = useMemo(() => {
     const list = [...(scheduleStaff ?? [])];
     list.sort((a, b) =>
@@ -153,19 +147,16 @@ export const SupportStaff: React.FC<SupportStaffProps> = ({
     return list;
   }, [scheduleStaff, formatScheduleStaffLabel]);
 
-  // En "cambiar": saliente NO puede ser el mismo que entrante (por robustez)
   const outgoingOptions = useMemo(() => {
     if (!incomingUserId) return scheduleStaffOptions;
     return scheduleStaffOptions.filter((s) => s.id !== incomingUserId);
   }, [scheduleStaffOptions, incomingUserId]);
 
-  // Si cambian el entrante y coincide con el saliente, limpiamos saliente
   useEffect(() => {
     if (!incomingUserId || !outgoingUserId) return;
     if (incomingUserId === outgoingUserId) setOutgoingUserId("");
   }, [incomingUserId, outgoingUserId]);
 
-  // Si cambias de modo, limpia campos para evitar estados cruzados
   useEffect(() => {
     setSelectedUserId("");
     setIncomingUserId("");
@@ -199,7 +190,6 @@ export const SupportStaff: React.FC<SupportStaffProps> = ({
       return;
     }
 
-    // mode === "change"
     if (!incomingUserId || !outgoingUserId) return;
 
     const day = parseInt(diaEntrada, 10);
@@ -295,8 +285,7 @@ export const SupportStaff: React.FC<SupportStaffProps> = ({
 
                 {availableUsers.length === 0 ? (
                   <option value="" disabled>
-                    {t("scheduleViewer.supportStaff.noAvailableUsers") ||
-                      "No hay usuarios disponibles"}
+                    {t("scheduleViewer.supportStaff.noAvailableUsers")}
                   </option>
                 ) : (
                   availableUsers.map((u) => (
@@ -328,8 +317,7 @@ export const SupportStaff: React.FC<SupportStaffProps> = ({
 
                   {availableUsers.length === 0 ? (
                     <option value="" disabled>
-                      {t("scheduleViewer.supportStaff.noAvailableUsers") ||
-                        "No hay usuarios disponibles"}
+                      {t("scheduleViewer.supportStaff.noAvailableUsers")}
                     </option>
                   ) : (
                     availableUsers.map((u) => (
@@ -360,8 +348,7 @@ export const SupportStaff: React.FC<SupportStaffProps> = ({
 
                   {outgoingOptions.length === 0 ? (
                     <option value="" disabled>
-                      {t("scheduleViewer.supportStaff.noScheduleStaff") ||
-                        "No hay personal en el cuadro"}
+                      {t("scheduleViewer.supportStaff.noScheduleStaff")}
                     </option>
                   ) : (
                     outgoingOptions.map((s) => (

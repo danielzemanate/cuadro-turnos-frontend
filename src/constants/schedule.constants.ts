@@ -33,19 +33,24 @@ export const PersonalTypesDatabase = {
   FISIOTERAPIA: 8,
 } as const;
 
-/** Siglas de consulta externa que requieren intervalo horario al editar turno de médico. */
-export const INTERVAL_REQUIRED_SIGLAS = ["CE", "CEC", "CED"] as const;
+/** Solo CE requiere intervalo horario al editar turno de médico. */
+export const INTERVAL_REQUIRED_SIGLAS = ["CE"] as const;
 
 export type IntervalRequiredSigla = (typeof INTERVAL_REQUIRED_SIGLAS)[number];
 
 /** Horas exactas por sigla (ni más ni menos). */
 export const INTERVAL_REQUIRED_HOURS: Record<IntervalRequiredSigla, number> = {
   CE: 8,
-  CED: 8,
-  CEC: 16,
 };
 
 export const MIN_SCHEDULE_INTERVAL_HOURS = 8;
+
+/**
+ * Días del mes calendario actual en los que Visualización permite editar
+ * novedades / total pacientes del mes anterior (días 1..N inclusive).
+ * El mes anterior no viene en opciones-editables.
+ */
+export const PREVIOUS_MONTH_EDIT_GRACE_DAYS = 5;
 
 export const requiresScheduleInterval = (sigla: string): boolean =>
   (INTERVAL_REQUIRED_SIGLAS as readonly string[]).includes(sigla);
