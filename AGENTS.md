@@ -150,7 +150,7 @@ Esta es la **fuente de verdad** de paths, roles y componentes del menú.
 | 4 | Registrar Demanda Insatisfecha | `/dashboard/demanda-insatisfecha` | `[]` (nadie) | Placeholder |
 | 5 | Configuración de Usuarios | `/dashboard/configuracion-usuarios` | 6,11 | `UsersConfig` |
 | 6 | Administración | `/dashboard/administracion` | 6,11,13 | `Administration` |
-| 7 | Citas | `/dashboard/citas` | 11 | `Appointments` |
+| 7 | Citas | `/dashboard/citas` | 4,5,11 | `Appointments` |
 
 Helpers de permisos: `utils/permissions.ts` → `filterModulesByRole`, `hasPermission`, `getModuleByPath`.
 
@@ -283,7 +283,7 @@ CRUD bajo `api/config/` (roles, tipos-atencion, tipos-personal-salud, municipios
 | `cancelAppointment` | POST | `{VITE_APP_BACK_APPOINTMENTS}api/citas/{id}/cancelar` (`motivo`, `actor_tipo: WEB`) |
 | `rescheduleAppointment` | POST | `{VITE_APP_BACK_APPOINTMENTS}api/citas/{id}/reprogramar` (`id_personal_salud`, `fecha`, `hora_inicio`, `motivo`, `actor_tipo: WEB`) |
 
-UI: `components/Appointments/Appointments.tsx`. Solo rol INGENIERO (`allowedRoles: [11]`). Lista en estado local (no slice Redux). Paginador reutilizable: `components/Common/pagination/Pagination.tsx` (opciones 10 / 20 / 50; el frontend **no** sobrescribe `per_page` con el valor de la respuesta). En alta, `id_sede` se digita a mano hasta existir catálogo de sedes.
+UI: `components/Appointments/Appointments.tsx`. Roles COORDINADOR_SIAU (4), SIAU (5) e INGENIERO (11) (`allowedRoles: [4, 5, 11]`). Lista en estado local (no slice Redux). Paginador reutilizable: `components/Common/pagination/Pagination.tsx` (opciones 10 / 20 / 50; el frontend **no** sobrescribe `per_page` con el valor de la respuesta). En alta, `id_sede` se digita a mano hasta existir catálogo de sedes.
 
 **Médicos (alta / filtro / reprogramar):** no se usa el listado genérico `GET usuarios-detalle`. Se busca con `POST {BACK_ESE}auth/usuarios/search` (`AdministrationService.searchUsers` / thunk `searchUsers`, retorna lista **sin** guardar en el slice `administration.users`) con body fijo de tipo médico:
 
@@ -336,11 +336,12 @@ Componente monolítico (~1360 líneas) que sirve **vista y edición**:
 - Prop `editable?: boolean` — el módulo de edición lo monta con `editable={true}` vía alias en `modules.ts`. **No** uses `ScheduleManagement.tsx` (es placeholder vacío).
 - Selectores: periodo / mes / año / tipo personal / municipio.
 - Roles `COORDINADOR` / `PERSONAL_SALUD`: municipio forzado al del usuario.
+- Rol **PERSONAL_SALUD (2)** en Visualización: ve toggles de novedades y total pacientes **solo lectura** (no edita); **no** ve tipos de SIAU.
 - Flags de capacidad (calculados por rol):
-  - `canManagePatients`: DILIGENCIADOR (3) o INGENIERO (11) — edición solo en **Editar Turnos**; en Visualización la fila es solo lectura. Ver sección “Total pacientes atendidos”
+  - `canManagePatients`: COORDINADOR (1), DILIGENCIADOR (3) o INGENIERO (11) — edición en **Editar Turnos** (mes actual) y en **Visualización** (mes anterior en ventana de gracia). Ver sección “Total pacientes atendidos”
   - `canManageSiau`: COORDINADOR_SIAU (4), SIAU (5) o INGENIERO (11) — solo en modo viewer
   - Personal de apoyo: ADMINISTRADOR (6) o INGENIERO (11), solo en modo editable
-  - Toggle y tabla SIAU: solo si el tipo de personal seleccionado es **Médico** (`PersonalTypesDatabase.MEDICO` = 1)
+  - Toggle y tabla SIAU: solo si el tipo de personal seleccionado es **Médico** (`PersonalTypesDatabase.MEDICO` = 1) y el rol del usuario **no** es PERSONAL_SALUD
 - Subcomponentes: `siau/SiauTypesTable.tsx`, `supportStaff/SupportStaff.tsx`
 - Helpers: `helpers/ScheduleHelper.ts` (días, buckets normal/novedades, CSV, orden de periodos), `helpers/PatientsColor.ts` (semáforo de carga)
 
@@ -348,7 +349,7 @@ Edición de celdas → `editScheduleDay` con `IDataEditScheduleData`. Una sola n
 
 **Edición de turnos solo en meses futuros:** en **Editar Turnos y Novedades** la fila de siglas (turnos) solo es editable si el mes/año seleccionado es **posterior** al mes calendario actual (`canEditTurnos = editable && isFutureSelectedMonth`, comparando `anio*12 + mes`). El mes en curso y los anteriores muestran los turnos en solo lectura (texto del backend) y aparece `scheduleViewer.turnosReadOnlyHint`. Cuando llega el 1.° del mes que antes era futuro, ese mes deja de ser editable automáticamente. Para el mes en curso se usan las **novedades**. `handleAttentionChange` y `TOTAL HORAS` respetan `canEditTurnos`.
 
-**Intervalo CE / CEC / CED (solo Editar Turnos + tipo personal Médico):** al elegir una de esas siglas en la celda normal (no novedad), se abre un modal de horario (`FormScheduleDayInterval`) **antes** de persistir. Se pueden agregar varios intervalos (“Agregar intervalo”) en formato **12 h AM/PM**. Horas **exactas** (`INTERVAL_REQUIRED_HOURS`): **CE/CED = 8 h**, **CEC = 16 h** (ni más ni menos). Cada intervalo: fin > inicio; el siguiente **no puede empezar antes** del fin del anterior (si el primero termina a las 11:00 AM, el siguiente empieza ≥ 11:00 AM). Si no cumple, Guardar queda deshabilitado. Flujo: `editScheduleDayWithInterval` → `POST editar-dia` → `id_cuadro_dia` → `POST editar-dia-intervalo` con `intervalos[]` (`HH:MM:SS.0000`, `activo: true`). Cancelar revierte la sigla. Helpers: `ScheduleIntervalHelper.ts`; constantes: `INTERVAL_REQUIRED_SIGLAS`, `requiresScheduleInterval`.
+**Intervalo CE (solo Editar Turnos + tipo personal Médico):** al elegir la sigla **CE** en la celda normal (no novedad), se abre un modal de horario (`FormScheduleDayInterval`) **antes** de persistir. CEC y CED se guardan como cualquier otra sigla, sin modal. Se pueden agregar varios intervalos (“Agregar intervalo”) en formato **12 h AM/PM**. Horas **exactas** (`INTERVAL_REQUIRED_HOURS`): **CE = 8 h** (ni más ni menos). Cada intervalo: fin > inicio; el siguiente **no puede empezar antes** del fin del anterior (si el primero termina a las 11:00 AM, el siguiente empieza ≥ 11:00 AM). Si no cumple, Guardar queda deshabilitado. Flujo: `editScheduleDayWithInterval` → `POST editar-dia` → `id_cuadro_dia` → `POST editar-dia-intervalo` con `intervalos[]` (`HH:MM:SS.0000`, `activo: true`). Cancelar revierte la sigla. Helpers: `ScheduleIntervalHelper.ts`; constantes: `INTERVAL_REQUIRED_SIGLAS`, `requiresScheduleInterval`.
 
 Descarga PDF del cuadro: solo en modo viewer → `fetchDownloadSchedule`.
 
@@ -373,26 +374,26 @@ Cuando el toggle **Novedades** está activo se pintan dos filas por persona:
 - Las horas se sanean con `sanitizeSignedInt` (solo dígitos y un `-` inicial) y se parsean con `parseSignedInt` (vacío → `0`).
 - `submitNovelty` centraliza el envío a `editScheduleDay`: lo llaman el cambio de sigla y el blur de horas.
 - **No existe fila de “Justificación Novedades”** en el cuadro. El campo `justificacion` sigue en el backend y se **reenvía tal cual** desde `submitNovelty` para no borrar lo guardado.
-- En **Visualización Turnos**, el toggle de novedades se muestra (cualquier mes) pero las celdas son **solo lectura**: no se puede editar desde este módulo.
+- En **Visualización Turnos**, el toggle de novedades se muestra (cualquier mes). Las celdas son solo lectura **excepto** el **mes anterior** durante los primeros `PREVIOUS_MONTH_EDIT_GRACE_DAYS` días del mes en curso (hoy = 5): en esa ventana **todos** los días del mes anterior son editables (el mes anterior no aparece en opciones-editables).
 - En **Editar Turnos y Novedades**, el toggle de novedades solo aparece para el mes calendario actual. Se pueden editar los días desde el 1 hasta la fecha actual (`day <= todayDay`); los días posteriores se muestran en modo lectura. Para meses futuros el toggle no se renderiza y `showNovedades` se fuerza a `false`.
-- `canEditNoveltyDay` centraliza esas reglas temporales. Los handlers también lo validan antes de modificar estado o llamar al backend.
+- `canEditNoveltyDay` / `canShowNoveltyToggle` centralizan esas reglas. Los handlers también lo validan antes de modificar estado o llamar al backend.
 - La fila `TOTAL HORAS` usa las horas digitadas cuando `canEditNoveltyDay(day)` es verdadero (por eso los negativos restan); en días de solo lectura usa las horas del backend.
 
 #### Total pacientes atendidos
 
-Visible en **Visualización Turnos** y en **Editar Turnos y Novedades**. La edición **solo** en Editar Turnos.
+Visible en **Visualización Turnos** y en **Editar Turnos y Novedades**.
 
 | Concern | Visualización (`editable=false`) | Editar Turnos (`editable=true`) |
 |---|---|---|
 | Mostrar toggle | Siempre (`canShowPatientsToggle`) | Solo mes calendario actual; en otros meses se oculta y `showPacientes` se fuerza a `false` |
-| Editar celda | Nunca (`canEditPatientsDay` → `false`) | `isCurrentSelectedMonth && day <= todayDay` — del 1 al día de hoy; días futuros solo lectura |
-| Quién edita | Nadie (solo lectura) | Además del día, rol `canManagePatients`: DILIGENCIADOR (3) o INGENIERO (11). Otros roles ven el valor en solo lectura |
+| Editar celda | Solo mes anterior si hoy ≤ `PREVIOUS_MONTH_EDIT_GRACE_DAYS` (5): todos los días. Resto: solo lectura | Mes actual: `day <= todayDay`. Otros meses: no |
+| Quién edita | Además del día, rol `canManagePatients`: COORDINADOR (1), DILIGENCIADOR (3) o INGENIERO (11) | Igual: rol `canManagePatients` |
 
 - Fila: una por persona con label `scheduleViewer.totalPatientsTreated`; input numérico (semáforo vía `PatientsColor`) solo si `canManagePatients && canEditPatientsDay(day)`; si no, texto del valor guardado.
 - Persistencia: blur → `addPatients` (`POST api/reportes/registro-pacientes`). Carga al abrir toggle: `fetchTotalPatientsByMonth`.
 - Los handlers `handlePatientsChange` / `handlePatientsBlur` hacen early-return si `!canEditPatientsDay(day)`.
 
-Igual que novedades en Visualización: se puede **ver** la fila; no se puede **editar** desde ese módulo.
+Igual que novedades: en Visualización el mes anterior es editable en la ventana de gracia; el resto es solo lectura.
 
 #### Tabla SIAU (`siau/SiauTypesTable.tsx`)
 
@@ -484,7 +485,7 @@ Al **quitar** UI, borra también su clave en `es.json`: no dejes texto muerto. V
 | Archivo | Contenido |
 |---|---|
 | `interfaces/user.ts` | `IUserInfo`, `IUser`, `IRoles`, contratos |
-| `interfaces/schedule.ts` | Cuadro, días, novedades, pacientes, SIAU, personal apoyo |
+| `interfaces/schedule.ts` | Cuadro (`personal_de_salud` + `personal_de_apoyo`), días, novedades, pacientes, SIAU, personal apoyo |
 | `interfaces/administration.ts` | Roles config, tipos, municipios, usuarios lista, contratos |
 | `interfaces/reports.ts` | Tipos/subtipos y filtros de descarga |
 | `interfaces/users-config.interface.ts` | Permisos especiales |
@@ -528,7 +529,7 @@ Al **quitar** UI, borra también su clave en `es.json`: no dejes texto muerto. V
 - No usar emojis en comentarios ni en nombres de variables. Los únicos glifos permitidos son los que el usuario ve en pantalla (p. ej. el `⚠` de contrato vencido en `FormUserContracts.tsx`).
 - No dejar claves huérfanas en `es.json` tras eliminar UI.
 - No derivar las horas de novedad desde el tipo de atención: las digita el usuario y pueden ser negativas.
-- No permitir editar **novedades** ni **total pacientes** desde Visualización Turnos (solo lectura / informativo). La edición (mes actual, días ≤ hoy; pacientes además rol Diligenciador/Ingeniero) solo en Editar Turnos.
+- No permitir editar **novedades** ni **total pacientes** del mes actual desde Visualización Turnos (eso va en Editar Turnos, días ≤ hoy). Excepción: en Visualización sí se edita el **mes anterior** durante los primeros `PREVIOUS_MONTH_EDIT_GRACE_DAYS` días del mes en curso (no viene en opciones-editables). Pacientes además requieren rol Coordinador/Diligenciador/Ingeniero.
 - No cargar médicos de citas con `GET usuarios-detalle`; usar `POST auth/usuarios/search` con `id_tipo_personal_salud: 1` y el municipio del filtro/cita.
 - No crear archivos markdown extra salvo que te lo pidan.
 - No commitear `.env` con secretos; no tocar git config.
@@ -541,7 +542,7 @@ Al **quitar** UI, borra también su clave en `es.json`: no dejes texto muerto. V
 | Nueva llamada API | `services/<dominio>/`, action en `redux/actions/`, tipos en `interfaces/` |
 | Cambiar permisos de un módulo | `config/modules.ts` → `allowedRoles` |
 | Cambiar lógica de celdas del cuadro | `ScheduleViewer.tsx` + `ScheduleHelper.ts` + `scheduleActions.ts` |
-| Reglas de novedades / total pacientes (días editables) | `ScheduleViewer.tsx` (`canEditNoveltyDay`, `canShowPatientsToggle`, `canEditPatientsDay`) + esta sección en AGENTS.md |
+| Reglas de novedades / total pacientes (días editables) | `ScheduleViewer.tsx` (`canEditNoveltyDay`, `canShowPatientsToggle`, `canEditPatientsDay`, gracia `PREVIOUS_MONTH_EDIT_GRACE_DAYS`) + esta sección en AGENTS.md |
 | Cambiar fórmulas o filas de la tabla SIAU | `ScheduleViewer/siau/SiauTypesTable.tsx` (`SIAU_IDS`, `HIDDEN_SIAU_IDS`, `calculatedByDay`) + tabla de fórmulas en este archivo |
 | Nuevo reporte PDF | `reports.service.ts` + `reportsActions.ts` + routing por nombre en `Reports.tsx` |
 | Nuevo tab de administración | `Administration.tsx` + form en `forms/` + service/actions |
@@ -570,7 +571,8 @@ Al **quitar** UI, borra también su clave en `es.json`: no dejes texto muerto. V
 14. `SIAU_IDS.SOL_EXTRAMURALES` (id `3`) está declarado pero no se usa en ninguna fórmula.
 15. En alta de citas, `id_sede` se ingresa a mano (no hay catálogo de sedes en el frontend todavía).
 16. `DataTable` con `layout="fill"` estira al 100% (admin y citas). Con `layout="fit"` el ancho sigue al contenido; reservar para tablas muy anchas que deban scrollear sin estirar huecos.
-17. Flujo CE/CEC/CED: si `editar-dia` ok pero `editar-dia-intervalo` falla, el turno ya pudo guardarse en backend; la UI revierte la sigla local.
+17. Flujo CE (intervalo): si `editar-dia` ok pero `editar-dia-intervalo` falla, el turno ya pudo guardarse en backend; la UI revierte la sigla local.
+18. `GET cuadros-mes` no trae el id de BD: `mes` es el mes calendario (1..12). El frontend resuelve `id_cuadro_mes` con `opciones-coordinadores` + `opciones-cuadros` al cargar el mes (`resolveCuadroMesId`) y lo usa en personal de apoyo, pacientes y SIAU.
 
 ---
 

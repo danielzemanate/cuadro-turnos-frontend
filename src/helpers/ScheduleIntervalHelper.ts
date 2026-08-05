@@ -16,7 +16,7 @@ export type IntervalHhMm = {
   horaFin: string;
 };
 
-/** Horas exactas requeridas según sigla (CE/CED = 8, CEC = 16). */
+/** Horas exactas requeridas según sigla (CE = 8). */
 export const requiredIntervalHoursForSigla = (sigla: string): number =>
   INTERVAL_REQUIRED_HOURS[sigla as keyof typeof INTERVAL_REQUIRED_HOURS] ??
   MIN_SCHEDULE_INTERVAL_HOURS;

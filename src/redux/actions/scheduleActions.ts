@@ -21,7 +21,9 @@ import {
   setOpenToast,
   setVariantToast,
 } from "./helpersActions";
-import ScheduleService from "../../services/schedule/scheduleService";
+import ScheduleService, {
+  resolveCuadroMesId,
+} from "../../services/schedule/scheduleService";
 
 /**
  * Carga opciones (periodos, tipos de personal, municipios)
@@ -61,9 +63,11 @@ export const fetchScheduleByMonth = (
       const response = await ScheduleService.getSchedulesByMonth(params);
       if (response.status === 200) {
         const data = response.data as IScheduleResponse;
+        // cuadros-mes solo trae mes calendario; el id real va en opciones-cuadros
+        const idCuadroMes = await resolveCuadroMesId(params);
         dispatch({
           type: constants.scheduleSetMonth,
-          payload: data,
+          payload: { ...data, id_cuadro_mes: idCuadroMes },
         });
       }
     } catch (error) {
@@ -141,7 +145,7 @@ export const fetchAttentionTypes = (
 
 /**
  * Edita un día del cuadro de turnos.
- * Retorna `id_cuadro_dia` de la respuesta (necesario para intervalos CE/CEC/CED).
+ * Retorna `id_cuadro_dia` de la respuesta (necesario para intervalo CE).
  */
 export const editScheduleDay = (
   data: IDataEditScheduleData,
@@ -176,7 +180,7 @@ export const editScheduleDay = (
 };
 
 /**
- * Guarda intervalos horarios de un día (tras editar-dia con CE/CEC/CED).
+ * Guarda intervalos horarios de un día (tras editar-dia con CE).
  */
 export const editScheduleDayInterval = (
   data: IDataEditScheduleDayInterval,
@@ -205,7 +209,7 @@ export const editScheduleDayInterval = (
 };
 
 /**
- * Edita el día y luego guarda el intervalo horario (flujo CE/CEC/CED).
+ * Edita el día y luego guarda el intervalo horario (flujo CE).
  * Si falla el intervalo, el día ya pudo haberse guardado en el backend.
  */
 export const editScheduleDayWithInterval = (
@@ -404,11 +408,7 @@ export const createSupportStaff = (
     try {
       const response = await ScheduleService.postCreateSupportStaff(data);
 
-      // Normalmente el backend responde 200 o 201 en creación
       if (response.status === 200 || response.status === 201) {
-        // Si luego necesitas guardar data en store, aquí lo haces:
-        // dispatch({ type: constants.scheduleCreateSupportStaff, payload: response.data });
-
         dispatch(setOpenToast(true));
         dispatch(setVariantToast("success"));
         dispatch(setMessageToast(t("alerts.updateSuccess")));

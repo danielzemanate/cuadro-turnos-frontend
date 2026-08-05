@@ -7,10 +7,18 @@ export interface IScheduleMonthParams {
 
 export interface IScheduleResponse {
   anio: number;
+  /** Mes calendario 1..12 (no es el id de BD). */
   mes: number;
+  /**
+   * Id real del cuadro_mes en BD. `cuadros-mes` no lo devuelve;
+   * el frontend lo resuelve vía opciones-cuadros al cargar el mes.
+   */
+  id_cuadro_mes?: number | null;
   tipo_personal_salud: string;
   municipio: string;
   personal_de_salud: PersonalDeSalud[];
+  /** Personal de apoyo del cuadro (misma forma que personal_de_salud). */
+  personal_de_apoyo?: PersonalDeSalud[];
 }
 
 export interface PersonalDeSalud {

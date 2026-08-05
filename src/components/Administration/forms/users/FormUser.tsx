@@ -28,11 +28,13 @@ import {
   fetchUserRol,
   deleteUserRol,
   updateUserRol,
+  updateUser,
   fetchRoles,
 } from "../../../../redux/actions/administrationActions";
 import ConfirmDialog from "../../../Common/confirmDialog/ConfirmDialog";
 import FormUserContracts from "./FormUserContracts";
 import { IUserForm } from "../../../../interfaces/user";
+import { RolesDatabase } from "../../../../constants/schedule.constants";
 
 /* ---------------------------- Tipos del formulario ---------------------------- */
 
@@ -248,6 +250,10 @@ const FormUser: React.FC<Props> = ({
         ...form,
         id_tipo_personal_salud: Number(form.id_tipo_personal_salud),
         id_municipio: Number(form.id_municipio),
+        // Rol Personal Salud ⇒ el usuario es personal de salud en backend
+        es_personal_salud:
+          typeof selectedRoleId === "number" &&
+          selectedRoleId === RolesDatabase.PERSONAL_SALUD,
         creado_por: userId,
         actualizado_por: userId,
       };
@@ -291,12 +297,37 @@ const FormUser: React.FC<Props> = ({
       await dispatchThunk(
         updateUserRol({ id_usuario: editingUserId, id_rol: selectedRoleId }),
       );
+      // Mantener alineado el flag es_personal_salud con el rol asignado
+      await dispatchThunk(
+        updateUser(
+          {
+            nombre: form.nombre,
+            apellidos: form.apellidos,
+            correo: form.correo,
+            celular: form.celular,
+            id_tipo_personal_salud: form.id_tipo_personal_salud,
+            id_municipio: form.id_municipio,
+            activo: form.activo,
+            es_personal_salud: selectedRoleId === RolesDatabase.PERSONAL_SALUD,
+            actualizado_por: userId,
+          },
+          String(editingUserId),
+        ),
+      );
       await reloadUserRol();
     } finally {
       setUpdatingRole(false);
       setOpenUpdateDialog(false);
     }
-  }, [isEditing, editingUserId, selectedRoleId, dispatchThunk, reloadUserRol]);
+  }, [
+    isEditing,
+    editingUserId,
+    selectedRoleId,
+    dispatchThunk,
+    reloadUserRol,
+    form,
+    userId,
+  ]);
 
   // Componentes de campo reutilizables
   const renderFormField = useCallback(

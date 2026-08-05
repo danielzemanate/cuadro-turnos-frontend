@@ -10,6 +10,7 @@ export interface IUserRegister {
   celular: string;
   id_tipo_personal_salud: number;
   id_municipio: number;
+  es_personal_salud?: boolean;
   password?: string;
   creado_por: number;
   actualizado_por?: number;

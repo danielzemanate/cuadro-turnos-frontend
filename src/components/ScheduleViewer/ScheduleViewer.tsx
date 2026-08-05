@@ -87,6 +87,7 @@ import { IDownloadSchedule } from "../../interfaces/utils";
 import { fetchDownloadSchedule } from "../../redux/actions/utilsActions";
 import {
   PersonalTypesDatabase,
+  PREVIOUS_MONTH_EDIT_GRACE_DAYS,
   RoleId,
   Roles,
   RolesDatabase,
@@ -166,8 +167,12 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
     roleIdNum === RolesDatabase.INGENIERO ||
     roleIdNum === RolesDatabase.SIAU;
 
+  // Personal Salud (médico): ve novedades/pacientes en solo lectura; no ve SIAU
+  const isPersonalSaludRole = roleIdNum === RolesDatabase.PERSONAL_SALUD;
+
   const canManagePatients = useMemo(() => {
     return (
+      userData?.roles?.id === RolesDatabase.COORDINADOR ||
       userData?.roles?.id === RolesDatabase.DILIGENCIADOR ||
       userData?.roles?.id === RolesDatabase.INGENIERO
     );
@@ -205,6 +210,20 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
   const isCurrentSelectedMonth =
     selectedPeriod?.anio === todayYear && selectedPeriod?.mes === todayMonth;
 
+  // Mes calendario anterior (incluye cambio de año: enero → diciembre del año previo).
+  // El mes anterior no viene en opciones-editables: su edición de novedades/pacientes
+  // se hace en Visualización, solo durante la ventana de gracia del mes en curso.
+  const previousMonth = todayMonth === 1 ? 12 : todayMonth - 1;
+  const previousYear = todayMonth === 1 ? todayYear - 1 : todayYear;
+  const isPreviousSelectedMonth =
+    selectedPeriod?.anio === previousYear &&
+    selectedPeriod?.mes === previousMonth;
+  const isInPreviousMonthGracePeriod =
+    todayDay <= PREVIOUS_MONTH_EDIT_GRACE_DAYS;
+  // Solo en Visualización (no editable): mes anterior + días 1..N del mes actual.
+  const canEditPreviousMonthInViewer =
+    !editable && isPreviousSelectedMonth && isInPreviousMonthGracePeriod;
+
   // Los turnos solo se editan en meses futuros (posteriores al mes calendario actual).
   // El mes actual y anteriores quedan en solo lectura: para eso están las novedades.
   const selectedMonthValue = selectedPeriod
@@ -215,27 +234,44 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
     selectedMonthValue !== null && selectedMonthValue > currentMonthValue;
   const canEditTurnos = editable && isFutureSelectedMonth;
 
-  // Novedades: en Visualización solo informativo; edición solo en Editar Turnos (mes actual).
+  // Novedades: Editar Turnos = mes actual; Visualización = cualquier mes (Personal Salud solo lectura).
   const canShowNoveltyToggle = !editable || isCurrentSelectedMonth;
 
   const canEditNoveltyDay = useCallback(
     (day: number) => {
-      if (!editable) return false;
-      return isCurrentSelectedMonth && day <= todayDay;
+      if (isPersonalSaludRole) return false;
+      if (editable) {
+        return isCurrentSelectedMonth && day <= todayDay;
+      }
+      return canEditPreviousMonthInViewer;
     },
-    [editable, isCurrentSelectedMonth, todayDay],
+    [
+      isPersonalSaludRole,
+      editable,
+      isCurrentSelectedMonth,
+      canEditPreviousMonthInViewer,
+      todayDay,
+    ],
   );
 
-  // Total pacientes: en Visualización se muestra solo lectura; en Editar Turnos
-  // mismas reglas temporales que novedades (mes actual; días 1..hoy).
+  // Total pacientes: mismas reglas de visibilidad; Personal Salud solo lectura.
   const canShowPatientsToggle = !editable || isCurrentSelectedMonth;
 
   const canEditPatientsDay = useCallback(
     (day: number) => {
-      if (!editable) return false;
-      return isCurrentSelectedMonth && day <= todayDay;
+      if (isPersonalSaludRole) return false;
+      if (editable) {
+        return isCurrentSelectedMonth && day <= todayDay;
+      }
+      return canEditPreviousMonthInViewer;
     },
-    [editable, isCurrentSelectedMonth, todayDay],
+    [
+      isPersonalSaludRole,
+      editable,
+      isCurrentSelectedMonth,
+      canEditPreviousMonthInViewer,
+      todayDay,
+    ],
   );
 
   // --- UI toggles ---
@@ -309,6 +345,20 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
     };
   }, [formState.selectedPeriodo]);
 
+  const allSchedulePeople = useMemo(
+    () => [
+      ...(monthData?.personal_de_salud ?? []),
+      ...(monthData?.personal_de_apoyo ?? []),
+    ],
+    [monthData?.personal_de_salud, monthData?.personal_de_apoyo],
+  );
+
+  const findSchedulePerson = useCallback(
+    (idUsuario: number) =>
+      allSchedulePeople.find((p) => p.id_usuario === idUsuario),
+    [allSchedulePeople],
+  );
+
   const isFormValid = useMemo(
     () =>
       isValidFormState(
@@ -348,8 +398,8 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
 
   // Cargar pacientes al abrir la vista de pacientes (PARA TODOS LOS ROLES: ver/editar según permiso)
   useEffect(() => {
-    if (showPacientes && monthData?.mes) {
-      dispatchThunk(fetchTotalPatientsByMonth(monthData.mes.toString()))
+    if (showPacientes && monthData?.id_cuadro_mes) {
+      dispatchThunk(fetchTotalPatientsByMonth(String(monthData.id_cuadro_mes)))
         .then((response: FetchPatientsResponse) => {
           if (response && response.data) {
             const byKey: Record<string, IPatientsData> = {};
@@ -369,7 +419,7 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
           setPatientsInput({});
         });
     }
-  }, [showPacientes, monthData?.mes, dispatchThunk]);
+  }, [showPacientes, monthData?.id_cuadro_mes, dispatchThunk]);
 
   // Inicializar selects por defecto
   useEffect(() => {
@@ -395,7 +445,12 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
     const nextNovelty: Record<string, string> = {};
     const nextNoveltyHours: Record<string, string> = {};
 
-    monthData.personal_de_salud.forEach((p) => {
+    const allPeople = [
+      ...(monthData.personal_de_salud ?? []),
+      ...(monthData.personal_de_apoyo ?? []),
+    ];
+
+    allPeople.forEach((p) => {
       const buckets = createDayBuckets(p.dias);
       days.forEach((d) => {
         const key = `${p.id_usuario}-${d}`;
@@ -415,10 +470,12 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
     setNoveltyHoursByCell(nextNoveltyHours);
   }, [monthData, days]);
 
-  // Forzar ocultar toggle SIAU al entrar a modo editable o si no es Médico
+  // Forzar ocultar toggle SIAU al entrar a modo editable, si no es Médico, o si es Personal Salud
   useEffect(() => {
-    if ((editable || !isMedicoSelected) && showSiau) setShowSiau(false);
-  }, [editable, isMedicoSelected, showSiau]);
+    if ((editable || !isMedicoSelected || isPersonalSaludRole) && showSiau) {
+      setShowSiau(false);
+    }
+  }, [editable, isMedicoSelected, isPersonalSaludRole, showSiau]);
 
   // En gestión, las novedades solo se muestran para el mes actual
   useEffect(() => {
@@ -439,8 +496,8 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
 
   // Cargar DEMANDA INSATISFECHA SIAU al activar el toggle y con mes listo (todos ven; editan según permiso)
   useEffect(() => {
-    if (showSiau && monthData?.mes) {
-      dispatchThunk(fetchUnmetDemand(monthData.mes.toString()))
+    if (showSiau && monthData?.id_cuadro_mes) {
+      dispatchThunk(fetchUnmetDemand(String(monthData.id_cuadro_mes)))
         .then((response: FetchDataAddUnmetDemandResponse) => {
           const list = (response?.data ?? []) as Array<{
             id: number;
@@ -467,7 +524,7 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
           setSiauInputs({});
         });
     }
-  }, [showSiau, monthData?.mes, dispatchThunk]);
+  }, [showSiau, monthData?.id_cuadro_mes, dispatchThunk]);
 
   // ===== Handlers =====
   const handlePeriodoChange = useCallback(
@@ -516,6 +573,12 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
   }, [dispatchThunk, formState, isFormValid, forceMunicipio]);
 
   const handleBack = useCallback(() => {
+    // Desde personal de apoyo, volver al cuadro (no al filtro).
+    if (showSupportStaff) {
+      setShowSupportStaff(false);
+      return;
+    }
+
     dispatchThunk(clearScheduleMonth());
     dispatchThunk(clearScheduleOptions());
 
@@ -542,15 +605,13 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
     } else {
       dispatchThunk(fetchScheduleOptions());
     }
-  }, [dispatchThunk, editable, editableParams]);
+  }, [dispatchThunk, editable, editableParams, showSupportStaff]);
 
   const handleAttentionChange = useCallback(
     (idUsuario: number, day: number, newSigla: string) => {
       if (!canEditTurnos) return;
       const key = `${idUsuario}-${day}`;
-      const person = monthData?.personal_de_salud.find(
-        (p) => p.id_usuario === idUsuario,
-      );
+      const person = findSchedulePerson(idUsuario);
       const dayBuckets = person ? createDayBuckets(person.dias) : {};
       const previousSigla =
         attentionByCell[key] ?? dayBuckets[day]?.normal?.tipo_atencion ?? "";
@@ -571,7 +632,7 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
         editor_user_id: userData.user.id,
       };
 
-      // CE / CEC / CED en médico: pedir intervalo (>= 8 h) antes de guardar
+      // Solo CE en médico: pedir intervalo exacto antes de guardar
       if (isMedicoSelected && requiresScheduleInterval(newSigla)) {
         setIntervalForm([createEmptyInterval(newSigla)]);
         setPendingIntervalEdit({
@@ -590,8 +651,8 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
       attentionMapBySigla,
       canEditTurnos,
       dispatchThunk,
+      findSchedulePerson,
       isMedicoSelected,
-      monthData?.personal_de_salud,
       userData.user.id,
     ],
   );
@@ -719,7 +780,7 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
 
   const handlePatientsBlur = useCallback(
     (userId: number, day: number) => {
-      if (!canEditPatientsDay(day) || !monthData?.mes) return;
+      if (!canEditPatientsDay(day) || !monthData?.id_cuadro_mes) return;
       const key = `${userId}-${day}`;
       const value = patientsInput[key] || "0";
       const numericValue = parseInt(value, 10);
@@ -731,7 +792,7 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
 
       const payload: IDataAddPatient = {
         id_usuario: userId,
-        id_cuadro_mes: monthData.mes,
+        id_cuadro_mes: monthData.id_cuadro_mes,
         dia: day,
         total_pacientes: numericValue,
       };
@@ -743,7 +804,7 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
             [key]: {
               id: prev[key]?.id ?? Date.now(),
               id_usuario: userId,
-              mes: monthData.mes!,
+              mes: monthData.id_cuadro_mes!,
               dia: day,
               total_pacientes: numericValue,
             },
@@ -759,7 +820,7 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
     },
     [
       canEditPatientsDay,
-      monthData?.mes,
+      monthData?.id_cuadro_mes,
       patientsInput,
       dispatchThunk,
       getPatientsForPersonDay,
@@ -803,7 +864,7 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
 
   const handleSiauBlur = useCallback(
     (tipoId: number, day: number) => {
-      if (!monthData?.mes) return;
+      if (!monthData?.id_cuadro_mes) return;
       const key = `${tipoId}-${day}`;
       const raw = siauInputs[key] ?? "0";
       const numericValue = parseInt(raw, 10);
@@ -815,7 +876,7 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
 
       const payload: IDataAddUnmetDemand = {
         id_usuario: userData.user.id,
-        id_cuadro_mes: monthData.mes!,
+        id_cuadro_mes: monthData.id_cuadro_mes,
         dia: day,
         id_tipos_siau: tipoId,
         valor: numericValue,
@@ -831,7 +892,7 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
         });
     },
     [
-      monthData?.mes,
+      monthData?.id_cuadro_mes,
       siauInputs,
       siauUnmetByKey,
       dispatchThunk,
@@ -846,7 +907,7 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
     // Inicializar en 0 para cada día
     (days || []).forEach((d) => (counts[d] = 0));
 
-    (monthData?.personal_de_salud || []).forEach((person) => {
+    allSchedulePeople.forEach((person) => {
       const buckets = createDayBuckets(person.dias);
 
       (days || []).forEach((d) => {
@@ -856,22 +917,21 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
     });
 
     return counts; // { 1: 3, 2: 5, ... }
-  }, [monthData?.personal_de_salud, days]);
+  }, [allSchedulePeople, days]);
 
   // El backend responde 404 cuando no existe cuadro para los filtros elegidos
   const hasScheduleData = useMemo(
-    () => (monthData?.personal_de_salud?.length ?? 0) > 0,
-    [monthData?.personal_de_salud],
+    () => allSchedulePeople.length > 0,
+    [allSchedulePeople],
   );
 
   const staffInSchedule = useMemo(() => {
-    const list = (monthData?.personal_de_salud ?? []).map((p) => ({
+    return allSchedulePeople.map((p) => ({
       id: p.id_usuario,
       nombre: p.nombre,
       apellidos: p.apellidos,
     }));
-    return list;
-  }, [monthData?.personal_de_salud]);
+  }, [allSchedulePeople]);
   // ===== Render helpers =====
   const renderPatientsRow = useCallback(
     (person: PersonalDeSalud) => {
@@ -935,15 +995,18 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
   );
 
   const renderPersonRows = useCallback(
-    (person: PersonalDeSalud) => {
+    (person: PersonalDeSalud, isSupport = false) => {
       const dayBuckets = createDayBuckets(person.dias);
+      const displayName = isSupport
+        ? `${formatPersonName(person.nombre, person.apellidos)} (${t(
+            "scheduleViewer.supportStaffBadge",
+          )})`
+        : formatPersonName(person.nombre, person.apellidos);
 
       return (
-        <React.Fragment key={person.id_usuario}>
+        <React.Fragment key={person.id_cuadro_personal}>
           <tr>
-            <StaffNameCell>
-              {formatPersonName(person.nombre, person.apellidos)}
-            </StaffNameCell>
+            <StaffNameCell>{displayName}</StaffNameCell>
             {days.map((day) => {
               const cellKey = `${person.id_usuario}-${day}`;
               const currentBackendSigla =
@@ -1136,40 +1199,37 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
           {t("scheduleViewer.rowTotalHours").toUpperCase()}
         </StaffNameCell>
         {days.map((day) => {
-          const totalHours = (monthData?.personal_de_salud || []).reduce(
-            (total, person) => {
-              const key = `${person.id_usuario}-${day}`;
-              const selectedSigla = attentionByCell[key] || "";
-              const horasFromType =
-                attentionMapBySigla.get(selectedSigla)?.horas ?? 0;
+          const totalHours = allSchedulePeople.reduce((total, person) => {
+            const key = `${person.id_usuario}-${day}`;
+            const selectedSigla = attentionByCell[key] || "";
+            const horasFromType =
+              attentionMapBySigla.get(selectedSigla)?.horas ?? 0;
 
-              const buckets = createDayBuckets(person.dias);
-              const backendHoras = buckets[day]?.normal?.horas || 0;
+            const buckets = createDayBuckets(person.dias);
+            const backendHoras = buckets[day]?.normal?.horas || 0;
 
-              const noveltySigla =
-                noveltyByCell[key] ??
-                (buckets[day]?.novedades || [])[0]?.tipo_atencion ??
-                "";
-              const typedNoveltyHours = noveltySigla
-                ? parseSignedInt(noveltyHoursByCell[key])
-                : 0;
-              const backendNoveltyHours = showNovedades
-                ? Number(
-                    (buckets[day]?.novedades || [])[0]?.horas ??
-                      sumNoveltyHours(buckets[day]?.novedades || []),
-                  ) || 0
-                : 0;
+            const noveltySigla =
+              noveltyByCell[key] ??
+              (buckets[day]?.novedades || [])[0]?.tipo_atencion ??
+              "";
+            const typedNoveltyHours = noveltySigla
+              ? parseSignedInt(noveltyHoursByCell[key])
+              : 0;
+            const backendNoveltyHours = showNovedades
+              ? Number(
+                  (buckets[day]?.novedades || [])[0]?.horas ??
+                    sumNoveltyHours(buckets[day]?.novedades || []),
+                ) || 0
+              : 0;
 
-              const base = canEditTurnos ? horasFromType : backendHoras;
-              const novelty = showNovedades
-                ? canEditNoveltyDay(day)
-                  ? typedNoveltyHours
-                  : backendNoveltyHours
-                : 0;
-              return total + base + novelty;
-            },
-            0,
-          );
+            const base = canEditTurnos ? horasFromType : backendHoras;
+            const novelty = showNovedades
+              ? canEditNoveltyDay(day)
+                ? typedNoveltyHours
+                : backendNoveltyHours
+              : 0;
+            return total + base + novelty;
+          }, 0);
 
           return (
             <DataCell key={`total-${day}`} $center>
@@ -1180,12 +1240,12 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
       </TotalDataRow>
     ),
     [
+      allSchedulePeople,
       attentionByCell,
       attentionMapBySigla,
       canEditNoveltyDay,
       canEditTurnos,
       days,
-      monthData?.personal_de_salud,
       noveltyByCell,
       noveltyHoursByCell,
       showNovedades,
@@ -1333,18 +1393,21 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
                 {t("scheduleViewer.download").toUpperCase()}
               </DownloadButton>
             )}
-            {editable && isAdminRole && hasScheduleData && (
-              <SupportStaffButton
-                type="button"
-                onClick={() => setShowSupportStaff((prev) => !prev)}
-                disabled={loading}
-                style={{ marginLeft: "auto" }}
-              >
-                {showSupportStaff
-                  ? t("scheduleViewer.closeSupportStaff").toUpperCase()
-                  : t("scheduleViewer.supportStaffTitle").toUpperCase()}
-              </SupportStaffButton>
-            )}
+            {editable &&
+              isAdminRole &&
+              hasScheduleData &&
+              monthData.id_cuadro_mes && (
+                <SupportStaffButton
+                  type="button"
+                  onClick={() => setShowSupportStaff((prev) => !prev)}
+                  disabled={loading}
+                  style={{ marginLeft: "auto" }}
+                >
+                  {showSupportStaff
+                    ? t("scheduleViewer.closeSupportStaff").toUpperCase()
+                    : t("scheduleViewer.supportStaffTitle").toUpperCase()}
+                </SupportStaffButton>
+              )}
           </TableHeader>
           {!hasScheduleData ? (
             <EmptyState>
@@ -1364,9 +1427,9 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
                 </>
               )}
             </EmptyState>
-          ) : showSupportStaff ? (
+          ) : showSupportStaff && monthData.id_cuadro_mes ? (
             <SupportStaff
-              idCuadroMes={monthData.mes}
+              idCuadroMes={monthData.id_cuadro_mes}
               idTipoPersonalSalud={formState.selectedTipo!}
               municipioNombre={monthData.municipio}
               tipoPersonalNombre={
@@ -1403,8 +1466,8 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
                   </FormLabel>
                 )}
 
-                {/* SIAU: solo para Médico en modo viewer; solo roles SIAU editan */}
-                {!editable && isMedicoSelected && (
+                {/* SIAU: solo para tipo Médico en viewer; Personal Salud no lo ve */}
+                {!editable && isMedicoSelected && !isPersonalSaludRole && (
                   <FormLabel>
                     <FormCheckbox
                       type="checkbox"
@@ -1454,7 +1517,12 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
                       ))}
                     </tr>
 
-                    {(monthData?.personal_de_salud || []).map(renderPersonRows)}
+                    {(monthData?.personal_de_salud || []).map((person) =>
+                      renderPersonRows(person, false),
+                    )}
+                    {(monthData?.personal_de_apoyo || []).map((person) =>
+                      renderPersonRows(person, true),
+                    )}
 
                     {renderTotalRow()}
                   </TableBody>

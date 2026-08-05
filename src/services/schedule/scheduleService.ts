@@ -8,7 +8,45 @@ import {
   IParamsGenericQuery,
   IScheduleMonthParams,
 } from "../../interfaces/schedule";
+import {
+  SpecialPermitApproversResponse,
+  SpecialPermitOptionsResponse,
+} from "../../interfaces/users-config.interface";
 import api from "../../lib/api";
+import UsersConfigService from "../users-config/users-config.service";
+
+/**
+ * `GET cuadros-mes` no devuelve el id de BD. Lo resolvemos con
+ * opciones-coordinadores + opciones-cuadros (mismo criterio que permisos especiales).
+ */
+export const resolveCuadroMesId = async (
+  params: IScheduleMonthParams,
+): Promise<number | null> => {
+  try {
+    const approversRes = await UsersConfigService.fetchSpecialPermitApprovers();
+    const coordinators =
+      (approversRes.data as SpecialPermitApproversResponse)?.coordinadores ??
+      [];
+    const coordinator = coordinators.find(
+      (c) => c.id_municipio === params.id_municipio,
+    );
+    if (!coordinator) return null;
+
+    const optionsRes = await UsersConfigService.fetchSpecialPermitOptions({
+      id_coordinador: coordinator.id,
+      anio: params.anio,
+      id_tipo_personal_salud: params.id_tipo_personal_salud,
+    });
+    const cuadros =
+      (optionsRes.data as SpecialPermitOptionsResponse)?.cuadros ?? [];
+    const match = cuadros.find(
+      (c) => c.anio === params.anio && c.mes === params.mes,
+    );
+    return match?.id ?? null;
+  } catch {
+    return null;
+  }
+};
 
 const ScheduleService = {
   getOptions: async () => {
