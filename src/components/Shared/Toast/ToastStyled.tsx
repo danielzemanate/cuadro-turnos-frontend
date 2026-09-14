@@ -24,19 +24,23 @@ const getVariantStyles = (variant: "success" | "warning" | "error") => {
   switch (variant) {
     case "error":
       return css`
-        background: #f7352878;
+        background: #fee2e2;
+        color: #991b1b;
       `;
     case "warning":
       return css`
-        background: #fff8e4;
+        background: #ffedd5;
+        color: #9a3412;
       `;
     case "success":
       return css`
-        background: #0f972178;
+        background: #dcfce7;
+        color: #166534;
       `;
     default:
       return css`
         background: ${(props) => props.theme.colors.white};
+        color: #111827;
       `;
   }
 };
@@ -68,6 +72,5 @@ export const ToastWrapper = styled.div<{
   width: 100%;
   box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
   text-align: center;
-  color: ${(props) => props.theme.colors.white};
   ${({ variant }) => getVariantStyles(variant)}
 `;

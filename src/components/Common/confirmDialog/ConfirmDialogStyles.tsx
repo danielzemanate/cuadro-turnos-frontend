@@ -5,7 +5,7 @@ export const Backdrop = styled.div<{ open: boolean }>`
   position: fixed;
   inset: 0;
   background: rgba(15, 15, 15, 0.35);
-  z-index: 50;
+  z-index: 200;
   align-items: center;
   justify-content: center;
   padding: 1rem;

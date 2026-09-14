@@ -1,4 +1,9 @@
 import { Module } from "../types/types";
+import { RolesDatabase } from "../constants/schedule.constants";
+
+export const hasIngenieroAccess = (roleId?: number | null): boolean =>
+  roleId === RolesDatabase.INGENIERO ||
+  roleId === RolesDatabase.SUBGERENCIA_ADMINISTRATIVA;
 
 export const filterModulesByRole = (
   modules: Module[],

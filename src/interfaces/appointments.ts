@@ -1,4 +1,5 @@
 export type AppointmentCategory = "GENERAL" | "GESTANTE" | "CRONICO";
+export type PatientSex = "FEMENINO" | "MASCULINO";
 export type AppointmentStatusFilter =
   | "PENDIENTE"
   | "CONFIRMADA"
