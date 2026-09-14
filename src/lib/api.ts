@@ -8,7 +8,7 @@ const api = {
 
   post: async <T>(
     url: string,
-    data: object,
+    data: object | FormData,
     config?: axios.AxiosRequestConfig,
   ) => {
     return await apiFacade.post<T>(url, data, config);

@@ -20,6 +20,11 @@ instance.interceptors.request.use(
       return Promise.reject(new Cancel("No internet connection"));
     }
 
+    if (config.data instanceof FormData && config.headers) {
+      delete config.headers["Content-type"];
+      delete config.headers["Content-Type"];
+    }
+
     // Generar un identificador único para la solicitud
     const requestKey = `${config.method}-${config.url}`;
 

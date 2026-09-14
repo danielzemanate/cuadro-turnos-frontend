@@ -73,11 +73,8 @@ const useFormValidation = (
       apellidos: !form.apellidos.trim(),
       correo: !emailRegex.test(form.correo.trim()),
       celular: !form.celular.trim(),
-      id_tipo_personal_salud:
-        !Number.isInteger(form.id_tipo_personal_salud) ||
-        form.id_tipo_personal_salud <= 0,
-      id_municipio:
-        !Number.isInteger(form.id_municipio) || form.id_municipio <= 0,
+      id_tipo_personal_salud: false,
+      id_municipio: false,
       // rol obligatorio solo cuando roleRequired = true (creación)
       rol:
         roleRequired && (!selectedRoleId || typeof selectedRoleId !== "number"),
@@ -170,8 +167,9 @@ const FormUser: React.FC<Props> = ({
     apellidos: defaultValue?.apellidos ?? "",
     correo: defaultValue?.correo ?? "",
     celular: defaultValue?.celular ?? "",
-    id_tipo_personal_salud: Number(defaultValue?.id_tipo_personal_salud) || 0,
-    id_municipio: Number(defaultValue?.id_municipio) || 0,
+    id_tipo_personal_salud:
+      Number(defaultValue?.id_tipo_personal_salud) || null,
+    id_municipio: Number(defaultValue?.id_municipio) || null,
     activo: defaultValue?.activo || false,
   }));
 
@@ -246,10 +244,23 @@ const FormUser: React.FC<Props> = ({
         return;
       }
 
+      const toLowerIfCreate = (value: string) =>
+        isEditing ? value : value.toLocaleLowerCase("es-CO");
+
       const payload: IUserForm = {
         ...form,
-        id_tipo_personal_salud: Number(form.id_tipo_personal_salud),
-        id_municipio: Number(form.id_municipio),
+        nombre: toLowerIfCreate(form.nombre.trim()),
+        apellidos: toLowerIfCreate(form.apellidos.trim()),
+        correo: toLowerIfCreate(form.correo.trim()),
+        celular: toLowerIfCreate(form.celular.trim()),
+        id_tipo_personal_salud:
+          form.id_tipo_personal_salud && form.id_tipo_personal_salud > 0
+            ? Number(form.id_tipo_personal_salud)
+            : null,
+        id_municipio:
+          form.id_municipio && form.id_municipio > 0
+            ? Number(form.id_municipio)
+            : null,
         // Rol Personal Salud ⇒ el usuario es personal de salud en backend
         es_personal_salud:
           typeof selectedRoleId === "number" &&
@@ -263,7 +274,7 @@ const FormUser: React.FC<Props> = ({
 
       onSubmit(payload, roleIdToSend);
     },
-    [hasErrors, form, userId, onSubmit, selectedRoleId],
+    [hasErrors, form, userId, onSubmit, selectedRoleId, isEditing],
   );
 
   // Handlers de roles con ConfirmDialog (solo en edición)
@@ -344,7 +355,12 @@ const FormUser: React.FC<Props> = ({
           id={id}
           type={type}
           value={form[field] as string}
-          onChange={(e) => setField(field)(e.target.value)}
+          onChange={(e) => {
+            const value = isEditing
+              ? e.target.value
+              : e.target.value.toLocaleLowerCase("es-CO");
+            setField(field)(value);
+          }}
           onBlur={() => markFieldAsTouched(field)}
           placeholder={placeholder}
           aria-invalid={showError(field)}
@@ -359,7 +375,7 @@ const FormUser: React.FC<Props> = ({
         )}
       </Field>
     ),
-    [form, setField, markFieldAsTouched, showError, t],
+    [form, setField, markFieldAsTouched, showError, t, isEditing],
   );
 
   const renderSelectField = useCallback(
@@ -374,7 +390,9 @@ const FormUser: React.FC<Props> = ({
         <Select
           id={id}
           value={String(form[field] ?? "")}
-          onChange={(e) => setField(field)(Number(e.target.value))}
+          onChange={(e) =>
+            setField(field)(e.target.value ? Number(e.target.value) : null)
+          }
           onBlur={() => markFieldAsTouched(field)}
           aria-invalid={showError(field)}
           aria-describedby={showError(field) ? `${id}-error` : undefined}

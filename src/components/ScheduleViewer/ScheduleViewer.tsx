@@ -96,6 +96,7 @@ import {
 import { SiauTypesTable } from "./siau/SiauTypesTable";
 import { SupportStaff } from "./supportStaff/SupportStaff";
 import { getPatientsTraffic } from "../../helpers/PatientsColor";
+import { hasIngenieroAccess } from "../../utils/permissions";
 import ConfirmDialog from "../Common/confirmDialog/ConfirmDialog";
 import FormScheduleDayInterval from "./forms/FormScheduleDayInterval";
 import {
@@ -159,12 +160,11 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
   const roleIdNum = userData?.roles?.id as number | undefined;
 
   const isAdminRole =
-    roleIdNum === RolesDatabase.ADMINISTRADOR ||
-    roleIdNum === RolesDatabase.INGENIERO;
+    roleIdNum === RolesDatabase.ADMINISTRADOR || hasIngenieroAccess(roleIdNum);
 
   const isSiauRole =
     roleIdNum === RolesDatabase.COORDINADOR_SIAU ||
-    roleIdNum === RolesDatabase.INGENIERO ||
+    hasIngenieroAccess(roleIdNum) ||
     roleIdNum === RolesDatabase.SIAU;
 
   // Personal Salud (médico): ve novedades/pacientes en solo lectura; no ve SIAU
@@ -174,7 +174,7 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
     return (
       userData?.roles?.id === RolesDatabase.COORDINADOR ||
       userData?.roles?.id === RolesDatabase.DILIGENCIADOR ||
-      userData?.roles?.id === RolesDatabase.INGENIERO
+      hasIngenieroAccess(userData?.roles?.id)
     );
   }, [userData?.roles?.id]);
 

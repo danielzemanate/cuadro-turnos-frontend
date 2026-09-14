@@ -4,12 +4,15 @@ import {
   AppointmentCategory,
   AppointmentOrigin,
   ICreateAppointmentPayload,
+  PatientSex,
 } from "../../../interfaces/appointments";
 import { IUserListItem } from "../../../interfaces/administration";
 import {
-  APPOINTMENT_CATEGORIES,
   APPOINTMENT_ORIGINS,
   DOCUMENT_TYPES,
+  PATIENT_SEXES,
+  getAppointmentCategoriesForSex,
+  getAppointmentDurationMin,
 } from "../../../constants/appointments.constants";
 import {
   Actions,
@@ -40,12 +43,12 @@ type FormState = {
   numero_documento: string;
   nombre_completo: string;
   telefono_contacto: string;
+  sexo: PatientSex | "";
   categoria_paciente: AppointmentCategory | "";
   id_personal_salud: number | "";
   id_sede: number | "";
   fecha: string;
   hora_inicio: string;
-  duracion_min: string;
   origen: AppointmentOrigin | "";
   observaciones: string;
 };
@@ -65,29 +68,37 @@ const FormAppointment: React.FC<Props> = ({
     numero_documento: "",
     nombre_completo: "",
     telefono_contacto: "",
+    sexo: "",
     categoria_paciente: "GENERAL",
     id_personal_salud: "",
     id_sede: "",
     fecha: "",
     hora_inicio: "",
-    duracion_min: "20",
     origen: "WEB",
     observaciones: "",
   });
 
+  const availableCategories = useMemo(
+    () => getAppointmentCategoriesForSex(form.sexo),
+    [form.sexo],
+  );
+
+  const durationMin = form.categoria_paciente
+    ? getAppointmentDurationMin(form.categoria_paciente)
+    : 0;
+
   const errors = useMemo(() => {
-    const duration = Number(form.duracion_min);
     return {
       tipo_documento: !form.tipo_documento,
       numero_documento: !form.numero_documento.trim(),
       nombre_completo: !form.nombre_completo.trim(),
       telefono_contacto: !form.telefono_contacto.trim(),
+      sexo: !form.sexo,
       categoria_paciente: !form.categoria_paciente,
       id_personal_salud: !form.id_personal_salud,
       id_sede: !form.id_sede || Number(form.id_sede) <= 0,
       fecha: !form.fecha,
       hora_inicio: !form.hora_inicio,
-      duracion_min: !Number.isFinite(duration) || duration <= 0,
       origen: !form.origen,
     };
   }, [form]);
@@ -118,7 +129,7 @@ const FormAppointment: React.FC<Props> = ({
       id_sede: Number(form.id_sede),
       fecha: form.fecha,
       hora_inicio,
-      duracion_min: Number(form.duracion_min),
+      duracion_min: durationMin,
       origen: form.origen as AppointmentOrigin,
       observaciones: form.observaciones.trim(),
     });
@@ -191,6 +202,41 @@ const FormAppointment: React.FC<Props> = ({
           </Field>
 
           <Field>
+            <Label htmlFor="ap-sex">{t("appointments.form.sex")}</Label>
+            <Select
+              id="ap-sex"
+              value={form.sexo}
+              onChange={(e) => {
+                const nextSex = e.target.value as PatientSex | "";
+                setForm((prev) => {
+                  const nextCategories =
+                    getAppointmentCategoriesForSex(nextSex);
+                  const nextCategory =
+                    prev.categoria_paciente &&
+                    nextCategories.includes(prev.categoria_paciente)
+                      ? prev.categoria_paciente
+                      : "GENERAL";
+                  return {
+                    ...prev,
+                    sexo: nextSex,
+                    categoria_paciente: nextCategory,
+                  };
+                });
+              }}
+            >
+              <option value="">{t("common.selectPlaceholder")}</option>
+              {PATIENT_SEXES.map((sex) => (
+                <option key={sex} value={sex}>
+                  {t(`appointments.sexes.${sex}`)}
+                </option>
+              ))}
+            </Select>
+            {showError("sexo") && (
+              <ErrorText>{t("appointments.form.errors.required")}</ErrorText>
+            )}
+          </Field>
+
+          <Field>
             <Label htmlFor="ap-category">
               {t("appointments.filters.category")}
             </Label>
@@ -203,7 +249,7 @@ const FormAppointment: React.FC<Props> = ({
                 )
               }
             >
-              {APPOINTMENT_CATEGORIES.map((category) => (
+              {availableCategories.map((category) => (
                 <option key={category} value={category}>
                   {t(`appointments.categories.${category}`)}
                 </option>
@@ -298,15 +344,10 @@ const FormAppointment: React.FC<Props> = ({
             <Input
               id="ap-duration"
               type="number"
-              min={1}
-              value={form.duracion_min}
-              onChange={(e) => setField("duracion_min")(e.target.value)}
+              value={durationMin}
+              readOnly
+              disabled
             />
-            {showError("duracion_min") && (
-              <ErrorText>
-                {t("appointments.form.errors.invalidDuration")}
-              </ErrorText>
-            )}
           </Field>
 
           <Field>

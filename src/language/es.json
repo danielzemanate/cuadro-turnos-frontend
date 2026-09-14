@@ -4,6 +4,13 @@
     "pageDoesNoExist": "La página que buscas no existe.",
     "goToHomepage": "Ir a la página de inicio"
   },
+  "session": {
+    "title": "¿Permanecer aquí?",
+    "description": "Ha pasado {{minutes}} min de inactividad. ¿Deseas continuar en la sesión?",
+    "countdown": "Si no respondes, se cerrará en {{seconds}} s.",
+    "stay": "Sí, permanecer aquí",
+    "leave": "No, cerrar sesión"
+  },
   "header": {
     "greeting": "Hola",
     "configuration": "Configuración",
@@ -109,6 +116,8 @@
   "alerts": {
     "credentialsError": "Credenciales no validas",
     "genericError": "Error al cargar los datos",
+    "offline": "No hay conexión a internet. Revisa tu red e inténtalo de nuevo.",
+    "sessionExpired": "Tu sesión se cerró por inactividad.",
     "downloadError": "Error al descargar los datos",
     "downloadSuccess": "Descarga éxitosa",
     "updateSuccess": "Actualización Correcta",
@@ -420,12 +429,17 @@
     "actions": {
       "reschedule": "Reprogramar"
     },
+    "sexes": {
+      "FEMENINO": "Femenino",
+      "MASCULINO": "Masculino"
+    },
     "form": {
       "newTitle": "Nueva cita",
       "documentType": "Tipo de documento",
       "documentNumber": "Número de documento",
       "fullName": "Nombre completo",
       "phone": "Teléfono de contacto",
+      "sex": "Sexo",
       "doctor": "Médico",
       "siteId": "ID sede",
       "date": "Fecha",
@@ -433,8 +447,7 @@
       "duration": "Duración (min)",
       "notes": "Observaciones",
       "errors": {
-        "required": "Campo requerido",
-        "invalidDuration": "Ingrese una duración válida mayor a 0"
+        "required": "Campo requerido"
       }
     },
     "cancel": {
@@ -458,5 +471,37 @@
     "perPageOption": "{{count}} / pág.",
     "previous": "Anterior",
     "next": "Siguiente"
+  },
+  "fileUpload": {
+    "title": "Cargue de archivos",
+    "subtitle": "Validación de derechos. Sube el CSV, valídalo y luego cárgalo.",
+    "file": "Archivo CSV",
+    "validate": "Validar",
+    "load": "Cargar",
+    "validateSuccess": "Archivo validado correctamente",
+    "validateFailed": "La validación encontró errores. Corrige el archivo para poder cargar.",
+    "loadSuccess": "Archivo cargado correctamente",
+    "summary": {
+      "title": "Resultado de la validación",
+      "status": "Estado",
+      "origin": "Origen",
+      "rowsRead": "Filas leídas",
+      "rowsValid": "Filas válidas",
+      "rowsInvalid": "Filas inválidas",
+      "blockingErrors": "Errores bloqueantes",
+      "toReplace": "Registros actuales a reemplazar",
+      "warnings": "Advertencias",
+      "errors": "Errores"
+    },
+    "kinds": {
+      "ASMET": {
+        "name": "ASMET",
+        "hint": "Usuarios para verificación de datos"
+      },
+      "NUEVA_EPS": {
+        "name": "NUEVA EPS",
+        "hint": "Usuarios para verificación de datos"
+      }
+    }
   }
 }

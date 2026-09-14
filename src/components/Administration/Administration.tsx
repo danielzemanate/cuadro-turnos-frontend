@@ -64,6 +64,7 @@ import FormUser from "./forms/users/FormUser";
 import { useTranslation } from "react-i18next";
 import { registerUser } from "../../redux/actions/userActions";
 import { RolesDatabase } from "../../constants/schedule.constants";
+import { hasIngenieroAccess } from "../../utils/permissions";
 
 /* ---------------------------- Tabs definition ---------------------------- */
 
@@ -115,7 +116,7 @@ const Administration: React.FC = () => {
   const { userData } = useSelector((state: AppState) => state.user);
   const roleIdNum = userData?.roles?.id as number | undefined;
   const isCostos = roleIdNum === RolesDatabase.COSTOS;
-  const isIngeniero = roleIdNum === RolesDatabase.INGENIERO;
+  const isIngeniero = hasIngenieroAccess(roleIdNum);
 
   // Tabs visibles según rol (COSTOS solo puede ver "usuarios")
   const visibleTabs = React.useMemo(
