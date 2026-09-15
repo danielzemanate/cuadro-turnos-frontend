@@ -45,7 +45,7 @@ src/
 ├── config/modules.ts    # Catálogo de módulos del dashboard (fuente de verdad de rutas/roles)
 ├── constants/           # Tema, breakpoints, RolesDatabase
 ├── helpers/             # Lógica de dominio (ScheduleHelper, PatientsColor)
-├── hooks/storeHooks.ts  # useAppDispatch / useAppDispatchThunk
+├── hooks/               # storeHooks + useSessionTimeout + useNetworkStatus
 ├── interfaces/          # Tipos de dominio por área
 ├── layouts/             # MainLayout (Header + Toast)
 ├── lib/                 # Cliente HTTP (api.ts → apiFacade.ts)
@@ -101,6 +101,18 @@ Solo el slice `user` está en el whitelist de `redux-persist`.
 
 `logoutUser()` despacha el action **y** ejecuta `persistor.purge()` (limpia todo el store persistido). Header llama logout y navega a `/`.
 
+### Sesión por inactividad
+
+Tras **10 minutos** sin actividad en la página abierta (`SESSION_STAY_MODAL_MS`) `useSessionTimeout` (montado en `MainLayout`) abre un `ConfirmDialog`:
+
+- **Sí, permanecer aquí** → reinicia el temporizador y la sesión sigue.
+- **No, cerrar sesión** → logout inmediato.
+- Si no responde en **60 s** (`SESSION_WARNING_MS`), se cierra sola.
+
+Actividad que **reinicia** el contador (antes del modal): mouse (mover o clic), teclado, scroll o touch. Mientras el modal está abierto, hay que pulsar el botón. Al cerrar: toast `alerts.sessionExpired` (variante warning, fondo pastel naranja y texto oscuro) + `logoutUser()` + redirect a `/`.
+
+**Pestaña cerrada / recarga:** la última actividad se guarda en `localStorage` (`session:lastActivityAt`, helper `helpers/sessionActivity.ts`). Al volver, si ya pasó `SESSION_AWAY_LOGOUT_MS` (**10 horas**) se hace **logout directo** (sin modal). 10 h cubre un turno/noche; un receso de almuerzo no saca. No hace falta caducidad de JWT en backend para este flujo.
+
 ### Cambio / reset de contraseña
 
 - Perfil: `FetchChangePassword` → tras éxito **fuerza logout**.
@@ -144,15 +156,18 @@ Esta es la **fuente de verdad** de paths, roles y componentes del menú.
 
 | id | Nombre | Path | Roles | Componente |
 |---|---|---|---|---|
-| 1 | Visualización Turnos | `/dashboard/vizualizacion-turnos` | 1,2,3,4,5,6,7,10,11,12 | `ScheduleViewer` |
-| 2 | Editar Turnos y Novedades | `/dashboard/gestion-turnos` | 1,6,11 | `ScheduleViewer` con `editable={true}` |
-| 3 | Generar Reporte | `/dashboard/reportes` | 1,6,7,10,11,13 | `Reports` |
+| 1 | Visualización Turnos | `/dashboard/vizualizacion-turnos` | 1,2,3,4,5,6,7,8,10,11,12 | `ScheduleViewer` |
+| 2 | Editar Turnos y Novedades | `/dashboard/gestion-turnos` | 1,6,8,11 | `ScheduleViewer` con `editable={true}` |
+| 3 | Generar Reporte | `/dashboard/reportes` | 1,6,7,8,10,11,13 | `Reports` |
 | 4 | Registrar Demanda Insatisfecha | `/dashboard/demanda-insatisfecha` | `[]` (nadie) | Placeholder |
-| 5 | Configuración de Usuarios | `/dashboard/configuracion-usuarios` | 6,11 | `UsersConfig` |
-| 6 | Administración | `/dashboard/administracion` | 6,11,13 | `Administration` |
-| 7 | Citas | `/dashboard/citas` | 4,5,11 | `Appointments` |
+| 5 | Configuración de Usuarios | `/dashboard/configuracion-usuarios` | 6,8,11 | `UsersConfig` |
+| 6 | Administración | `/dashboard/administracion` | 6,8,11,13 | `Administration` |
+| 7 | Citas | `/dashboard/citas` | 4,5,8,11 | `Appointments` |
+| 8 | Cargue de archivos | `/dashboard/cargue-archivos` | 8,11 | `FileUpload` |
 
-Helpers de permisos: `utils/permissions.ts` → `filterModulesByRole`, `hasPermission`, `getModuleByPath`.
+Helpers de permisos: `utils/permissions.ts` → `filterModulesByRole`, `hasPermission`, `getModuleByPath`, `hasIngenieroAccess` (Ingeniero **o** Subgerencia administrativa).
+
+**Subgerencia administrativa (8) = mismos permisos de UI que Ingeniero (11).** Usar `hasIngenieroAccess(roleId)` en checks de componente; no duplicar el `=== INGENIERO` suelto.
 
 **Typo intencional en producción:** `vizualizacion-turnos` (sin la primera `s`). No lo renombres sin migración de enlaces.
 
@@ -233,7 +248,9 @@ services/*  →  lib/api.ts  →  lib/apiFacade.ts (axios instance)
 - Timeout 30s
 - Header `api: VITE_APP_API_KEY`
 - Cancela requests si el navegador está offline
+- Si el body es `FormData`, quita el `Content-Type` JSON para que axios ponga `multipart/form-data` con boundary
 - Trackea requests pendientes por `method-url` (no cancela duplicados, solo advierte)
+- UI offline: banner persistente `OfflineBanner` (`useNetworkStatus` en `MainLayout`). No hay toast duplicado.
 
 No uses `fetch` directo; pasa siempre por `api` / services.
 
@@ -274,6 +291,21 @@ CRUD bajo `api/config/` (roles, tipos-atencion, tipos-personal-salud, municipios
 
 `api/cuadros/permisos-especiales/*` (opciones-coordinadores, opciones-cuadros, POST crear).
 
+### File upload (Cargue de archivos) — `services/fileUpload/fileUpload.service.ts`
+
+Módulo INGENIERO (11) y SUBGERENCIA_ADMINISTRATIVA (8). UI: `components/FileUpload/FileUpload.tsx`. **Solo validación de derechos** (ASMET / NUEVA EPS). RFAST no se muestra todavía.
+
+Flujo: elegir origen → subir CSV → **Validar** (habilitado al haber archivo) → si `valido` y sin errores bloqueantes se habilita **Cargar**.
+
+Base: `{VITE_APP_BACK_ESE}`. Timeout de estas llamadas: 180 s (`FILE_UPLOAD_VALIDATE_TIMEOUT_MS`).
+
+| Paso | Método | Path | Body |
+|---|---|---|---|
+| Validar | POST multipart | `api/pacientes-activos/cargas/validar` | `origen` (`ASMET` \| `NUEVA_EPS`) + `archivo` (csv) |
+| Cargar | POST JSON | `api/pacientes-activos/cargas/{carga_id}/confirmar` | `{ token_confirmacion, confirmar_reemplazo: true }` |
+
+Si cambian archivo u origen, se limpia la validación y Cargar vuelve a deshabilitarse.
+
 ### Appointments (Citas) — `services/appointments/appointments.service.ts`
 
 | Función | Método | Path |
@@ -283,7 +315,11 @@ CRUD bajo `api/config/` (roles, tipos-atencion, tipos-personal-salud, municipios
 | `cancelAppointment` | POST | `{VITE_APP_BACK_APPOINTMENTS}api/citas/{id}/cancelar` (`motivo`, `actor_tipo: WEB`) |
 | `rescheduleAppointment` | POST | `{VITE_APP_BACK_APPOINTMENTS}api/citas/{id}/reprogramar` (`id_personal_salud`, `fecha`, `hora_inicio`, `motivo`, `actor_tipo: WEB`) |
 
-UI: `components/Appointments/Appointments.tsx`. Roles COORDINADOR_SIAU (4), SIAU (5) e INGENIERO (11) (`allowedRoles: [4, 5, 11]`). Lista en estado local (no slice Redux). Paginador reutilizable: `components/Common/pagination/Pagination.tsx` (opciones 10 / 20 / 50; el frontend **no** sobrescribe `per_page` con el valor de la respuesta). En alta, `id_sede` se digita a mano hasta existir catálogo de sedes.
+UI: `components/Appointments/Appointments.tsx`. Roles COORDINADOR_SIAU (4), SIAU (5), SUBGERENCIA_ADMINISTRATIVA (8) e INGENIERO (11) (`allowedRoles: [4, 5, 8, 11]`). Lista en estado local (no slice Redux). Paginador reutilizable: `components/Common/pagination/Pagination.tsx` (opciones 10 / 20 / 50; el frontend **no** sobrescribe `per_page` con el valor de la respuesta). En alta, `id_sede` se digita a mano hasta existir catálogo de sedes.
+
+**Duración de la cita (alta):** no es editable. Se toma de la categoría (`APPOINTMENT_DURATION_BY_CATEGORY`): GENERAL 15 min, GESTANTE 45 min, CRONICO 30 min. El campo se muestra en solo lectura.
+
+**Gestante:** en el formulario de alta hay campo `sexo`. La categoría GESTANTE solo aparece si el paciente es `FEMENINO`. Si se cambia el sexo a masculino con GESTANTE seleccionada, la categoría vuelve a GENERAL.
 
 **Médicos (alta / filtro / reprogramar):** no se usa el listado genérico `GET usuarios-detalle`. Se busca con `POST {BACK_ESE}auth/usuarios/search` (`AdministrationService.searchUsers` / thunk `searchUsers`, retorna lista **sin** guardar en el slice `administration.users`) con body fijo de tipo médico:
 
@@ -338,9 +374,9 @@ Componente monolítico (~1360 líneas) que sirve **vista y edición**:
 - Roles `COORDINADOR` / `PERSONAL_SALUD`: municipio forzado al del usuario.
 - Rol **PERSONAL_SALUD (2)** en Visualización: ve toggles de novedades y total pacientes **solo lectura** (no edita); **no** ve tipos de SIAU.
 - Flags de capacidad (calculados por rol):
-  - `canManagePatients`: COORDINADOR (1), DILIGENCIADOR (3) o INGENIERO (11) — edición en **Editar Turnos** (mes actual) y en **Visualización** (mes anterior en ventana de gracia). Ver sección “Total pacientes atendidos”
-  - `canManageSiau`: COORDINADOR_SIAU (4), SIAU (5) o INGENIERO (11) — solo en modo viewer
-  - Personal de apoyo: ADMINISTRADOR (6) o INGENIERO (11), solo en modo editable
+  - `canManagePatients`: COORDINADOR (1), DILIGENCIADOR (3) o `hasIngenieroAccess` (11 u 8)
+  - `canManageSiau`: COORDINADOR_SIAU (4), SIAU (5) o `hasIngenieroAccess` — solo en modo viewer
+  - Personal de apoyo: ADMINISTRADOR (6) o `hasIngenieroAccess`, solo en modo editable
   - Toggle y tabla SIAU: solo si el tipo de personal seleccionado es **Médico** (`PersonalTypesDatabase.MEDICO` = 1) y el rol del usuario **no** es PERSONAL_SALUD
 - Subcomponentes: `siau/SiauTypesTable.tsx`, `supportStaff/SupportStaff.tsx`
 - Helpers: `helpers/ScheduleHelper.ts` (días, buckets normal/novedades, CSV, orden de periodos), `helpers/PatientsColor.ts` (semáforo de carga)
@@ -387,7 +423,7 @@ Visible en **Visualización Turnos** y en **Editar Turnos y Novedades**.
 |---|---|---|
 | Mostrar toggle | Siempre (`canShowPatientsToggle`) | Solo mes calendario actual; en otros meses se oculta y `showPacientes` se fuerza a `false` |
 | Editar celda | Solo mes anterior si hoy ≤ `PREVIOUS_MONTH_EDIT_GRACE_DAYS` (5): todos los días. Resto: solo lectura | Mes actual: `day <= todayDay`. Otros meses: no |
-| Quién edita | Además del día, rol `canManagePatients`: COORDINADOR (1), DILIGENCIADOR (3) o INGENIERO (11) | Igual: rol `canManagePatients` |
+| Quién edita | Además del día, rol `canManagePatients`: COORDINADOR (1), DILIGENCIADOR (3) o Ingeniero/Subgerencia (11/8) | Igual: rol `canManagePatients` |
 
 - Fila: una por persona con label `scheduleViewer.totalPatientsTreated`; input numérico (semáforo vía `PatientsColor`) solo si `canManagePatients && canEditPatientsDay(day)`; si no, texto del valor guardado.
 - Persistencia: blur → `addPatients` (`POST api/reportes/registro-pacientes`). Carga al abrir toggle: `fetchTotalPatientsByMonth`.
@@ -426,7 +462,12 @@ Tabs: `roles` | `usuarios` | `tiposAtencion` | `tiposPersonal`.
 - Rol COSTOS (13): solo tab usuarios, solo “Ver contrato” (sin CRUD).
 - Patrón: `DataTable` + form dedicado + `ConfirmDialog`.
 - Crear usuario: `registerUser` (de `userActions`) + opcionalmente `updateUserRol`.
-- Contratos: `FormUserContracts.tsx` (visible para INGENIERO / COSTOS).
+- Alta de usuario: nombre, apellidos, correo y celular se guardan en **minúsculas**. Tipo de personal de salud y municipio **no son obligatorios** (se envía `null` si van vacíos).
+- Contratos: `FormUserContracts.tsx` (visible para INGENIERO / Subgerencia administrativa / COSTOS). COSTOS solo lectura.
+
+### FileUpload (`components/FileUpload/FileUpload.tsx`)
+
+Validación de derechos (ASMET / NUEVA EPS). Flujo Validar → Cargar. Roles 8 y 11. RFAST oculto.
 
 ### UsersConfig (`components/UsersConfig/UsersConfig.tsx`)
 
@@ -453,7 +494,7 @@ Datos de solo lectura + cambio de contraseña (checklist de validación en vivo)
 
 | Componente | Uso |
 |---|---|
-| `MainLayout` | Header (si hay user y no es login) + children + `Toast` global |
+| `MainLayout` | Header (si hay user y no es login) + `OfflineBanner` + children + `Toast` + modal de inactividad (`useSessionTimeout`) |
 | `Header` | Logo → dashboard, dropdown Perfil / Salir |
 | `Breadcrumb` | `components/Common/breadcrumb/`; en rutas hijas del dashboard (`Inicio › módulo`). Clic en Inicio limpia schedule y vuelve a `/dashboard` |
 | `DataTable` | Tabla genérica tipada. Acciones: `onAdd` / `onEdit` / `onDelete` / `onViewContract`. Labels opcionales: `editLabel`, `deleteLabel`. Visibilidad por fila: `canEdit` / `canDelete` (si ninguna fila tiene acción, la columna Acciones se oculta). Layout: `fill` (default, ancho 100%) o `fit` (ancho al contenido) |
@@ -511,7 +552,7 @@ Al **quitar** UI, borra también su clave en `es.json`: no dejes texto muerto. V
 - Reusar `helpers` slice para loading/toasts.
 - Reusar `DataTable` / `ConfirmDialog` / `Toast` en CRUDs.
 - Registrar módulos nuevos en `config/modules.ts` + ruta vía `getModuleRoutes`.
-- Usar `RolesDatabase` para checks de rol.
+- Usar `RolesDatabase` para checks de rol. Para permisos de Ingeniero incluir Subgerencia administrativa con `hasIngenieroAccess`.
 - Props de styled-components con prefijo `$`.
 - Textos de UI vía `t(...)` y `es.json`.
 - Escribir comentarios en texto plano, sin emojis ni decoraciones (`// ✅`, `// 🚫`, banners de `====`).
@@ -525,10 +566,13 @@ Al **quitar** UI, borra también su clave en `es.json`: no dejes texto muerto. V
 - No usar `ScheduleManagement` para edición de turnos (usar `ScheduleViewer` + `editable`).
 - No persistir slices distintos de `user` sin discusión.
 - No inventar IDs de rol; usar `RolesDatabase`.
+- No dar permisos de Ingeniero sin incluir Subgerencia administrativa (`hasIngenieroAccess`).
 - No meter `fetch`/`axios` directo en componentes; pasar por services.
 - No usar emojis en comentarios ni en nombres de variables. Los únicos glifos permitidos son los que el usuario ve en pantalla (p. ej. el `⚠` de contrato vencido en `FormUserContracts.tsx`).
 - No dejar claves huérfanas en `es.json` tras eliminar UI.
 - No derivar las horas de novedad desde el tipo de atención: las digita el usuario y pueden ser negativas.
+- No permitir editar la **duración** de una cita: se calcula por categoría (GENERAL 15, GESTANTE 45, CRONICO 30).
+- No mostrar categoría **GESTANTE** si el sexo del paciente no es femenino.
 - No permitir editar **novedades** ni **total pacientes** del mes actual desde Visualización Turnos (eso va en Editar Turnos, días ≤ hoy). Excepción: en Visualización sí se edita el **mes anterior** durante los primeros `PREVIOUS_MONTH_EDIT_GRACE_DAYS` días del mes en curso (no viene en opciones-editables). Pacientes además requieren rol Coordinador/Diligenciador/Ingeniero.
 - No cargar médicos de citas con `GET usuarios-detalle`; usar `POST auth/usuarios/search` con `id_tipo_personal_salud: 1` y el municipio del filtro/cita.
 - No crear archivos markdown extra salvo que te lo pidan.
@@ -547,6 +591,8 @@ Al **quitar** UI, borra también su clave en `es.json`: no dejes texto muerto. V
 | Nuevo reporte PDF | `reports.service.ts` + `reportsActions.ts` + routing por nombre en `Reports.tsx` |
 | Nuevo tab de administración | `Administration.tsx` + form en `forms/` + service/actions |
 | Citas (agenda / cancelar / reprogramar) | `Appointments.tsx` + forms + `appointmentsActions.ts` + `appointments.service.ts` + `interfaces/appointments.ts` + `constants/appointments.constants.ts` |
+| Cargue de archivos (ASMET / NUEVA EPS) | `FileUpload.tsx` + `fileUploadActions.ts` + `fileUpload.service.ts` + `constants/fileUpload.constants.ts` |
+| Tiempo / modal de sesión | `constants/session.constants.ts` + `helpers/sessionActivity.ts` + `hooks/useSessionTimeout.ts` + `MainLayout.tsx` + `es.json` (`session.*`) |
 | Búsqueda de médicos para citas | `administration.service.ts` (`searchUsers`) + `administrationActions.searchUsers` + `Appointments.tsx` |
 | Estilos / colores | `constants/theme.tsx` + `*Styles.tsx` de la feature |
 | Textos | `language/es.json` |
@@ -573,6 +619,7 @@ Al **quitar** UI, borra también su clave en `es.json`: no dejes texto muerto. V
 16. `DataTable` con `layout="fill"` estira al 100% (admin y citas). Con `layout="fit"` el ancho sigue al contenido; reservar para tablas muy anchas que deban scrollear sin estirar huecos.
 17. Flujo CE (intervalo): si `editar-dia` ok pero `editar-dia-intervalo` falla, el turno ya pudo guardarse en backend; la UI revierte la sigla local.
 18. `GET cuadros-mes` no trae el id de BD: `mes` es el mes calendario (1..12). El frontend resuelve `id_cuadro_mes` con `opciones-coordinadores` + `opciones-cuadros` al cargar el mes (`resolveCuadroMesId`) y lo usa en personal de apoyo, pacientes y SIAU.
+19. RFAST no se muestra en Cargue de archivos hasta que backend entregue ese flujo.
 
 ---
 

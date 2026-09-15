@@ -6,6 +6,7 @@ import {
   Settings,
   Shield,
   CalendarCheck2,
+  Upload,
 } from "lucide-react";
 import { Module } from "../types/types";
 import ScheduleViewer from "../components/ScheduleViewer/ScheduleViewer";
@@ -15,6 +16,7 @@ import React, { ComponentType } from "react";
 import UsersConfig from "../components/UsersConfig/UsersConfig";
 import Administration from "../components/Administration/Administration";
 import Appointments from "../components/Appointments/Appointments";
+import FileUpload from "../components/FileUpload/FileUpload";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const ScheduleViewerEditable: ComponentType<any> = (props) =>
@@ -25,7 +27,7 @@ export const MODULES: Module[] = [
     id: 1,
     name: "Visualización Turnos",
     icon: CalendarDays,
-    allowedRoles: [1, 2, 3, 4, 5, 6, 7, 10, 11, 12],
+    allowedRoles: [1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12],
     component: ScheduleViewer,
     path: "/dashboard/vizualizacion-turnos",
     bgColor: "#DBEAFE",
@@ -35,7 +37,7 @@ export const MODULES: Module[] = [
     id: 2,
     name: "Editar Turnos y Novedades",
     icon: Edit3,
-    allowedRoles: [1, 6, 11],
+    allowedRoles: [1, 6, 8, 11],
     component: ScheduleViewerEditable,
     path: "/dashboard/gestion-turnos",
     bgColor: "#FDE68A",
@@ -45,7 +47,7 @@ export const MODULES: Module[] = [
     id: 3,
     name: "Generar Reporte",
     icon: FileBarChart,
-    allowedRoles: [1, 6, 7, 10, 11, 13],
+    allowedRoles: [1, 6, 7, 8, 10, 11, 13],
     component: Reports,
     path: "/dashboard/reportes",
     bgColor: "#D1FAE5",
@@ -65,7 +67,7 @@ export const MODULES: Module[] = [
     id: 5,
     name: "Configuración de Usuarios",
     icon: Settings,
-    allowedRoles: [6, 11],
+    allowedRoles: [6, 8, 11],
     component: UsersConfig,
     path: "/dashboard/configuracion-usuarios",
     bgColor: "#F3E8FF",
@@ -75,7 +77,7 @@ export const MODULES: Module[] = [
     id: 6,
     name: "Administración",
     icon: Shield,
-    allowedRoles: [6, 11, 13],
+    allowedRoles: [6, 8, 11, 13],
     component: Administration,
     path: "/dashboard/administracion",
     bgColor: "#DBEAFE",
@@ -85,10 +87,20 @@ export const MODULES: Module[] = [
     id: 7,
     name: "Citas",
     icon: CalendarCheck2,
-    allowedRoles: [4, 5, 11],
+    allowedRoles: [4, 5, 8, 11],
     component: Appointments,
     path: "/dashboard/citas",
     bgColor: "#E0F2FE",
     hoverColor: "#0284C7",
+  },
+  {
+    id: 8,
+    name: "Cargue de archivos",
+    icon: Upload,
+    allowedRoles: [8, 11],
+    component: FileUpload,
+    path: "/dashboard/cargue-archivos",
+    bgColor: "#FFEDD5",
+    hoverColor: "#EA580C",
   },
 ];

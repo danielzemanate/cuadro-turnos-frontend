@@ -59,8 +59,8 @@ export interface IUserForm {
   apellidos: string;
   correo: string;
   celular: string;
-  id_tipo_personal_salud: number;
-  id_municipio: number;
+  id_tipo_personal_salud: number | null;
+  id_municipio: number | null;
   activo: boolean;
   es_personal_salud?: boolean;
   creado_por?: number;

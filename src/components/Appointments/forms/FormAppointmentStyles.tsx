@@ -44,6 +44,13 @@ export const Input = styled.input`
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
     border-color: #bfdbfe;
   }
+
+  &:disabled,
+  &:read-only {
+    background: #f3f4f6;
+    color: #6b7280;
+    cursor: not-allowed;
+  }
 `;
 
 export const Select = styled.select`
