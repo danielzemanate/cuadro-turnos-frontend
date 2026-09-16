@@ -24,10 +24,15 @@ export const validateActivePatientsFile = (
   origen: FileUploadKind,
   file: File,
 ): ThunkResult<Promise<ICargaValidacion | null>> => {
-  return async (dispatch) => {
+  return async (dispatch, getState) => {
     dispatch(setLoading(true));
     try {
-      const response = await FileUploadService.validateCarga(origen, file);
+      const accessToken = getState().user?.userData?.access_token ?? "";
+      const response = await FileUploadService.validateCarga(
+        origen,
+        file,
+        accessToken,
+      );
       if (response.status === 200 || response.status === 201) {
         const data = response.data as ICargaValidacion;
         dispatch(setOpenToast(true));
@@ -57,13 +62,18 @@ export const confirmActivePatientsFile = (
   cargaId: string,
   tokenConfirmacion: string,
 ): ThunkResult<Promise<ICargaConfirmacion | null>> => {
-  return async (dispatch) => {
+  return async (dispatch, getState) => {
     dispatch(setLoading(true));
     try {
-      const response = await FileUploadService.confirmCarga(cargaId, {
-        token_confirmacion: tokenConfirmacion,
-        confirmar_reemplazo: true,
-      });
+      const accessToken = getState().user?.userData?.access_token ?? "";
+      const response = await FileUploadService.confirmCarga(
+        cargaId,
+        {
+          token_confirmacion: tokenConfirmacion,
+          confirmar_reemplazo: true,
+        },
+        accessToken,
+      );
       if (response.status === 200 || response.status === 201) {
         dispatch(setOpenToast(true));
         dispatch(setVariantToast("success"));
