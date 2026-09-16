@@ -120,7 +120,9 @@ Actividad que **reinicia** el contador (antes del modal): mouse (mover o clic), 
 
 ### Auth HTTP — importante
 
-El `access_token` **no se adjunta** como `Authorization: Bearer` en las peticiones. El interceptor solo pone el header estático `api: VITE_APP_API_KEY`. No “corrijas” esto sin confirmar cómo autentica el backend.
+El interceptor solo pone el header estático `api: VITE_APP_API_KEY`. El resto de módulos **no** envían `Authorization: Bearer`.
+
+**Excepción — Cargue de archivos:** `validar` y `confirmar` sí mandan `Authorization: Bearer {access_token}` (el JWT del login). Sin eso la API responde `401` `AUTENTICACION_REQUERIDA`. No adjuntes Bearer al resto de peticiones sin confirmar con backend.
 
 ### Endpoints auth
 
@@ -297,7 +299,7 @@ Módulo INGENIERO (11) y SUBGERENCIA_ADMINISTRATIVA (8). UI: `components/FileUpl
 
 Flujo: elegir origen → subir CSV → **Validar** (habilitado al haber archivo) → si `valido` y sin errores bloqueantes se habilita **Cargar**.
 
-Base: `{VITE_APP_BACK_ESE}`. Timeout de estas llamadas: 180 s (`FILE_UPLOAD_VALIDATE_TIMEOUT_MS`).
+Base: `{VITE_APP_BACK_ESE}`. Timeout de estas llamadas: 180 s (`FILE_UPLOAD_VALIDATE_TIMEOUT_MS`). Ambas llevan `Authorization: Bearer {access_token}` del slice `user` (la API responde `AUTENTICACION_REQUERIDA` si falta).
 
 | Paso | Método | Path | Body |
 |---|---|---|---|
@@ -561,7 +563,7 @@ Al **quitar** UI, borra también su clave en `es.json`: no dejes texto muerto. V
 
 ### No hacer
 
-- No adjuntar `Authorization` Bearer sin confirmar con backend.
+- No adjuntar `Authorization` Bearer en módulos que no sea Cargue de archivos, salvo que backend lo pida.
 - No “arreglar” paths `auth/auth/*` ni el typo `vizualizacion-turnos` sin pedido explícito.
 - No usar `ScheduleManagement` para edición de turnos (usar `ScheduleViewer` + `editable`).
 - No persistir slices distintos de `user` sin discusión.
@@ -601,7 +603,7 @@ Al **quitar** UI, borra también su clave en `es.json`: no dejes texto muerto. V
 
 ## Quirks conocidos (no “arreglar” de paso)
 
-1. Token no va en headers; solo header `api` (y `VITE_APP_API_KEY` no está en los `.env`).
+1. Token no va en headers salvo Cargue de archivos (`Authorization: Bearer`); el resto solo header `api` (y `VITE_APP_API_KEY` no está en los `.env`).
 2. Path tipográfico `vizualizacion-turnos`.
 3. `ScheduleManagement` y `UnsatisfiedDemand` son placeholders; el segundo tiene `allowedRoles: []`.
 4. Dos catálogos de roles: `Roles` vs `RolesDatabase`.
