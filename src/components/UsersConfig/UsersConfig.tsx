@@ -67,11 +67,11 @@ const UsersConfig: React.FC = () => {
     [selectedCoordinator],
   );
 
-  /** Convierte 'YYYY-MM-DD' a ISO con hora 00:00 (medianoche local) */
-  const dateAtLocalMidnightToISO = (yyyyMmDd: string) => {
+  /** Convierte 'YYYY-MM-DD' al final de ese día local, para que `hasta` cubra la fecha completa. */
+  const dateAtLocalEndOfDayToISO = (yyyyMmDd: string) => {
     if (!yyyyMmDd) return "";
     const [y, m, d] = yyyyMmDd.split("-").map(Number);
-    const dt = new Date(y, m - 1, d, 0, 0, 0, 0); // medianoche local
+    const dt = new Date(y, m - 1, d, 23, 59, 59, 999);
     return dt.toISOString();
   };
 
@@ -117,7 +117,7 @@ const UsersConfig: React.FC = () => {
 
     const payload = {
       id_usuario: selectedCoordinator?.id ?? 0,
-      hasta: dateAtLocalMidnightToISO(hastaLocalDate), // <-- 00:00
+      hasta: dateAtLocalEndOfDayToISO(hastaLocalDate),
       es_novedad: esNovedad,
       id_cuadro_mes: selectedCuadroId ?? 0,
       creado_por: userData?.user?.id ?? 0,

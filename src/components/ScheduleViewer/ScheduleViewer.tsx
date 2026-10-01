@@ -86,6 +86,7 @@ import {
 import { IDownloadSchedule } from "../../interfaces/utils";
 import { fetchDownloadSchedule } from "../../redux/actions/utilsActions";
 import {
+  CURRENT_MONTH_TURNOS_EDIT_THROUGH_DAY,
   PersonalTypesDatabase,
   PREVIOUS_MONTH_EDIT_GRACE_DAYS,
   RoleId,
@@ -224,15 +225,27 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
   const canEditPreviousMonthInViewer =
     !editable && isPreviousSelectedMonth && isInPreviousMonthGracePeriod;
 
-  // Los turnos solo se editan en meses futuros (posteriores al mes calendario actual).
-  // El mes actual y anteriores quedan en solo lectura: para eso están las novedades.
+  // Turnos: meses futuros, el mes en curso hasta el día 10, o un permiso
+  // especial vigente para el año/mes seleccionado (también después del día 10).
   const selectedMonthValue = selectedPeriod
     ? selectedPeriod.anio * 12 + selectedPeriod.mes
     : null;
   const currentMonthValue = todayYear * 12 + todayMonth;
   const isFutureSelectedMonth =
     selectedMonthValue !== null && selectedMonthValue > currentMonthValue;
-  const canEditTurnos = editable && isFutureSelectedMonth;
+  const hasSpecialPermitForSelectedMonth = (
+    options?.periodos_permiso ?? []
+  ).some(
+    (periodo) =>
+      periodo.anio === selectedPeriod?.anio &&
+      periodo.mes === selectedPeriod?.mes,
+  );
+  const canEditTurnos =
+    editable &&
+    (isFutureSelectedMonth ||
+      (isCurrentSelectedMonth &&
+        todayDay <= CURRENT_MONTH_TURNOS_EDIT_THROUGH_DAY) ||
+      hasSpecialPermitForSelectedMonth);
 
   // Novedades: Editar Turnos = mes actual; Visualización = cualquier mes (Personal Salud solo lectura).
   const canShowNoveltyToggle = !editable || isCurrentSelectedMonth;
@@ -1481,7 +1494,7 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
                 )}
               </TableControls>
 
-              {editable && !isFutureSelectedMonth && (
+              {editable && !canEditTurnos && (
                 <EmptyStateText style={{ margin: "0 0 0.75rem" }}>
                   {t("scheduleViewer.turnosReadOnlyHint")}
                 </EmptyStateText>

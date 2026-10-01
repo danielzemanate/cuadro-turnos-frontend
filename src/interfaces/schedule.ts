@@ -40,6 +40,11 @@ export interface Dia {
 
 export interface IOptionsResponse {
   periodos: Periodo[];
+  /**
+   * Meses con permiso especial vigente del usuario.
+   * Solo lo envía `opciones-editables`. Vacío en la vista de solo lectura.
+   */
+  periodos_permiso?: Periodo[];
   tipos_personal_salud: TipoPersonalSalud[];
   municipios: Municipio[];
 }
