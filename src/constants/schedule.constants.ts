@@ -52,5 +52,12 @@ export const MIN_SCHEDULE_INTERVAL_HOURS = 8;
  */
 export const PREVIOUS_MONTH_EDIT_GRACE_DAYS = 5;
 
+/**
+ * En Editar Turnos, el mes en curso sigue editable (fila de turnos) hasta este
+ * día inclusive. Desde el día siguiente queda en solo lectura, salvo permiso
+ * especial vigente para ese mes.
+ */
+export const CURRENT_MONTH_TURNOS_EDIT_THROUGH_DAY = 10;
+
 export const requiresScheduleInterval = (sigla: string): boolean =>
   (INTERVAL_REQUIRED_SIGLAS as readonly string[]).includes(sigla);

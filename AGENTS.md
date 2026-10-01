@@ -267,7 +267,7 @@ Base: `${import.meta.env.VITE_APP_BACK_ESE}`
 | Función | Método | Path |
 |---|---|---|
 | `getOptions` | GET | `api/cuadros/opciones` |
-| `getEditableOptions` | GET | `api/cuadros/opciones-editables` |
+| `getEditableOptions` | GET | `api/cuadros/opciones-editables` (incluye `periodos_permiso`: meses con permiso especial vigente) |
 | `getSchedulesByMonth` | GET | `api/cuadros/cuadros-mes` |
 | `getAttentionTypes` | GET | `api/cuadros/tipos-atencion` |
 | `getEditScheduleDay` | POST | `api/cuadros/editar-dia` |
@@ -385,7 +385,7 @@ Componente monolítico (~1360 líneas) que sirve **vista y edición**:
 
 Edición de celdas → `editScheduleDay` con `IDataEditScheduleData`. Una sola novedad por día/persona; sigla obligatoria.
 
-**Edición de turnos solo en meses futuros:** en **Editar Turnos y Novedades** la fila de siglas (turnos) solo es editable si el mes/año seleccionado es **posterior** al mes calendario actual (`canEditTurnos = editable && isFutureSelectedMonth`, comparando `anio*12 + mes`). El mes en curso y los anteriores muestran los turnos en solo lectura (texto del backend) y aparece `scheduleViewer.turnosReadOnlyHint`. Cuando llega el 1.° del mes que antes era futuro, ese mes deja de ser editable automáticamente. Para el mes en curso se usan las **novedades**. `handleAttentionChange` y `TOTAL HORAS` respetan `canEditTurnos`.
+**Edición de turnos** (`canEditTurnos`, comparando `anio*12 + mes`): en **Editar Turnos y Novedades** la fila de siglas es editable si el mes seleccionado es **posterior** al mes calendario actual, si es el **mes en curso** y hoy es día `1..CURRENT_MONTH_TURNOS_EDIT_THROUGH_DAY` (**10** inclusive), o si ese año/mes está en `opciones-editables.periodos_permiso` (permiso especial vigente del usuario, también después del día 10 y en meses que ya no entran por la ventana normal). Si no se cumple, las celdas muestran el texto del backend y aparece `scheduleViewer.turnosReadOnlyHint`. Antes el mes en curso quedaba bloqueado desde el día 1. Las **novedades** del mes en curso siguen aparte. `handleAttentionChange` y `TOTAL HORAS` respetan `canEditTurnos`.
 
 **Intervalo CE (solo Editar Turnos + tipo personal Médico):** al elegir la sigla **CE** en la celda normal (no novedad), se abre un modal de horario (`FormScheduleDayInterval`) **antes** de persistir. CEC y CED se guardan como cualquier otra sigla, sin modal. Se pueden agregar varios intervalos (“Agregar intervalo”) en formato **12 h AM/PM**. Horas **exactas** (`INTERVAL_REQUIRED_HOURS`): **CE = 8 h** (ni más ni menos). Cada intervalo: fin > inicio; el siguiente **no puede empezar antes** del fin del anterior (si el primero termina a las 11:00 AM, el siguiente empieza ≥ 11:00 AM). Si no cumple, Guardar queda deshabilitado. Flujo: `editScheduleDayWithInterval` → `POST editar-dia` → `id_cuadro_dia` → `POST editar-dia-intervalo` con `intervalos[]` (`HH:MM:SS.0000`, `activo: true`). Cancelar revierte la sigla. Helpers: `ScheduleIntervalHelper.ts`; constantes: `INTERVAL_REQUIRED_SIGLAS`, `requiresScheduleInterval`.
 
@@ -478,7 +478,7 @@ Flujo en 2 pasos:
 1. Elegir coordinador aprobador
 2. Formulario: fecha `hasta`, checkbox `es_novedad`, cuadro → `createSpecialPermit`
 
-Fecha se convierte a ISO a medianoche local antes de enviar.
+La fecha `hasta` se envía como fin del día local (23:59:59.999) en ISO, para que el permiso cubra la fecha elegida completa. El backend lo considera vigente mientras `desde <= ahora <= hasta` (`America/Bogota`) y lo devuelve en `periodos_permiso`.
 
 ### Profile
 
@@ -589,6 +589,7 @@ Al **quitar** UI, borra también su clave en `es.json`: no dejes texto muerto. V
 | Cambiar permisos de un módulo | `config/modules.ts` → `allowedRoles` |
 | Cambiar lógica de celdas del cuadro | `ScheduleViewer.tsx` + `ScheduleHelper.ts` + `scheduleActions.ts` |
 | Reglas de novedades / total pacientes (días editables) | `ScheduleViewer.tsx` (`canEditNoveltyDay`, `canShowPatientsToggle`, `canEditPatientsDay`, gracia `PREVIOUS_MONTH_EDIT_GRACE_DAYS`) + esta sección en AGENTS.md |
+| Hasta cuándo se editan los turnos del mes en curso | `ScheduleViewer.tsx` (`canEditTurnos`) + `CURRENT_MONTH_TURNOS_EDIT_THROUGH_DAY` + `periodos_permiso` de `opciones-editables` |
 | Cambiar fórmulas o filas de la tabla SIAU | `ScheduleViewer/siau/SiauTypesTable.tsx` (`SIAU_IDS`, `HIDDEN_SIAU_IDS`, `calculatedByDay`) + tabla de fórmulas en este archivo |
 | Nuevo reporte PDF | `reports.service.ts` + `reportsActions.ts` + routing por nombre en `Reports.tsx` |
 | Nuevo tab de administración | `Administration.tsx` + form en `forms/` + service/actions |

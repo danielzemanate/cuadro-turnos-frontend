@@ -51,7 +51,7 @@
     "hoursUpdates": "Horas Novedades",
     "noDataTitle": "Sin datos para este mes",
     "noDataDescription": "No hay un cuadro de turnos registrado para este mes para el personal de {{tipoPersonal}} en el municipio de {{municipio}}.",
-    "turnosReadOnlyHint": "Este mes no admite edición de turnos: solo se pueden editar los turnos de meses posteriores al actual. Para el mes en curso utiliza las novedades.",
+    "turnosReadOnlyHint": "Los turnos de este mes están en solo lectura. El mes en curso se puede editar hasta el día 10; después se registran por novedades, salvo un permiso especial vigente.",
     "months": [
       "ENERO",
       "FEBRERO",
