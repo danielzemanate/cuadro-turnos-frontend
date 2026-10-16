@@ -1,4 +1,4 @@
-import { FC, useState } from "react";
+import { FC, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSelector } from "react-redux";
 import { User, Settings, ChevronDown, LogOut, BadgeInfo } from "lucide-react";
@@ -21,6 +21,7 @@ import {
   DropdownItem,
 } from "./HeaderStyles";
 import { useNavigate } from "react-router-dom";
+import { fetchAccountLabels } from "../../redux/actions/administrationActions";
 import { logoutUser } from "../../redux/actions/userActions";
 import { AppState } from "../../redux/reducers/rootReducer";
 import { useAppDispatchThunk } from "../../hooks/storeHooks";
@@ -35,7 +36,36 @@ const HeaderComponent: FC = () => {
   const { userData } = useSelector((state: AppState) => state.user);
   const userName =
     `${userData?.user?.nombre ?? ""} ${userData?.user?.apellidos ?? ""}`.trim();
-  const userRole = userData?.roles.nombre;
+  const roleName = userData?.roles?.nombre ?? "";
+  const tipoId = userData?.user?.id_tipo_personal_salud ?? null;
+  const municipioId = userData?.user?.id_municipio || null;
+  const [tipoNombre, setTipoNombre] = useState("");
+  const [municipioNombre, setMunicipioNombre] = useState("");
+
+  useEffect(() => {
+    if (!userData?.access_token || (!tipoId && !municipioId)) {
+      setTipoNombre("");
+      setMunicipioNombre("");
+      return;
+    }
+    let cancelled = false;
+    const loadLabels = async () => {
+      const labels = await dispatchThunk(
+        fetchAccountLabels(tipoId, municipioId),
+      );
+      if (cancelled) return;
+      setTipoNombre(labels.tipoNombre);
+      setMunicipioNombre(labels.municipioNombre);
+    };
+    loadLabels();
+    return () => {
+      cancelled = true;
+    };
+  }, [dispatchThunk, municipioId, tipoId, userData?.access_token]);
+
+  const userSubtitle = [tipoNombre || roleName, municipioNombre]
+    .filter(Boolean)
+    .join(" · ");
 
   const handleLogout = async () => {
     setIsDropdownOpen(false);
@@ -67,7 +97,7 @@ const HeaderComponent: FC = () => {
           <UserDetails>
             <Greeting>{t("header.greeting")}</Greeting>
             <UserName>{userName || "—"}</UserName>
-            <UserRole>{userRole}</UserRole>
+            <UserRole>{userSubtitle}</UserRole>
           </UserDetails>
         </UserInfo>
 

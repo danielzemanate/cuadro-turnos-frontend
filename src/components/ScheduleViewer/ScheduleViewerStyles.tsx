@@ -744,9 +744,12 @@ export const LoadingOverlay = styled.div`
   backdrop-filter: blur(2px);
 `;
 
-export const InputField = styled.input<{ $traffic?: PatientsTraffic }>`
+export const InputField = styled.input<{
+  $traffic?: PatientsTraffic;
+  $decimal?: boolean;
+}>`
   ${inputBase}
-  width: 60px;
+  width: ${(props) => (props.$decimal ? "4.75rem" : "60px")};
   text-align: center;
   padding: ${theme.spacing.xs};
   font-size: ${theme.fontSizes.sm};
