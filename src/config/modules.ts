@@ -7,6 +7,8 @@ import {
   Shield,
   CalendarCheck2,
   Upload,
+  Palmtree,
+  ClipboardList,
 } from "lucide-react";
 import { Module } from "../types/types";
 import ScheduleViewer from "../components/ScheduleViewer/ScheduleViewer";
@@ -17,10 +19,17 @@ import UsersConfig from "../components/UsersConfig/UsersConfig";
 import Administration from "../components/Administration/Administration";
 import Appointments from "../components/Appointments/Appointments";
 import FileUpload from "../components/FileUpload/FileUpload";
+import Vacations from "../components/Vacations/Vacations";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const ScheduleViewerEditable: ComponentType<any> = (props) =>
   React.createElement(ScheduleViewer, { ...props, editable: true });
+
+const VacationsPersonal: React.FC = () =>
+  React.createElement(Vacations, { mode: "personal" });
+
+const VacationsAdmin: React.FC = () =>
+  React.createElement(Vacations, { mode: "admin" });
 
 export const MODULES: Module[] = [
   {
@@ -102,5 +111,25 @@ export const MODULES: Module[] = [
     path: "/dashboard/cargue-archivos",
     bgColor: "#FFEDD5",
     hoverColor: "#EA580C",
+  },
+  {
+    id: 9,
+    name: "Vacaciones",
+    icon: Palmtree,
+    allowedRoles: [2],
+    component: VacationsPersonal,
+    path: "/dashboard/vacaciones",
+    bgColor: "#CFFAFE",
+    hoverColor: "#0891B2",
+  },
+  {
+    id: 10,
+    name: "Gestión de Vacaciones",
+    icon: ClipboardList,
+    allowedRoles: [6, 7, 8, 11],
+    component: VacationsAdmin,
+    path: "/dashboard/gestion-vacaciones",
+    bgColor: "#FEF3C7",
+    hoverColor: "#D97706",
   },
 ];

@@ -122,7 +122,7 @@ Actividad que **reinicia** el contador (antes del modal): mouse (mover o clic), 
 
 El interceptor solo pone el header estático `api: VITE_APP_API_KEY`. El resto de módulos **no** envían `Authorization: Bearer`.
 
-**Excepción — Cargue de archivos:** `validar` y `confirmar` sí mandan `Authorization: Bearer {access_token}` (el JWT del login). Sin eso la API responde `401` `AUTENTICACION_REQUERIDA`. No adjuntes Bearer al resto de peticiones sin confirmar con backend.
+**Excepción — Cargue de archivos y Vacaciones:** `validar` / `confirmar` y todo `api/vacaciones/*` mandan `Authorization: Bearer {access_token}` (el JWT del login). Sin eso la API responde `401`. No adjuntes Bearer al resto de peticiones sin confirmar con backend.
 
 ### Endpoints auth
 
@@ -166,6 +166,8 @@ Esta es la **fuente de verdad** de paths, roles y componentes del menú.
 | 6 | Administración | `/dashboard/administracion` | 6,8,11,13 | `Administration` |
 | 7 | Citas | `/dashboard/citas` | 4,5,8,11 | `Appointments` |
 | 8 | Cargue de archivos | `/dashboard/cargue-archivos` | 8,11 | `FileUpload` |
+| 9 | Vacaciones | `/dashboard/vacaciones` | 2 | `Vacations` con `mode="personal"` |
+| 10 | Gestión de Vacaciones | `/dashboard/gestion-vacaciones` | 6,7,8,11 | `Vacations` con `mode="admin"` |
 
 Helpers de permisos: `utils/permissions.ts` → `filterModulesByRole`, `hasPermission`, `getModuleByPath`, `hasIngenieroAccess` (Ingeniero **o** Subgerencia administrativa).
 
@@ -237,6 +239,8 @@ Algunos thunks **retornan datos sin guardar en el store** (el componente los usa
 
 Casi todos los thunks usan el slice `helpers` para loading/toast. El componente `Toast` lee ese slice y se auto-cierra a los 6s.
 
+El spinner de lista y el overlay del cuadro pasan por `useDelayedLoading` (`LOADING_SHOW_DELAY_MS` = 300). Solo se pintan si `helpers.loading` sigue en true pasado ese tiempo. Los botones se deshabilitan al instante. Una respuesta rápida actualiza la tabla sin velo.
+
 ---
 
 ## Capa HTTP
@@ -307,6 +311,21 @@ Base: `{VITE_APP_BACK_ESE}`. Timeout de estas llamadas: 180 s (`FILE_UPLOAD_VALI
 | Cargar | POST JSON | `api/pacientes-activos/cargas/{carga_id}/confirmar` | `{ token_confirmacion, confirmar_reemplazo: true }` |
 
 Si cambian archivo u origen, se limpia la validación y Cargar vuelve a deshabilitarse.
+
+### Vacaciones — `services/vacations/vacations.service.ts`
+
+Base `{VITE_APP_BACK_ESE}`. Todas las llamadas llevan `Authorization: Bearer {access_token}`. Lista en estado local (no hay slice). Resolver es **PATCH** `/api/vacaciones/{id}/resolver` (el backend no expone POST).
+
+| Función | Método | Path |
+|---|---|---|
+| `getOptions` | GET | `api/vacaciones/opciones` |
+| `getVacations` | GET | `api/vacaciones` (`page` / `page_size`, máx. 100) |
+| `getVacation` | GET | `api/vacaciones/{id}` |
+| `createVacation` | POST | `api/vacaciones` |
+| `resolveVacation` | PATCH | `api/vacaciones/{id}/resolver` |
+| `getAlerts` | GET | `api/vacaciones/alertas` |
+
+Personal de salud (rol 2) solo ve las suyas (`id_usuario` del perfil) y crea con `id_municipio` / `id_tipo_personal_salud` del usuario. Gestión (roles 6, 7, 8 y 11) lista, filtra, aprueba/rechaza si `opciones.puede_resolver`. Quien ya tiene municipio no ve ese filtro: la consulta y las alertas van con su `id_municipio`. Las alertas se piden todas (`page_size` 100, páginas siguientes) y se muestran en un modal. El rechazo exige observación. El filtro de usuario usa `POST auth/usuarios/search` (sin Bearer) cuando ya hay municipio y tipo. El listado trae `nombre_usuario` del solicitante y solo `id_resuelto_por` de quien resolvió: la columna y el detalle pintan `Usuario #{id}` (`vacations.detail.resolvedById`). No hay nombre del resolutor en el contrato.
 
 ### Appointments (Citas) — `services/appointments/appointments.service.ts`
 
@@ -407,15 +426,15 @@ Cuando el toggle **Novedades** está activo se pintan dos filas por persona:
 | Fila | Comportamiento |
 |---|---|
 | `TIPO DE ATENCION *` | Select de sigla. Obligatoria: sin sigla no se envía nada y la fila de horas queda deshabilitada. |
-| `HORAS NOVEDADES` | Input **digitado a mano** (estado `noveltyHoursByCell`). **Admite negativos** para restar horas del total. No se calcula desde `horas` del tipo de atención. |
+| `HORAS NOVEDADES` | Input **digitado a mano** (estado `noveltyHoursByCell`). **Admite decimales con coma y negativos** para restar horas del total (hasta 2 decimales, como `NUMERIC(12,2)`). No se calcula desde `horas` del tipo de atención. |
 
-- Las horas se sanean con `sanitizeSignedInt` (solo dígitos y un `-` inicial) y se parsean con `parseSignedInt` (vacío → `0`).
+- Las horas se sanean con `sanitizeSignedDecimal` (coma o punto, hasta 2 decimales, un `-` inicial) y se parsean con `parseSignedDecimal` (vacío o incompleto → `0`). Al mostrar, `formatSignedDecimal` usa coma (`0,5`, `-0,25`). Al guardar se envía el número ya redondeado.
 - `submitNovelty` centraliza el envío a `editScheduleDay`: lo llaman el cambio de sigla y el blur de horas.
 - **No existe fila de “Justificación Novedades”** en el cuadro. El campo `justificacion` sigue en el backend y se **reenvía tal cual** desde `submitNovelty` para no borrar lo guardado.
 - En **Visualización Turnos**, el toggle de novedades se muestra (cualquier mes). Las celdas son solo lectura **excepto** el **mes anterior** durante los primeros `PREVIOUS_MONTH_EDIT_GRACE_DAYS` días del mes en curso (hoy = 5): en esa ventana **todos** los días del mes anterior son editables (el mes anterior no aparece en opciones-editables).
 - En **Editar Turnos y Novedades**, el toggle de novedades solo aparece para el mes calendario actual. Se pueden editar los días desde el 1 hasta la fecha actual (`day <= todayDay`); los días posteriores se muestran en modo lectura. Para meses futuros el toggle no se renderiza y `showNovedades` se fuerza a `false`.
 - `canEditNoveltyDay` / `canShowNoveltyToggle` centralizan esas reglas. Los handlers también lo validan antes de modificar estado o llamar al backend.
-- La fila `TOTAL HORAS` usa las horas digitadas cuando `canEditNoveltyDay(day)` es verdadero (por eso los negativos restan); en días de solo lectura usa las horas del backend.
+- La fila `TOTAL HORAS` usa las horas digitadas cuando `canEditNoveltyDay(day)` es verdadero (por eso los negativos y los decimales entran al total); en días de solo lectura usa las horas del backend. El total se muestra con coma.
 
 #### Total pacientes atendidos
 
@@ -471,6 +490,15 @@ Tabs: `roles` | `usuarios` | `tiposAtencion` | `tiposPersonal`.
 
 Validación de derechos (ASMET / NUEVA EPS). Flujo Validar → Cargar. Roles 8 y 11. RFAST oculto.
 
+### Vacations (`components/Vacations/Vacations.tsx`)
+
+Dos módulos, un componente (`mode`):
+
+- **Vacaciones** (rol 2): listado propio, detalle y alta. Municipio y tipo salen del perfil, no se eligen.
+- **Gestión de Vacaciones** (roles 6, 7, 8, 11): listado con filtros, detalle, aprobar/rechazar solo si está `PENDIENTE` y `puede_resolver`. Si el usuario tiene municipio, ese filtro no se muestra y el listado queda en ese municipio. Las alertas no son una pestaña: al entrar, si el endpoint trae alguna, se abre un modal con todas; un botón de campana con el conteo vuelve a abrirlo. **Resuelto por** muestra `Usuario #{id_resuelto_por}`: la API no envía el nombre.
+
+Estados: `PENDIENTE`, `APROBADA`, `RECHAZADA`. Niveles de alerta: `SIN_PERSONAL`, `SIN_ALERTA`, `ADVERTENCIA`, `ALTO`.
+
 ### UsersConfig (`components/UsersConfig/UsersConfig.tsx`)
 
 Flujo en 2 pasos:
@@ -497,13 +525,13 @@ Datos de solo lectura + cambio de contraseña (checklist de validación en vivo)
 | Componente | Uso |
 |---|---|
 | `MainLayout` | Header (si hay user y no es login) + `OfflineBanner` + children + `Toast` + modal de inactividad (`useSessionTimeout`) |
-| `Header` | Logo → dashboard, dropdown Perfil / Salir |
+| `Header` | Logo → dashboard, dropdown Perfil / Salir. Bajo el nombre: tipo de personal de salud si el perfil lo tiene (`fetchAccountLabels`); si no, el rol. Si tiene municipio, va en la misma línea (`Auxiliar enfermeria · Argelia`) |
 | `Breadcrumb` | `components/Common/breadcrumb/`; en rutas hijas del dashboard (`Inicio › módulo`). Clic en Inicio limpia schedule y vuelve a `/dashboard` |
 | `DataTable` | Tabla genérica tipada. Acciones: `onAdd` / `onEdit` / `onDelete` / `onViewContract`. Labels opcionales: `editLabel`, `deleteLabel`. Visibilidad por fila: `canEdit` / `canDelete` (si ninguna fila tiene acción, la columna Acciones se oculta). Layout: `fill` (default, ancho 100%) o `fit` (ancho al contenido) |
 | `Pagination` | `components/Common/pagination/`; página + `perPage` + total |
 | `ConfirmDialog` | Modal genérico; `description` acepta `ReactNode` (formularios embebidos) |
 | `Toast` | Lee slice `helpers`; auto-cierre 6s |
-| `LoadingSpinner` | Spinner sin props |
+| `LoadingSpinner` | Spinner sin props. En listas y en el cuadro se muestra con `useDelayedLoading` (300 ms) |
 | `NormalButton` | Botón compartido |
 
 Estilos: styled-components + theme (`constants/theme.tsx`). Props transient con prefijo `$` (`$active`, `$sticky`, etc.). Fuentes Poppins vía `@font-face` en `GlobalStyled.tsx`.
@@ -572,7 +600,7 @@ Al **quitar** UI, borra también su clave en `es.json`: no dejes texto muerto. V
 - No meter `fetch`/`axios` directo en componentes; pasar por services.
 - No usar emojis en comentarios ni en nombres de variables. Los únicos glifos permitidos son los que el usuario ve en pantalla (p. ej. el `⚠` de contrato vencido en `FormUserContracts.tsx`).
 - No dejar claves huérfanas en `es.json` tras eliminar UI.
-- No derivar las horas de novedad desde el tipo de atención: las digita el usuario y pueden ser negativas.
+- No derivar las horas de novedad desde el tipo de atención: las digita el usuario, con coma y hasta 2 decimales, y pueden ser negativas. No recortarlas a entero.
 - No permitir editar la **duración** de una cita: se calcula por categoría (GENERAL 15, GESTANTE 45, CRONICO 30).
 - No mostrar categoría **GESTANTE** si el sexo del paciente no es femenino.
 - No permitir editar **novedades** ni **total pacientes** del mes actual desde Visualización Turnos (eso va en Editar Turnos, días ≤ hoy). Excepción: en Visualización sí se edita el **mes anterior** durante los primeros `PREVIOUS_MONTH_EDIT_GRACE_DAYS` días del mes en curso (no viene en opciones-editables). Pacientes además requieren rol Coordinador/Diligenciador/Ingeniero.
@@ -595,6 +623,7 @@ Al **quitar** UI, borra también su clave en `es.json`: no dejes texto muerto. V
 | Nuevo tab de administración | `Administration.tsx` + form en `forms/` + service/actions |
 | Citas (agenda / cancelar / reprogramar) | `Appointments.tsx` + forms + `appointmentsActions.ts` + `appointments.service.ts` + `interfaces/appointments.ts` + `constants/appointments.constants.ts` |
 | Cargue de archivos (ASMET / NUEVA EPS) | `FileUpload.tsx` + `fileUploadActions.ts` + `fileUpload.service.ts` + `constants/fileUpload.constants.ts` |
+| Vacaciones | `Vacations.tsx` + `vacationsActions.ts` + `vacations.service.ts` + `interfaces/vacations.ts` + `constants/vacations.constants.ts` |
 | Tiempo / modal de sesión | `constants/session.constants.ts` + `helpers/sessionActivity.ts` + `hooks/useSessionTimeout.ts` + `MainLayout.tsx` + `es.json` (`session.*`) |
 | Búsqueda de médicos para citas | `administration.service.ts` (`searchUsers`) + `administrationActions.searchUsers` + `Appointments.tsx` |
 | Estilos / colores | `constants/theme.tsx` + `*Styles.tsx` de la feature |
@@ -604,7 +633,7 @@ Al **quitar** UI, borra también su clave en `es.json`: no dejes texto muerto. V
 
 ## Quirks conocidos (no “arreglar” de paso)
 
-1. Token no va en headers salvo Cargue de archivos (`Authorization: Bearer`); el resto solo header `api` (y `VITE_APP_API_KEY` no está en los `.env`).
+1. Token no va en headers salvo Cargue de archivos y Vacaciones (`Authorization: Bearer`); el resto solo header `api` (y `VITE_APP_API_KEY` no está en los `.env`).
 2. Path tipográfico `vizualizacion-turnos`.
 3. `ScheduleManagement` y `UnsatisfiedDemand` son placeholders; el segundo tiene `allowedRoles: []`.
 4. Dos catálogos de roles: `Roles` vs `RolesDatabase`.

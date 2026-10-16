@@ -1,6 +1,8 @@
 # cuadro-turnos
 
-Sistema de gestión de turnos para la entidad de salud ESE Suroccidente. Incluye módulos para administración de roles, reportes, programación de turnos y almacenamiento de medicamentos.
+Sistema de gestión de turnos para la E.S.E. Suroccidente. Módulos activos: visualización y edición de turnos, reportes PDF, administración de catálogos y usuarios, permisos especiales, citas, cargue de archivos (ASMET / NUEVA EPS) y vacaciones (solicitud del personal de salud y gestión de aprobación).
+
+La guía para cambiar código está en `AGENTS.md`. El comportamiento de cara al usuario está en `docs/briefing-manual-usuario-para-agente.md`.
 
 ## Sesión
 

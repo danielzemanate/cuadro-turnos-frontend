@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import { useDelayedLoading } from "../../../hooks/useDelayedLoading";
 import { getDayAbbreviation } from "../../../helpers/ScheduleHelper";
 import LoadingSpinner from "../../Shared/LoadingSpinner/LoadingSpinner";
 import {
@@ -67,6 +68,7 @@ export const SiauTypesTable: React.FC<{
   onBlurCell,
   ceDoctorsByDay = {},
 }) => {
+  const showLoading = useDelayedLoading(loading);
   // Obtiene el valor “actual” de una celda: si puede editar toma input, si no persisted
   const getValue = (tipoId: number, day: number): number => {
     const key = `${tipoId}-${day}`;
@@ -147,7 +149,7 @@ export const SiauTypesTable: React.FC<{
 
   return (
     <TableContainer>
-      {loading && (
+      {showLoading && (
         <LoadingOverlay>
           <LoadingSpinner />
         </LoadingOverlay>
