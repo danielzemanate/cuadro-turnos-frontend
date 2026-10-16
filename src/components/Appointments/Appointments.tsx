@@ -26,6 +26,7 @@ import { IUserListItem } from "../../interfaces/administration";
 import { Column, DataTable } from "../Common/table/DataTable";
 import Pagination from "../Common/pagination/Pagination";
 import LoadingSpinner from "../Shared/LoadingSpinner/LoadingSpinner";
+import { useDelayedLoading } from "../../hooks/useDelayedLoading";
 import ConfirmDialog from "../Common/confirmDialog/ConfirmDialog";
 import FormAppointment from "./forms/FormAppointment";
 import FormRescheduleAppointment from "./forms/FormRescheduleAppointment";
@@ -85,6 +86,7 @@ const Appointments: React.FC = () => {
   const { t } = useTranslation();
   const dispatchThunk = useAppDispatchThunk();
   const { loading } = useSelector((state: AppState) => state.helpers);
+  const showLoading = useDelayedLoading(loading);
   const municipios =
     useSelector((state: AppState) => state.administration?.municipios) ?? [];
 
@@ -339,7 +341,7 @@ const Appointments: React.FC = () => {
   if (viewMode === "create" && appliedFilters.id_municipio) {
     return (
       <AppointmentsCard>
-        {loading && <LoadingSpinner />}
+        {showLoading && <LoadingSpinner />}
         <FormAppointment
           idMunicipio={Number(appliedFilters.id_municipio)}
           municipioNombre={municipioNombre}
@@ -355,7 +357,7 @@ const Appointments: React.FC = () => {
   if (viewMode === "reschedule" && editingAppointment) {
     return (
       <AppointmentsCard>
-        {loading && <LoadingSpinner />}
+        {showLoading && <LoadingSpinner />}
         <FormRescheduleAppointment
           appointment={editingAppointment}
           doctors={doctors}
@@ -372,7 +374,7 @@ const Appointments: React.FC = () => {
 
   return (
     <AppointmentsCard>
-      {loading && <LoadingSpinner />}
+      {showLoading && <LoadingSpinner />}
 
       <FiltersRow>
         <FilterGroup>

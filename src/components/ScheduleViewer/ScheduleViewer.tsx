@@ -71,6 +71,7 @@ import {
   addUnmetDemand,
 } from "../../redux/actions/scheduleActions";
 import { useAppDispatchThunk } from "../../hooks/storeHooks";
+import { useDelayedLoading } from "../../hooks/useDelayedLoading";
 import {
   getDayAbbreviation,
   daysInMonth,
@@ -78,7 +79,10 @@ import {
   createDayBuckets,
   isValidFormState,
   formatPersonName,
+  formatSignedDecimal,
   getNoveltyJustifications,
+  parseSignedDecimal,
+  sanitizeSignedDecimal,
   sumNoveltyHours,
   sortPeriodos,
   findPeriodo,
@@ -126,18 +130,6 @@ interface FetchDataAddUnmetDemandResponse {
   data: IDataAddUnmetDemand[];
 }
 
-// Deja solo dígitos y un signo negativo al inicio (las horas de novedad pueden restar)
-const sanitizeSignedInt = (raw: string): string => {
-  const cleaned = raw.replace(/[^\d-]/g, "");
-  const digits = cleaned.replace(/-/g, "");
-  return cleaned.startsWith("-") ? `-${digits}` : digits;
-};
-
-const parseSignedInt = (raw: string | undefined): number => {
-  const parsed = parseInt(raw ?? "", 10);
-  return Number.isNaN(parsed) ? 0 : parsed;
-};
-
 const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
   editable = false,
 }) => {
@@ -145,6 +137,7 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
   const dispatchThunk = useAppDispatchThunk();
 
   const { loading } = useSelector((state: AppState) => state.helpers);
+  const showLoading = useDelayedLoading(loading);
   const { userData } = useSelector((state: AppState) => state.user);
   const { options, monthData, attentionTypes, siauTypes } = useSelector(
     (state: AppState) => state.schedule,
@@ -309,7 +302,7 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
     {},
   );
 
-  // --- Novedades: horas digitadas por celda (admiten negativos) ---
+  // --- Novedades: horas digitadas por celda (decimales con coma y negativos) ---
   const [noveltyHoursByCell, setNoveltyHoursByCell] = useState<
     Record<string, string>
   >({});
@@ -474,7 +467,9 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
         // Novedad (solo una novedad por día y guarda tipo_atencion)
         const nov = (buckets[d]?.novedades || [])[0];
         nextNovelty[key] = nov?.tipo_atencion || "";
-        nextNoveltyHours[key] = nov ? String(nov.horas ?? 0) : "";
+        nextNoveltyHours[key] = nov
+          ? formatSignedDecimal(Number(nov.horas ?? 0))
+          : "";
       });
     });
 
@@ -707,7 +702,7 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
     }
   }, [dispatchThunk, intervalForm, pendingIntervalEdit]);
 
-  // ===== NOVEDADES: sigla obligatoria; las horas se digitan (admiten negativos) =====
+  // ===== NOVEDADES: sigla obligatoria; las horas se digitan (coma y negativos) =====
   const submitNovelty = useCallback(
     (person: PersonalDeSalud, day: number, sigla: string, horas: number) => {
       if (!canEditNoveltyDay(day)) return;
@@ -746,8 +741,11 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
       // Sigla obligatoria: si la limpian, solo bloqueamos edición (no enviamos)
       if (!newSigla) return;
 
-      const horas = parseSignedInt(noveltyHoursByCell[key]);
-      setNoveltyHoursByCell((prev) => ({ ...prev, [key]: String(horas) }));
+      const horas = parseSignedDecimal(noveltyHoursByCell[key]);
+      setNoveltyHoursByCell((prev) => ({
+        ...prev,
+        [key]: formatSignedDecimal(horas),
+      }));
       submitNovelty(person, day, newSigla, horas);
     },
     [canEditNoveltyDay, noveltyHoursByCell, submitNovelty],
@@ -760,7 +758,7 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
       const key = `${userId}-${day}`;
       setNoveltyHoursByCell((prev) => ({
         ...prev,
-        [key]: sanitizeSignedInt(value),
+        [key]: sanitizeSignedDecimal(value),
       }));
     },
     [canEditNoveltyDay],
@@ -774,8 +772,11 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
       const sigla = noveltyByCell[key];
       if (!sigla) return;
 
-      const horas = parseSignedInt(noveltyHoursByCell[key]);
-      setNoveltyHoursByCell((prev) => ({ ...prev, [key]: String(horas) }));
+      const horas = parseSignedDecimal(noveltyHoursByCell[key]);
+      setNoveltyHoursByCell((prev) => ({
+        ...prev,
+        [key]: formatSignedDecimal(horas),
+      }));
       submitNovelty(person, day, sigla, horas);
     },
     [canEditNoveltyDay, noveltyByCell, noveltyHoursByCell, submitNovelty],
@@ -1134,7 +1135,7 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
                 })}
               </NoveltyDataRow>
 
-              {/* === HORAS NOVEDADES (digitadas, admiten negativos) === */}
+              {/* === HORAS NOVEDADES (digitadas: coma y negativos) === */}
               <NoveltyDataRow $hours>
                 <StaffNameCell>
                   {t("scheduleViewer.hoursUpdates").toUpperCase()}
@@ -1155,7 +1156,8 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
                       {canEditDay ? (
                         <InputField
                           type="text"
-                          inputMode="numeric"
+                          inputMode="decimal"
+                          $decimal
                           value={noveltyHoursByCell[key] ?? ""}
                           disabled={!canEditCell}
                           placeholder={!canEditCell ? "Seleccione sigla" : ""}
@@ -1173,7 +1175,7 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
                           )}`}
                         />
                       ) : (
-                        backendHoras
+                        formatSignedDecimal(backendHoras)
                       )}
                     </DataCell>
                   );
@@ -1226,7 +1228,7 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
               (buckets[day]?.novedades || [])[0]?.tipo_atencion ??
               "";
             const typedNoveltyHours = noveltySigla
-              ? parseSignedInt(noveltyHoursByCell[key])
+              ? parseSignedDecimal(noveltyHoursByCell[key])
               : 0;
             const backendNoveltyHours = showNovedades
               ? Number(
@@ -1246,7 +1248,7 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
 
           return (
             <DataCell key={`total-${day}`} $center>
-              {totalHours}
+              {formatSignedDecimal(totalHours)}
             </DataCell>
           );
         })}
@@ -1353,7 +1355,7 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
                 disabled={loading || !isFormValid}
                 aria-busy={loading}
               >
-                {loading ? (
+                {showLoading ? (
                   <LoadingSpinner />
                 ) : (
                   (t("scheduleViewer.select")?.toUpperCase() ?? "CONSULTAR")
@@ -1425,7 +1427,9 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
           {!hasScheduleData ? (
             <EmptyState>
               {loading ? (
-                <LoadingSpinner />
+                showLoading ? (
+                  <LoadingSpinner />
+                ) : null
               ) : (
                 <>
                   <EmptyStateTitle>
@@ -1501,7 +1505,7 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
               )}
 
               <TableContainer>
-                {loading && (
+                {showLoading && (
                   <LoadingOverlay>
                     <LoadingSpinner />
                   </LoadingOverlay>

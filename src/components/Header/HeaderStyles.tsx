@@ -134,9 +134,9 @@ export const UserRole = styled.span`
   font-size: 0.8125rem;
   color: #6b7280;
   font-weight: 400;
-  white-space: nowrap;
+  white-space: normal;
   overflow: hidden;
-  text-overflow: ellipsis;
+  max-width: 260px;
 
   @media screen and (max-width: ${BreakpointsUx.tabletMedium}) {
     font-size: 0.75rem;

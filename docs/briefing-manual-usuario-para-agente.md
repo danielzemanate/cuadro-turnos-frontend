@@ -22,8 +22,8 @@
 4. Omite detalles técnicos (APIs, Redux, TypeScript). Si algo es limitación conocida, descríbela en lenguaje de usuario.
 5. Marca como **módulo no disponible / placeholder** lo que tenga `allowedRoles: []`.
 6. Cuando un comportamiento dependa del **rol** y del **mes calendario**, explícalo con ejemplos de fecha (“si hoy es 3 de octubre…”).
-7. Puedes basarte también en `docs/formulas-siau-explicacion.md` para el anexo de fórmulas SIAU (ya existe un texto “para dummies”). El contenido completo está copiado en la **sección 18.6** de este briefing.
-8. Usa la **sección 18** (detalles funcionales exactos) como fuente de verdad para validaciones, textos de UI, semáforo, catálogos SIAU/reportes, formularios y mensajes de error.
+7. Puedes basarte también en `docs/formulas-siau-explicacion.md` para el anexo de fórmulas SIAU (ya existe un texto “para dummies”). El contenido completo está copiado en la **sección 20.6** de este briefing.
+8. Usa la **sección 20** (detalles funcionales exactos) como fuente de verdad para validaciones, textos de UI, semáforo, catálogos SIAU/reportes, formularios y mensajes de error.
 
 ---
 
@@ -40,6 +40,8 @@ Aplicación web institucional para la **E.S.E. Suroccidente** que permite:
 - Administrar **catálogos** (roles, usuarios, tipos de atención, tipos de personal) y **contratos**.
 - Otorgar **permisos especiales** de edición a coordinadores.
 - Gestionar **citas** (agenda, crear, cancelar, reprogramar) contra un backend de citas aparte.
+- Cargar archivos de derechos (ASMET / NUEVA EPS).
+- Solicitar **vacaciones** (personal de salud) y aprobarlas o rechazarlas (gestión).
 
 La UI es una sola página (SPA). Tras iniciar sesión se llega al **Dashboard** con tarjetas de módulos según el rol.
 
@@ -55,11 +57,14 @@ La UI es una sola página (SPA). Tras iniciar sesión se llega al **Dashboard** 
 
 ### 2.2 Sesión
 - La sesión se mantiene al refrescar el navegador (datos de usuario persistidos).
+- Tras **10 minutos** sin mouse, clic, teclado, scroll o touch, aparece un modal: permanecer o cerrar sesión. Si no hay respuesta en **60 segundos**, cierra sola.
+- Si se cierra la pestaña y se vuelve después de **10 horas**, la sesión se cierra al reabrir.
 - **Salir** desde el menú del header limpia la sesión y vuelve al login.
 
 ### 2.3 Header (cuando hay sesión)
 - Logo → vuelve al Dashboard.
-- Saludo / menú: **Perfil**, **Salir**.
+- Saludo: **Hola {NOMBRE}**. Debajo, el **tipo de personal de salud** (auxiliar, médico, etc.). Si el perfil no tiene tipo, se muestra el **rol**. Si tiene municipio, va en la misma línea (`Auxiliar enfermeria · Argelia`).
+- Menú **Configuración**: **Perfil** y **Salir**.
 
 ### 2.4 Perfil (`/dashboard/profile`)
 - Datos de solo lectura: nombre, correo, celular, rol, activo, si es personal de salud.
@@ -83,7 +88,7 @@ La UI es una sola página (SPA). Tras iniciar sesión se llega al **Dashboard** 
 | 5 | SIAU |
 | 6 | Administrador |
 | 7 | Gerencia |
-| 8 | Subgerencia Administrativa *(sin módulo en menú actual)* |
+| 8 | Subgerencia Administrativa *(mismos módulos de menú que Ingeniero)* |
 | 9 | Seguridad Paciente *(sin módulo en menú actual)* |
 | 10 | Líder de Proyectos |
 | 11 | Ingeniero |
@@ -98,31 +103,35 @@ La UI es una sola página (SPA). Tras iniciar sesión se llega al **Dashboard** 
 
 | Módulo | Ruta (referencia) | Roles que lo ven |
 |---|---|---|
-| Visualización Turnos | `/dashboard/vizualizacion-turnos` | 1, 2, 3, 4, 5, 6, 7, 10, 11, 12 |
-| Editar Turnos y Novedades | `/dashboard/gestion-turnos` | 1, 6, 11 |
-| Generar Reporte | `/dashboard/reportes` | 1, 6, 7, 10, 11, 13 |
+| Visualización Turnos | `/dashboard/vizualizacion-turnos` | 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12 |
+| Editar Turnos y Novedades | `/dashboard/gestion-turnos` | 1, 6, 8, 11 |
+| Generar Reporte | `/dashboard/reportes` | 1, 6, 7, 8, 10, 11, 13 |
 | Registrar Demanda Insatisfecha | `/dashboard/demanda-insatisfecha` | **Nadie** (`allowedRoles: []`) — placeholder, no usar en el manual como funcional |
-| Configuración de Usuarios | `/dashboard/configuracion-usuarios` | 6, 11 |
-| Administración | `/dashboard/administracion` | 6, 11, 13 |
-| Citas | `/dashboard/citas` | 4, 5, 11 |
+| Configuración de Usuarios | `/dashboard/configuracion-usuarios` | 6, 8, 11 |
+| Administración | `/dashboard/administracion` | 6, 8, 11, 13 |
+| Citas | `/dashboard/citas` | 4, 5, 8, 11 |
+| Cargue de archivos | `/dashboard/cargue-archivos` | 8, 11 |
+| Vacaciones | `/dashboard/vacaciones` | 2 |
+| Gestión de Vacaciones | `/dashboard/gestion-vacaciones` | 6, 7, 8, 11 |
 
 ### 4.1 Cobertura aproximada por rol (módulos activos)
 
-| Rol | Visualización | Editar turnos | Reportes | Config. usuarios | Administración | Citas |
-|---|---|---|---|---|---|---|
-| Coordinador (1) | Sí | Sí | Sí | No | No | No |
-| Personal Salud (2) | Sí | No | No | No | No | No |
-| Diligenciador (3) | Sí | No | No | No | No | No |
-| Coordinador SIAU (4) | Sí | No | No | No | No | Sí |
-| SIAU (5) | Sí | No | No | No | No | Sí |
-| Administrador (6) | Sí | Sí | Sí | Sí | Sí | No |
-| Gerencia (7) | Sí | No | Sí | No | No | No |
-| Líder Proyectos (10) | Sí | No | Sí | No | No | No |
-| Ingeniero (11) | Sí | Sí | Sí | Sí | Sí | Sí |
-| Talento Humano (12) | Sí | No | No | No | No | No |
-| Costos (13) | No | No | Sí | No | Sí (limitado) | No |
+| Rol | Visualización | Editar turnos | Reportes | Config. usuarios | Administración | Citas | Cargue | Vacaciones propias | Gestión vacaciones |
+|---|---|---|---|---|---|---|---|---|---|
+| Coordinador (1) | Sí | Sí | Sí | No | No | No | No | No | No |
+| Personal Salud (2) | Sí | No | No | No | No | No | No | Sí | No |
+| Diligenciador (3) | Sí | No | No | No | No | No | No | No | No |
+| Coordinador SIAU (4) | Sí | No | No | No | No | Sí | No | No | No |
+| SIAU (5) | Sí | No | No | No | No | Sí | No | No | No |
+| Administrador (6) | Sí | Sí | Sí | Sí | Sí | No | No | No | Sí |
+| Gerencia (7) | Sí | No | Sí | No | No | No | No | No | Sí |
+| Subgerencia administrativa (8) | Sí | Sí | Sí | Sí | Sí | Sí | Sí | No | Sí |
+| Líder Proyectos (10) | Sí | No | Sí | No | No | No | No | No | No |
+| Ingeniero (11) | Sí | Sí | Sí | Sí | Sí | Sí | Sí | No | Sí |
+| Talento Humano (12) | Sí | No | No | No | No | No | No | No | No |
+| Costos (13) | No | No | Sí | No | Sí (limitado) | No | No | No | No |
 
-**Ingeniero** = acceso más amplio. **Administrador** = casi todo salvo Citas.
+**Subgerencia administrativa** ve los mismos módulos que **Ingeniero**. **Seguridad Paciente (9)** entra, pero el dashboard no le muestra tarjetas.
 
 ---
 
@@ -133,13 +142,13 @@ Estas reglas aplican dentro de Visualización / Editar Turnos:
 | Capacidad | Quién | Dónde |
 |---|---|---|
 | Forzar municipio al del usuario | Coordinador (1), Personal Salud (2) | Ambos módulos de cuadro |
-| Editar turnos (siglas) | Quien entra a Editar Turnos | Solo **meses futuros** |
+| Editar turnos (siglas) | Quien entra a Editar Turnos | Meses **futuros**; el **mes en curso** los días 1 a 10; o un mes con **permiso especial** vigente |
 | Editar novedades (mes actual, días ≤ hoy) | Quien entra a Editar Turnos | Editar Turnos |
 | Editar novedades del **mes anterior** (ventana de gracia) | Quien puede editar novedades; **no** Personal Salud | Visualización, solo días 1–5 del mes en curso |
 | Ver toggle novedades / pacientes | Casi todos en Visualización; Personal Salud **ve pero no edita** | Visualización |
-| Editar total pacientes | Coordinador (1), Diligenciador (3), Ingeniero (11) | Según reglas de mes (abajo) |
-| Ver / editar tabla SIAU | Ver: no Personal Salud + tipo Médico; Editar: Coordinador SIAU, SIAU, Ingeniero | Solo Visualización + tipo Médico |
-| Personal de apoyo | Administrador (6), Ingeniero (11) | Solo Editar Turnos |
+| Editar total pacientes | Coordinador (1), Diligenciador (3), Ingeniero (11) o Subgerencia (8) | Según reglas de mes (abajo) |
+| Ver / editar tabla SIAU | Ver: no Personal Salud + tipo Médico; Editar: Coordinador SIAU, SIAU, Ingeniero o Subgerencia | Solo Visualización + tipo Médico |
+| Personal de apoyo | Administrador (6), Ingeniero (11) o Subgerencia (8) | Solo Editar Turnos |
 | Descargar PDF del cuadro | Visualización (si hay datos) | Visualización |
 
 Constante de gracia: **`PREVIOUS_MONTH_EDIT_GRACE_DAYS = 5`**.
@@ -189,14 +198,14 @@ Si Coordinador o Personal Salud: el **municipio queda fijado** al del usuario (n
 
 ## 7. Módulo: Editar Turnos y Novedades
 
-Roles: Coordinador, Administrador, Ingeniero.
+Roles: Coordinador, Administrador, Subgerencia administrativa, Ingeniero.
 
 Misma pantalla base que Visualización, pero con `editable=true`.
 
 ### 7.1 Edición de turnos (fila de siglas)
-- Solo si el mes seleccionado es **posterior** al mes calendario actual.
-- Mes actual y anteriores: turnos en solo lectura + aviso de que para el mes en curso se usan **novedades**.
-- Al llegar el 1.° del mes que antes era futuro, ese mes deja de ser editable automáticamente.
+- Editable si el mes es **posterior** al actual, si es el **mes en curso** y hoy es día **1 a 10**, o si ese año/mes tiene un **permiso especial** vigente.
+- Fuera de eso: turnos en solo lectura y un aviso. Las novedades del mes en curso siguen otra regla.
+- Al pasar el día 10, el mes en curso deja de editarse en la fila de turnos, salvo permiso especial.
 
 ### 7.2 Modal de intervalo CE (solo Médico + sigla CE)
 - Al elegir **CE** en celda normal (no novedad) → modal de horarios **antes** de guardar.
@@ -213,7 +222,7 @@ Misma pantalla base que Visualización, pero con `editable=true`.
 - Meses futuros: no se muestra toggle de novedades.
 - Filas:
   - **Tipo de atención** (sigla obligatoria).
-  - **Horas novedades** digitadas a mano; **pueden ser negativas** (restan del total).
+  - **Horas novedades** digitadas a mano. Aceptan **coma** y hasta **2 decimales** (`0,5`) y **negativos** (`-0,25`, restan del total). El punto también se acepta y se muestra como coma. Un entero se ve sin coma (`8`).
 - No hay fila de justificación en pantalla (el sistema reenvía la justificación ya guardada para no borrarla).
 
 ### 7.4 Total pacientes (en Editar Turnos)
@@ -221,7 +230,7 @@ Misma pantalla base que Visualización, pero con `editable=true`.
 - Edición: días ≤ hoy, y solo roles Coordinador / Diligenciador / Ingeniero.
 - Persistencia al salir de la celda (blur).
 
-### 7.5 Personal de apoyo (solo Admin / Ingeniero en este módulo)
+### 7.5 Personal de apoyo (Administrador, Subgerencia administrativa o Ingeniero)
 Pestañas:
 1. **Agregar personal asistencial**
    - ¿Es apoyo? Sí/No
@@ -253,7 +262,7 @@ Al guardar con éxito se recarga el mes.
 
 ### 9.1 Quién
 - **Ver toggle/tabla:** cualquier rol con Visualización excepto Personal Salud, y solo con filtro tipo **Médico**.
-- **Editar celdas de entrada:** Coordinador SIAU, SIAU, Ingeniero.
+- **Editar celdas de entrada:** Coordinador SIAU, SIAU, Ingeniero o Subgerencia administrativa.
 
 ### 9.2 Filas digitadas
 Catálogo del backend (nombres pueden variar). Se oculta en UI el tipo id 1 “Solicitudes C.E. atendidas” (se guarda pero no se muestra ni entra a fórmulas).
@@ -331,7 +340,7 @@ Patrón UX: tablas con agregar/editar/eliminar + diálogos de confirmación + to
 
 ## 12. Módulo: Configuración de Usuarios (permisos especiales)
 
-Roles: Administrador, Ingeniero.
+Roles: Administrador, Subgerencia administrativa, Ingeniero.
 
 Flujo en 2 pasos:
 1. Elegir **coordinador aprobador**.
@@ -343,7 +352,7 @@ Sirve para autorizar edición especial sobre un cuadro hasta cierta fecha.
 
 ## 13. Módulo: Citas
 
-Roles: Coordinador SIAU, SIAU, Ingeniero.
+Roles: Coordinador SIAU, SIAU, Subgerencia administrativa, Ingeniero.
 
 ### 13.1 Listado / filtros
 - Municipio **obligatorio** para consultar.
@@ -373,9 +382,50 @@ Roles: Coordinador SIAU, SIAU, Ingeniero.
 - Nuevo médico / fecha / hora inicio + motivo + actor WEB.
 - Toast: “Cita reprogramada correctamente”.
 
+### 13.7 Duración y categoría
+- La duración no se edita: GENERAL 15 min, GESTANTE 45 min, CRÓNICO 30 min.
+- La categoría GESTANTE solo aparece si el sexo del paciente es femenino.
+
 ---
 
-## 14. Tipos de personal de salud (catálogo)
+## 14. Módulo: Cargue de archivos
+
+Roles: Subgerencia administrativa e Ingeniero.
+
+Solo validación de derechos **ASMET** y **NUEVA EPS**. RFAST no se muestra.
+
+1. Elegir origen y subir el CSV.
+2. **Validar**. Se habilita al haber archivo.
+3. Si la validación es válida y no hay errores bloqueantes, se habilita **Cargar**.
+4. Si se cambia el archivo o el origen, hay que validar de nuevo.
+
+---
+
+## 15. Módulo: Vacaciones
+
+### 15.1 Vacaciones (Personal de salud)
+
+- Ve solo sus solicitudes, el detalle y el alta.
+- Municipio y tipo de personal salen del perfil; no se eligen.
+- Alta: fecha de inicio, fecha de fin y observación. El rango no puede pasar de 366 días.
+- No aprueba ni rechaza.
+
+### 15.2 Gestión de Vacaciones
+
+Roles: Administrador, Gerencia, Subgerencia administrativa, Ingeniero.
+
+- Filtros: municipio, tipo de personal, usuario, estado, desde y hasta.
+- Si el usuario ya tiene municipio, ese filtro no aparece y el listado queda en su municipio.
+- El filtro de usuario se habilita al elegir municipio y tipo.
+- Estados: Pendiente, Aprobada, Rechazada.
+- Aprobar o rechazar solo si está pendiente y el perfil puede resolver. El rechazo exige observación.
+- **Resuelto por** muestra `Usuario #` y el id. La consulta no trae el nombre de quien resolvió.
+- Al entrar, si hay alertas de disponibilidad, se abre un modal con todas. La campana (con el conteo) vuelve a abrirlo. No es un módulo aparte.
+- Niveles: sin personal, sin alerta, advertencia, alto.
+
+---
+
+## 16. Tipos de personal de salud (catálogo)
 
 IDs de referencia del seed:
 
@@ -389,16 +439,17 @@ IDs de referencia del seed:
 | 6 | Psicología |
 | 7 | Fonoaudiología |
 | 8 | Fisioterapia |
+| 9 | Especialista |
 
 SIAU solo aplica cuando el filtro es **Médico**.
 
 ---
 
-## 15. Glosario (para el manual)
+## 17. Glosario (para el manual)
 
 - **Cuadro de turnos:** grilla mes × profesionales × días con siglas de tipo de atención y horas.
 - **Sigla / tipo de atención:** código corto del turno del día (ej. CE = consulta externa).
-- **Novedad:** ajuste sobre el día (otra sigla y/o horas), independiente del turno base; horas pueden ser negativas.
+- **Novedad:** ajuste sobre el día (otra sigla y/o horas), independiente del turno base; horas con coma (hasta 2 decimales) y pueden ser negativas.
 - **Personal de apoyo:** persona adicional en el cuadro, marcada como apoyo.
 - **Ventana de gracia:** primeros 5 días del mes actual para corregir el mes anterior desde Visualización.
 - **SIAU:** indicadores de demanda/oferta de consulta externa derivados del cuadro y de datos digitados.
@@ -406,21 +457,23 @@ SIAU solo aplica cuando el filtro es **Médico**.
 
 ---
 
-## 16. Limitaciones / mensajes que el manual debe anticipar
+## 18. Limitaciones / mensajes que el manual debe anticipar
 
 - El módulo **Registrar Demanda Insatisfecha** no está habilitado para ningún rol.
 - Sin cuadro para los filtros → pantalla vacía informativa, no error.
-- En Editar Turnos, el mes actual no deja cambiar la fila de turnos: hay que usar novedades.
+- En Editar Turnos, la fila de turnos del mes en curso solo se cambia del día 1 al 10, o con permiso especial. Después de eso se usan novedades.
 - Modal CE exige exactamente 8 h en intervalos consecutivos válidos.
 - Personal Salud no edita novedades/pacientes ni ve SIAU.
 - Costos en Administración solo consulta contratos.
 - Citas: sede se escribe a mano; municipio de alta viene del filtro.
 - Tras cambiar contraseña en perfil, hay que volver a iniciar sesión.
 - Idioma: solo español.
+- En Gestión de Vacaciones, **Resuelto por** muestra `Usuario #` y el número. La consulta no incluye el nombre.
+- Un filtro que responde enseguida actualiza la tabla sin mostrar el indicador de carga. Si tarda más de un instante, el indicador sí aparece.
 
 ---
 
-## 17. Entregable esperado del agente Pro
+## 19. Entregable esperado del agente Pro
 
 Producir un documento Markdown (o DOCX/PDF si el flujo lo permite) titulado por ejemplo:
 
@@ -444,6 +497,8 @@ Incluyendo:
    - Administración de usuarios/roles/contratos
    - Permisos especiales
    - Citas (filtrar, crear, cancelar, reprogramar)
+   - Cargue de archivos (validar y cargar ASMET / NUEVA EPS)
+   - Vacaciones del personal de salud y gestión (aprobar, rechazar, alertas)
 6. Anexo: fórmulas SIAU (puede incorporar/adaptar `docs/formulas-siau-explicacion.md`).
 7. FAQ.
 
@@ -451,13 +506,13 @@ Incluyendo:
 
 ---
 
-## 18. Detalles funcionales exactos (complemento revisado en código)
+## 20. Detalles funcionales exactos (complemento revisado en código)
 
 Fuente: frontend actual + seed SQL del backend (`cuadro-turnos-back/migrations/002_Inicial.sql`). Textos entre comillas = literales de `es.json` o placeholders hardcodeados en UI.
 
 ---
 
-### 18.1 Validación de contraseña (login, reset, perfil)
+### 20.1 Validación de contraseña (login, reset, perfil)
 
 #### A) Login (`/` — formulario principal)
 
@@ -508,7 +563,7 @@ El botón de aceptar del formulario de perfil solo se habilita si **todas** las 
 
 ---
 
-### 18.2 Modal “Restablecer contraseña” (estructura y textos exactos)
+### 20.2 Modal “Restablecer contraseña” (estructura y textos exactos)
 
 Se abre con el enlace bajo el login: **`Restablecer contraseña`**.
 
@@ -526,30 +581,35 @@ Usa el componente de diálogo de confirmación con este contenido:
 
 ---
 
-### 18.3 Dashboard: tarjetas, orden y roles 8 / 9
+### 20.3 Dashboard: tarjetas, orden y roles 8 / 9
 
 Las tarjetas salen del catálogo de módulos **en este orden fijo**. Solo se muestran las cuyo rol del usuario está en `allowedRoles`.
 
 | Orden | Nombre exacto de la tarjeta | Roles que la ven (IDs) |
 |---:|---|---|
-| 1 | Visualización Turnos | 1, 2, 3, 4, 5, 6, 7, 10, 11, 12 |
-| 2 | Editar Turnos y Novedades | 1, 6, 11 |
-| 3 | Generar Reporte | 1, 6, 7, 10, 11, 13 |
+| 1 | Visualización Turnos | 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12 |
+| 2 | Editar Turnos y Novedades | 1, 6, 8, 11 |
+| 3 | Generar Reporte | 1, 6, 7, 8, 10, 11, 13 |
 | 4 | Registrar Demanda Insatisfecha | *(ninguno — `allowedRoles: []`; nunca aparece)* |
-| 5 | Configuración de Usuarios | 6, 11 |
-| 6 | Administración | 6, 11, 13 |
-| 7 | Citas | 4, 5, 11 |
+| 5 | Configuración de Usuarios | 6, 8, 11 |
+| 6 | Administración | 6, 8, 11, 13 |
+| 7 | Citas | 4, 5, 8, 11 |
+| 8 | Cargue de archivos | 8, 11 |
+| 9 | Vacaciones | 2 |
+| 10 | Gestión de Vacaciones | 6, 7, 8, 11 |
 
-**Roles 8 y 9** (Subgerencia Administrativa = 8, Seguridad Paciente = 9):
+**Rol 8** (Subgerencia administrativa) ve las mismas tarjetas que Ingeniero (11).
 
-- Pueden iniciar sesión si tienen credenciales válidas.
-- En el Dashboard **no ven ninguna tarjeta de módulo** (lista vacía).
-- Siguen viendo el encabezado (logo, menú de perfil / salir) y pueden ir a **Perfil**.
-- Cualquier ruta de módulo protegida los redirige de vuelta al Dashboard.
+**Rol 9** (Seguridad Paciente):
+
+- Puede iniciar sesión si tiene credenciales válidas.
+- En el Dashboard **no ve ninguna tarjeta de módulo** (lista vacía).
+- Sigue viendo el encabezado y puede ir a **Perfil**.
+- Cualquier ruta de módulo protegida lo redirige al Dashboard.
 
 ---
 
-### 18.4 Semáforo — Total de pacientes atendidos
+### 20.4 Semáforo — Total de pacientes atendidos
 
 Cálculo base: jornada de **480 minutos** (8 h).  
 `minutos por paciente (mpp) = 480 ÷ cantidad_pacientes`.
@@ -569,7 +629,7 @@ El color se aplica al borde/input de la celda editable de total pacientes.
 
 ---
 
-### 18.5 Catálogo SIAU digitado (seed oficial)
+### 20.5 Catálogo SIAU digitado (seed oficial)
 
 Orden de inserción en BD = **id** 1…8. La API `GET api/reportes/tipos-siau` devuelve estos nombres (ordenados por nombre en respuesta, pero el id es estable).
 
@@ -584,11 +644,11 @@ Orden de inserción en BD = **id** 1…8. La API `GET api/reportes/tipos-siau` d
 | 7 | N° DE PACIENTES MEDICINA GENERAL | Sí | Sí — total turnos × 1 |
 | 8 | N° DE PEYDT | Sí | Sí — total turnos × 2 |
 
-**Filas calculadas (no digitables):** ver sección 18.6 / `docs/formulas-siau-explicacion.md`.
+**Filas calculadas (no digitables):** ver sección 20.6 / `docs/formulas-siau-explicacion.md`.
 
 ---
 
-### 18.6 Contenido completo de `docs/formulas-siau-explicacion.md`
+### 20.6 Contenido completo de `docs/formulas-siau-explicacion.md`
 
 > Archivo restaurado también en disco. A continuación va **tal cual** (sin omitir secciones).
 
@@ -738,7 +798,7 @@ Si no:
 
 --- FIN ARCHIVO formulas-siau-explicacion.md ---
 
-### 18.7 Generar Reporte — tipos/subtipos y filtros
+### 20.7 Generar Reporte — tipos/subtipos y filtros
 
 #### Catálogo seed (nombres exactos)
 
@@ -797,7 +857,7 @@ Con el seed actual, **“Pacientes atendidos y SIAU”** coincide por contener `
 
 ---
 
-### 18.8 Citas → Crear cita: campos, listas y errores
+### 20.8 Citas → Crear cita: campos, listas y errores
 
 Título del formulario: **`Nueva cita`**.
 
@@ -828,7 +888,7 @@ Botones: `Cancelar` · `Crear`.
 
 ---
 
-### 18.9 Mensajes de error (y éxito) en acciones principales
+### 20.9 Mensajes de error (y éxito) en acciones principales
 
 Salvo donde se indique otro, el **error genérico de toast** es siempre:
 
@@ -858,4 +918,4 @@ Salvo donde se indique otro, el **error genérico de toast** es siempre:
 
 ---
 
-*Briefing generado desde el comportamiento real del frontend `cuadro-turnos-frontend` (configuración de módulos, roles y reglas de ScheduleViewer / Administración / Citas / SIAU), complementado con el seed SQL del backend para nombres oficiales de SIAU y reportes.*
+*Briefing alineado al frontend actual: módulos, roles, cuadro (turnos hasta el día 10, novedades con coma), citas, cargue de archivos, vacaciones y encabezado. Nombres de SIAU y reportes según el seed SQL del backend.*

@@ -22,6 +22,14 @@ const api = {
     return await apiFacade.put<T>(url, data, config);
   },
 
+  patch: async <T>(
+    url: string,
+    data: object,
+    config?: axios.AxiosRequestConfig,
+  ) => {
+    return await apiFacade.patch<T>(url, data, config);
+  },
+
   delete: async <T>(url: string, config?: axios.AxiosRequestConfig) => {
     return await apiFacade.delete<T>(url, config);
   },

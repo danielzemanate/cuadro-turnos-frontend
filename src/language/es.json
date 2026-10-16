@@ -503,5 +503,102 @@
         "hint": "Usuarios para verificación de datos"
       }
     }
+  },
+  "vacations": {
+    "personal": {
+      "listTitle": "Mis solicitudes"
+    },
+    "admin": {
+      "listTitle": "Solicitudes de vacaciones"
+    },
+    "context": {
+      "missing": "Tu perfil no tiene municipio o tipo de personal de salud. No es posible registrar la solicitud hasta completar esos datos."
+    },
+    "filters": {
+      "municipality": "Municipio",
+      "staffType": "Tipo de personal",
+      "user": "Usuario",
+      "userHint": "El filtro de usuario se habilita al elegir municipio y tipo de personal.",
+      "userHintLocked": "El filtro de usuario se habilita al elegir el tipo de personal.",
+      "status": "Estado",
+      "dateFrom": "Desde",
+      "dateTo": "Hasta"
+    },
+    "columns": {
+      "user": "Usuario",
+      "municipality": "Municipio",
+      "staffType": "Tipo de personal",
+      "start": "Fecha inicio",
+      "end": "Fecha fin",
+      "days": "Días",
+      "status": "Estado",
+      "observation": "Observación",
+      "createdAt": "Fecha de solicitud",
+      "resolvedAt": "Fecha de resolución",
+      "resolvedBy": "Resuelto por"
+    },
+    "status": {
+      "PENDIENTE": "Pendiente",
+      "APROBADA": "Aprobada",
+      "RECHAZADA": "Rechazada"
+    },
+    "level": {
+      "SIN_PERSONAL": "Sin personal",
+      "SIN_ALERTA": "Sin alerta",
+      "ADVERTENCIA": "Advertencia",
+      "ALTO": "Alto"
+    },
+    "actions": {
+      "view": "Ver detalle",
+      "new": "Nueva solicitud",
+      "submit": "Registrar",
+      "approve": "Aprobar",
+      "reject": "Rechazar",
+      "close": "Cerrar"
+    },
+    "empty": "No hay solicitudes para los filtros actuales.",
+    "create": {
+      "title": "Nueva solicitud de vacaciones",
+      "start": "Fecha de inicio",
+      "end": "Fecha de finalización",
+      "observation": "Observación",
+      "success": "Solicitud de vacaciones registrada"
+    },
+    "detail": {
+      "title": "Solicitud #{{id}}",
+      "resolutionNote": "Observación de resolución",
+      "updatedAt": "Actualizada",
+      "resolvedById": "Usuario #{{id}}"
+    },
+    "resolve": {
+      "approveTitle": "Aprobar solicitud",
+      "rejectTitle": "Rechazar solicitud",
+      "approveHint": "Puedes dejar una observación. La solicitud aprobada no se puede volver a resolver.",
+      "rejectHint": "El rechazo requiere un motivo. La solicitud rechazada no se puede volver a resolver.",
+      "note": "Observación de resolución",
+      "approved": "Solicitud aprobada",
+      "rejected": "Solicitud rechazada"
+    },
+    "alerts": {
+      "title": "Alertas de disponibilidad ({{count}})",
+      "open": "Ver {{count}} alertas de disponibilidad",
+      "empty": "No hay alertas de concentración de vacaciones.",
+      "range": "Rango",
+      "totalStaff": "Total de personal",
+      "maxAbsent": "Máximo ausente",
+      "maxPercent": "Porcentaje máximo",
+      "peakDate": "Fecha de mayor riesgo",
+      "criticalDays": "Días críticos",
+      "noCriticalDays": "Sin días críticos en el rango.",
+      "involved": "Solicitudes involucradas",
+      "noRequests": "Ninguna solicitud involucrada."
+    },
+    "errors": {
+      "datesRequired": "La fecha de inicio y la fecha de fin son obligatorias.",
+      "endBeforeStart": "La fecha fin no puede ser anterior a la fecha de inicio.",
+      "maxDays": "El rango debe tener entre 1 y {{days}} días.",
+      "observationLength": "La observación no puede superar {{max}} caracteres.",
+      "rejectionRequired": "El rechazo requiere un motivo."
+    }
   }
 }

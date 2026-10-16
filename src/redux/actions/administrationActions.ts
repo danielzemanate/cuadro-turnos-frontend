@@ -23,6 +23,34 @@ import {
 } from "../../interfaces/administration";
 import { IUserRegister } from "../../interfaces/signIn";
 
+export const fetchAccountLabels = (
+  tipoId: number | null,
+  municipioId: number | null,
+): ThunkResult<Promise<{ tipoNombre: string; municipioNombre: string }>> => {
+  return async () => {
+    const empty = { tipoNombre: "", municipioNombre: "" };
+    try {
+      const [tiposRes, municipiosRes] = await Promise.all([
+        AdministrationService.fetchConfigPersonalTypes(),
+        AdministrationService.fetchMunicipios(),
+      ]);
+      const tipos = Array.isArray(tiposRes.data)
+        ? (tiposRes.data as IPersonalType[])
+        : [];
+      const municipios = Array.isArray(municipiosRes.data)
+        ? (municipiosRes.data as IMunicipio[])
+        : [];
+      return {
+        tipoNombre: tipos.find((item) => item.id === tipoId)?.nombre ?? "",
+        municipioNombre:
+          municipios.find((item) => item.id === municipioId)?.nombre ?? "",
+      };
+    } catch {
+      return empty;
+    }
+  };
+};
+
 /**
  * ROLES
  */

@@ -56,6 +56,7 @@ import {
 import { Column, DataTable } from "../Common/table/DataTable";
 import ConfirmDialog from "../Common/confirmDialog/ConfirmDialog";
 import LoadingSpinner from "../Shared/LoadingSpinner/LoadingSpinner";
+import { useDelayedLoading } from "../../hooks/useDelayedLoading";
 
 import FormRole from "./forms/roles/FormRole";
 import FormAttentionTypes from "./forms/attention-types/FormAttentionTypes";
@@ -98,6 +99,7 @@ const Administration: React.FC = () => {
 
   const dispatchThunk = useAppDispatchThunk();
   const { loading } = useSelector((s: AppState) => s.helpers);
+  const showLoading = useDelayedLoading(loading);
 
   const rolesFromStore =
     useSelector((s: AppState) => s.administration.roles) ?? [];
@@ -762,7 +764,7 @@ const Administration: React.FC = () => {
           aria-labelledby={`tab-${active}`}
           tabIndex={0}
         >
-          {loading && <LoadingSpinner />}
+          {showLoading && <LoadingSpinner />}
 
           {/* ------------------------------- ROLES ------------------------------- */}
           {active === "roles" && (
