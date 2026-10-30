@@ -395,7 +395,7 @@ Componente monolítico (~1360 líneas) que sirve **vista y edición**:
 - Roles `COORDINADOR` / `PERSONAL_SALUD`: municipio forzado al del usuario.
 - Rol **PERSONAL_SALUD (2)** en Visualización: ve toggles de novedades y total pacientes **solo lectura** (no edita); **no** ve tipos de SIAU.
 - Flags de capacidad (calculados por rol):
-  - `canManagePatients`: COORDINADOR (1), DILIGENCIADOR (3) o `hasIngenieroAccess` (11 u 8)
+  - `canManagePatients`: COORDINADOR (1), DILIGENCIADOR (3) o `hasIngenieroAccess` (11 u 8). En Visualización el diligenciador edita meses pasados y el mes en curso hasta hoy (`canEditPatientsDay`); los demás roles de este flag solo el mes anterior en la ventana de gracia
   - `canManageSiau`: COORDINADOR_SIAU (4), SIAU (5) o `hasIngenieroAccess` — solo en modo viewer
   - Personal de apoyo: ADMINISTRADOR (6) o `hasIngenieroAccess`, solo en modo editable
   - Toggle y tabla SIAU: solo si el tipo de personal seleccionado es **Médico** (`PersonalTypesDatabase.MEDICO` = 1) y el rol del usuario **no** es PERSONAL_SALUD
@@ -443,14 +443,14 @@ Visible en **Visualización Turnos** y en **Editar Turnos y Novedades**.
 | Concern | Visualización (`editable=false`) | Editar Turnos (`editable=true`) |
 |---|---|---|
 | Mostrar toggle | Siempre (`canShowPatientsToggle`) | Solo mes calendario actual; en otros meses se oculta y `showPacientes` se fuerza a `false` |
-| Editar celda | Solo mes anterior si hoy ≤ `PREVIOUS_MONTH_EDIT_GRACE_DAYS` (5): todos los días. Resto: solo lectura | Mes actual: `day <= todayDay`. Otros meses: no |
-| Quién edita | Además del día, rol `canManagePatients`: COORDINADOR (1), DILIGENCIADOR (3) o Ingeniero/Subgerencia (11/8) | Igual: rol `canManagePatients` |
+| Editar celda | Coordinador e Ingeniero/Subgerencia: solo mes anterior si hoy ≤ `PREVIOUS_MONTH_EDIT_GRACE_DAYS` (5), todos los días. Diligenciador (3): cualquier mes pasado (todos los días) y el mes en curso con `day <= todayDay`. Mes futuro: solo lectura | Mes actual: `day <= todayDay`. Otros meses: no |
+| Quién edita | Además del día, rol `canManagePatients`: COORDINADOR (1), DILIGENCIADOR (3) o Ingeniero/Subgerencia (11/8). La ventana amplia (meses pasados + mes en curso hasta hoy) es solo del diligenciador, porque no tiene el módulo de edición | Igual: rol `canManagePatients` |
 
 - Fila: una por persona con label `scheduleViewer.totalPatientsTreated`; input numérico (semáforo vía `PatientsColor`) solo si `canManagePatients && canEditPatientsDay(day)`; si no, texto del valor guardado.
 - Persistencia: blur → `addPatients` (`POST api/reportes/registro-pacientes`). Carga al abrir toggle: `fetchTotalPatientsByMonth`.
 - Los handlers `handlePatientsChange` / `handlePatientsBlur` hacen early-return si `!canEditPatientsDay(day)`.
 
-Igual que novedades: en Visualización el mes anterior es editable en la ventana de gracia; el resto es solo lectura.
+En Visualización, coordinador e ingeniero/subgerencia editan pacientes del mes anterior solo en la ventana de gracia. El diligenciador edita cualquier mes pasado completo y el mes en curso hasta hoy; los días posteriores a hoy y los meses futuros quedan en solo lectura. Las novedades siguen en la gracia de 5 días.
 
 #### Tabla SIAU (`siau/SiauTypesTable.tsx`)
 
@@ -603,7 +603,7 @@ Al **quitar** UI, borra también su clave en `es.json`: no dejes texto muerto. V
 - No derivar las horas de novedad desde el tipo de atención: las digita el usuario, con coma y hasta 2 decimales, y pueden ser negativas. No recortarlas a entero.
 - No permitir editar la **duración** de una cita: se calcula por categoría (GENERAL 15, GESTANTE 45, CRONICO 30).
 - No mostrar categoría **GESTANTE** si el sexo del paciente no es femenino.
-- No permitir editar **novedades** ni **total pacientes** del mes actual desde Visualización Turnos (eso va en Editar Turnos, días ≤ hoy). Excepción: en Visualización sí se edita el **mes anterior** durante los primeros `PREVIOUS_MONTH_EDIT_GRACE_DAYS` días del mes en curso (no viene en opciones-editables). Pacientes además requieren rol Coordinador/Diligenciador/Ingeniero.
+- No permitir editar **novedades** del mes actual desde Visualización Turnos (eso va en Editar Turnos, días ≤ hoy). En Visualización el **mes anterior** sí se edita durante los primeros `PREVIOUS_MONTH_EDIT_GRACE_DAYS` días del mes en curso (no viene en opciones-editables). **Total pacientes** del mes actual tampoco se edita desde Visualización, salvo el diligenciador (rol 3), que no tiene el módulo de edición: en Visualización edita meses pasados completos y el mes en curso hasta hoy. Pacientes además requieren rol Coordinador, Diligenciador o Ingeniero/Subgerencia.
 - No cargar médicos de citas con `GET usuarios-detalle`; usar `POST auth/usuarios/search` con `id_tipo_personal_salud: 1` y el municipio del filtro/cita.
 - No crear archivos markdown extra salvo que te lo pidan.
 - No commitear `.env` con secretos; no tocar git config.

@@ -163,6 +163,8 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
 
   // Personal Salud (médico): ve novedades/pacientes en solo lectura; no ve SIAU
   const isPersonalSaludRole = roleIdNum === RolesDatabase.PERSONAL_SALUD;
+  // Registra el total de pacientes desde Visualización.
+  const isDiligenciadorRole = roleIdNum === RolesDatabase.DILIGENCIADOR;
 
   const canManagePatients = useMemo(() => {
     return (
@@ -207,6 +209,8 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
   // Mes calendario anterior (incluye cambio de año: enero → diciembre del año previo).
   // El mes anterior no viene en opciones-editables: su edición de novedades/pacientes
   // se hace en Visualización, solo durante la ventana de gracia del mes en curso.
+  // Excepción de pacientes: el diligenciador edita cualquier mes pasado y el mes
+  // en curso hasta hoy (canEditPatientsDay).
   const previousMonth = todayMonth === 1 ? 12 : todayMonth - 1;
   const previousYear = todayMonth === 1 ? todayYear - 1 : todayYear;
   const isPreviousSelectedMonth =
@@ -261,6 +265,8 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
   );
 
   // Total pacientes: mismas reglas de visibilidad; Personal Salud solo lectura.
+  // En Visualización el diligenciador edita meses pasados (todos los días) y el
+  // mes en curso hasta hoy. El resto de roles sigue en la ventana de gracia.
   const canShowPatientsToggle = !editable || isCurrentSelectedMonth;
 
   const canEditPatientsDay = useCallback(
@@ -269,11 +275,20 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
       if (editable) {
         return isCurrentSelectedMonth && day <= todayDay;
       }
+      if (isDiligenciadorRole) {
+        if (selectedMonthValue === null) return false;
+        if (selectedMonthValue < currentMonthValue) return true;
+        if (isCurrentSelectedMonth) return day <= todayDay;
+        return false;
+      }
       return canEditPreviousMonthInViewer;
     },
     [
       isPersonalSaludRole,
       editable,
+      isDiligenciadorRole,
+      selectedMonthValue,
+      currentMonthValue,
       isCurrentSelectedMonth,
       canEditPreviousMonthInViewer,
       todayDay,
