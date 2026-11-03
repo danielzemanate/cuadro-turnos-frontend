@@ -488,8 +488,9 @@ export const TableContainer = styled.div`
 `;
 
 export const DataTable = styled.table`
-  width: 100%;
-  min-width: 800px;
+  width: max-content;
+  margin-left: auto;
+  margin-right: auto;
   border-collapse: separate;
   border-spacing: 0;
   background: ${theme.colors.white};
@@ -497,11 +498,6 @@ export const DataTable = styled.table`
 
   ${media.md} {
     font-size: ${theme.fontSizes.xs};
-    min-width: 700px;
-  }
-
-  ${media.sm} {
-    min-width: 600px;
   }
 `;
 
@@ -516,7 +512,7 @@ export const TableHead = styled.thead``;
 
 export const TableBody = styled.tbody``;
 
-export const HeaderCell = styled.th<{ $sticky?: boolean }>`
+export const HeaderCell = styled.th<{ $sticky?: boolean; $summary?: boolean }>`
   background: ${theme.colors.tableHeader};
   color: ${theme.colors.textPrimary};
   font-weight: ${theme.fontWeights.extrabold};
@@ -576,9 +572,29 @@ export const HeaderCell = styled.th<{ $sticky?: boolean }>`
         max-width: 160px;
       `}
   }
+
+  ${(props) =>
+    props.$summary &&
+    css`
+      min-width: 96px;
+      max-width: 128px;
+      white-space: normal;
+      line-height: 1.2;
+      background: ${theme.colors.totalBgDark};
+
+      ${media.md} {
+        min-width: 84px;
+        max-width: 110px;
+      }
+
+      ${media.sm} {
+        min-width: 76px;
+        max-width: 100px;
+      }
+    `}
 `;
 
-export const DataCell = styled.td<{ $center?: boolean }>`
+export const DataCell = styled.td<{ $center?: boolean; $summary?: boolean }>`
   padding: ${theme.spacing.sm} ${theme.spacing.xs};
   border-bottom: 1px solid ${theme.colors.tableBorder};
   text-align: ${(props) => (props.$center ? "center" : "left")};
@@ -599,6 +615,26 @@ export const DataCell = styled.td<{ $center?: boolean }>`
     min-width: 40px;
     max-width: 55px;
   }
+
+  ${(props) =>
+    props.$summary &&
+    css`
+      min-width: 72px;
+      max-width: 110px;
+      font-weight: ${theme.fontWeights.bold};
+      background: ${theme.colors.totalBg};
+      border-left: 1px solid ${theme.colors.tableBorder};
+
+      ${media.md} {
+        min-width: 64px;
+        max-width: 96px;
+      }
+
+      ${media.sm} {
+        min-width: 58px;
+        max-width: 88px;
+      }
+    `}
 `;
 
 export const StaffNameCell = styled.td`

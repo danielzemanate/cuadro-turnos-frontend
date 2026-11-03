@@ -86,6 +86,7 @@ import {
   sumNoveltyHours,
   sortPeriodos,
   findPeriodo,
+  schedulePdfFilename,
 } from "../../helpers/ScheduleHelper";
 import { IDownloadSchedule } from "../../interfaces/utils";
 import { fetchDownloadSchedule } from "../../redux/actions/utilsActions";
@@ -128,6 +129,48 @@ interface FetchPatientsResponse {
 
 interface FetchDataAddUnmetDemandResponse {
   data: IDataAddUnmetDemand[];
+}
+
+type DayHourSplit = {
+  programmed: number;
+  novelty: number;
+};
+
+type PersonHourTotals = DayHourSplit & {
+  total: number;
+  byDay: Record<number, DayHourSplit>;
+};
+
+type ScheduleHourTotals = {
+  byPerson: Record<number, PersonHourTotals>;
+  byDay: Record<number, DayHourSplit & { total: number }>;
+  programmed: number;
+  novelty: number;
+  total: number;
+};
+
+const EMPTY_SUMMARY: Array<number | null> = [null, null, null];
+
+function addHours(left: number, right: number): number {
+  return Math.round((left + right) * 100) / 100;
+}
+
+function SummaryCells({
+  cellKey,
+  values,
+}: {
+  cellKey: string;
+  values: Array<number | null>;
+}) {
+  return (
+    <>
+      {values.map((value, index) => (
+        <DataCell key={`${cellKey}-${index}`} $center $summary>
+          {value == null ? "" : formatSignedDecimal(value)}
+        </DataCell>
+      ))}
+    </>
+  );
 }
 
 const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
@@ -373,6 +416,88 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
     ],
     [monthData?.personal_de_salud, monthData?.personal_de_apoyo],
   );
+
+  const hourTotals = useMemo<ScheduleHourTotals>(() => {
+    const byPerson: ScheduleHourTotals["byPerson"] = {};
+    const byDay: ScheduleHourTotals["byDay"] = {};
+    days.forEach((day) => {
+      byDay[day] = { programmed: 0, novelty: 0, total: 0 };
+    });
+
+    let programmed = 0;
+    let novelty = 0;
+
+    allSchedulePeople.forEach((person) => {
+      const buckets = createDayBuckets(person.dias);
+      const personDays: Record<number, DayHourSplit> = {};
+      let personProgrammed = 0;
+      let personNovelty = 0;
+
+      days.forEach((day) => {
+        const key = `${person.id_usuario}-${day}`;
+        const selectedSigla = attentionByCell[key] || "";
+        const horasFromType =
+          attentionMapBySigla.get(selectedSigla)?.horas ?? 0;
+        const backendHoras = buckets[day]?.normal?.horas || 0;
+        const dayProgrammed = canEditTurnos ? horasFromType : backendHoras;
+
+        const noveltySigla =
+          noveltyByCell[key] ??
+          (buckets[day]?.novedades || [])[0]?.tipo_atencion ??
+          "";
+        const backendNoveltyHours = noveltySigla
+          ? Number(
+              (buckets[day]?.novedades || [])[0]?.horas ??
+                sumNoveltyHours(buckets[day]?.novedades || []),
+            ) || 0
+          : 0;
+        const dayNovelty = !noveltySigla
+          ? 0
+          : canEditNoveltyDay(day)
+            ? parseSignedDecimal(noveltyHoursByCell[key])
+            : backendNoveltyHours;
+
+        personDays[day] = {
+          programmed: dayProgrammed,
+          novelty: dayNovelty,
+        };
+        personProgrammed = addHours(personProgrammed, dayProgrammed);
+        personNovelty = addHours(personNovelty, dayNovelty);
+        byDay[day].programmed = addHours(byDay[day].programmed, dayProgrammed);
+        byDay[day].novelty = addHours(byDay[day].novelty, dayNovelty);
+        byDay[day].total = addHours(
+          byDay[day].total,
+          addHours(dayProgrammed, dayNovelty),
+        );
+      });
+
+      byPerson[person.id_usuario] = {
+        byDay: personDays,
+        programmed: personProgrammed,
+        novelty: personNovelty,
+        total: addHours(personProgrammed, personNovelty),
+      };
+      programmed = addHours(programmed, personProgrammed);
+      novelty = addHours(novelty, personNovelty);
+    });
+
+    return {
+      byPerson,
+      byDay,
+      programmed,
+      novelty,
+      total: addHours(programmed, novelty),
+    };
+  }, [
+    allSchedulePeople,
+    attentionByCell,
+    attentionMapBySigla,
+    canEditNoveltyDay,
+    canEditTurnos,
+    days,
+    noveltyByCell,
+    noveltyHoursByCell,
+  ]);
 
   const findSchedulePerson = useCallback(
     (idUsuario: number) =>
@@ -865,8 +990,27 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
       id_tipo_personal_salud: formState.selectedTipo!,
       id_municipio: municipioId,
     };
-    dispatchThunk(fetchDownloadSchedule(params));
-  }, [dispatchThunk, formState, isFormValid, forceMunicipio]);
+    dispatchThunk(
+      fetchDownloadSchedule(
+        params,
+        schedulePdfFilename(
+          monthData?.tipo_personal_salud ?? "",
+          monthData?.municipio ?? "",
+          formState.selectedPeriodo!.anio,
+          MONTHS[monthIndex0] ?? "",
+        ),
+      ),
+    );
+  }, [
+    dispatchThunk,
+    formState,
+    isFormValid,
+    forceMunicipio,
+    monthData?.tipo_personal_salud,
+    monthData?.municipio,
+    MONTHS,
+    monthIndex0,
+  ]);
 
   const refetchMonthAfterEdit = useCallback(() => {
     if (!isFormValid) return;
@@ -1007,6 +1151,10 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
               </DataCell>
             );
           })}
+          <SummaryCells
+            cellKey={`patients-sum-${person.id_usuario}`}
+            values={EMPTY_SUMMARY}
+          />
         </PatientsDataRow>
       );
     },
@@ -1026,6 +1174,7 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
   const renderPersonRows = useCallback(
     (person: PersonalDeSalud, isSupport = false) => {
       const dayBuckets = createDayBuckets(person.dias);
+      const personTotals = hourTotals.byPerson[person.id_usuario];
       const displayName = isSupport
         ? `${formatPersonName(person.nombre, person.apellidos)} (${t(
             "scheduleViewer.supportStaffBadge",
@@ -1083,6 +1232,14 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
                 </DataCell>
               );
             })}
+            <SummaryCells
+              cellKey={`name-sum-${person.id_usuario}`}
+              values={[
+                personTotals?.programmed ?? 0,
+                personTotals?.novelty ?? 0,
+                personTotals?.total ?? 0,
+              ]}
+            />
           </tr>
 
           <HoursDataRow>
@@ -1103,6 +1260,10 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
                 </DataCell>
               );
             })}
+            <SummaryCells
+              cellKey={`hours-sum-${person.id_usuario}`}
+              values={EMPTY_SUMMARY}
+            />
           </HoursDataRow>
 
           {showNovedades && (
@@ -1148,6 +1309,10 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
                     </DataCell>
                   );
                 })}
+                <SummaryCells
+                  cellKey={`nov-type-sum-${person.id_usuario}`}
+                  values={EMPTY_SUMMARY}
+                />
               </NoveltyDataRow>
 
               {/* === HORAS NOVEDADES (digitadas: coma y negativos) === */}
@@ -1195,6 +1360,10 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
                     </DataCell>
                   );
                 })}
+                <SummaryCells
+                  cellKey={`nov-hours-sum-${person.id_usuario}`}
+                  values={EMPTY_SUMMARY}
+                />
               </NoveltyDataRow>
             </>
           )}
@@ -1214,6 +1383,7 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
       handleNoveltyHoursBlur,
       handleNoveltyHoursChange,
       handleNoveltyTypeChange,
+      hourTotals.byPerson,
       noveltyByCell,
       noveltyHoursByCell,
       renderPatientsRow,
@@ -1222,66 +1392,45 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
     ],
   );
 
-  const renderTotalRow = useCallback(
-    () => (
-      <TotalDataRow>
-        <StaffNameCell>
-          {t("scheduleViewer.rowTotalHours").toUpperCase()}
-        </StaffNameCell>
-        {days.map((day) => {
-          const totalHours = allSchedulePeople.reduce((total, person) => {
-            const key = `${person.id_usuario}-${day}`;
-            const selectedSigla = attentionByCell[key] || "";
-            const horasFromType =
-              attentionMapBySigla.get(selectedSigla)?.horas ?? 0;
+  const renderTotalRows = useCallback(() => {
+    const rows: Array<{
+      key: string;
+      label: string;
+      dayValue: (_day: number) => number;
+      summary: Array<number | null>;
+    }> = [
+      {
+        key: "programmed",
+        label: t("scheduleViewer.totalProgramados"),
+        dayValue: (day) => hourTotals.byDay[day]?.programmed ?? 0,
+        summary: [hourTotals.programmed, null, null],
+      },
+      {
+        key: "novelty",
+        label: t("scheduleViewer.totalNovedades"),
+        dayValue: (day) => hourTotals.byDay[day]?.novelty ?? 0,
+        summary: [null, hourTotals.novelty, null],
+      },
+      {
+        key: "total",
+        label: t("scheduleViewer.total"),
+        dayValue: (day) => hourTotals.byDay[day]?.total ?? 0,
+        summary: [null, null, hourTotals.total],
+      },
+    ];
 
-            const buckets = createDayBuckets(person.dias);
-            const backendHoras = buckets[day]?.normal?.horas || 0;
-
-            const noveltySigla =
-              noveltyByCell[key] ??
-              (buckets[day]?.novedades || [])[0]?.tipo_atencion ??
-              "";
-            const typedNoveltyHours = noveltySigla
-              ? parseSignedDecimal(noveltyHoursByCell[key])
-              : 0;
-            const backendNoveltyHours = showNovedades
-              ? Number(
-                  (buckets[day]?.novedades || [])[0]?.horas ??
-                    sumNoveltyHours(buckets[day]?.novedades || []),
-                ) || 0
-              : 0;
-
-            const base = canEditTurnos ? horasFromType : backendHoras;
-            const novelty = showNovedades
-              ? canEditNoveltyDay(day)
-                ? typedNoveltyHours
-                : backendNoveltyHours
-              : 0;
-            return total + base + novelty;
-          }, 0);
-
-          return (
-            <DataCell key={`total-${day}`} $center>
-              {formatSignedDecimal(totalHours)}
-            </DataCell>
-          );
-        })}
+    return rows.map((row) => (
+      <TotalDataRow key={`total-row-${row.key}`}>
+        <StaffNameCell>{row.label.toUpperCase()}</StaffNameCell>
+        {days.map((day) => (
+          <DataCell key={`total-${row.key}-${day}`} $center>
+            {formatSignedDecimal(row.dayValue(day))}
+          </DataCell>
+        ))}
+        <SummaryCells cellKey={`total-sum-${row.key}`} values={row.summary} />
       </TotalDataRow>
-    ),
-    [
-      allSchedulePeople,
-      attentionByCell,
-      attentionMapBySigla,
-      canEditNoveltyDay,
-      canEditTurnos,
-      days,
-      noveltyByCell,
-      noveltyHoursByCell,
-      showNovedades,
-      t,
-    ],
-  );
+    ));
+  }, [days, hourTotals, t]);
 
   // ===== Main render =====
   if (!showTable) {
@@ -1538,6 +1687,15 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
                           </div>
                         </HeaderCell>
                       ))}
+                      <HeaderCell $summary>
+                        {t("scheduleViewer.totalProgramados").toUpperCase()}
+                      </HeaderCell>
+                      <HeaderCell $summary>
+                        {t("scheduleViewer.totalNovedades").toUpperCase()}
+                      </HeaderCell>
+                      <HeaderCell $summary>
+                        {t("scheduleViewer.total").toUpperCase()}
+                      </HeaderCell>
                     </tr>
                   </TableHead>
 
@@ -1547,6 +1705,10 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
                       {days.map((day) => (
                         <DataCell key={`m-${day}`} />
                       ))}
+                      <SummaryCells
+                        cellKey="month-sum"
+                        values={EMPTY_SUMMARY}
+                      />
                     </tr>
 
                     {(monthData?.personal_de_salud || []).map((person) =>
@@ -1556,7 +1718,7 @@ const ScheduleViewer: React.FC<ScheduleViewerProps> = ({
                       renderPersonRows(person, true),
                     )}
 
-                    {renderTotalRow()}
+                    {renderTotalRows()}
                   </TableBody>
                 </DataTable>
               </TableContainer>
