@@ -178,3 +178,21 @@ export const findPeriodo = <T extends { anio: number; mes: number }>(
 
   return null;
 };
+
+const scheduleFileSlug = (value: string): string => {
+  const plain = value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_|_$/g, "");
+  return plain || "sin_dato";
+};
+
+export const schedulePdfFilename = (
+  tipo: string,
+  municipio: string,
+  anio: number,
+  mesNombre: string,
+): string =>
+  `cuadro_turnos_${scheduleFileSlug(tipo)}_${scheduleFileSlug(mesNombre)}_${anio}_${scheduleFileSlug(municipio)}.pdf`;
