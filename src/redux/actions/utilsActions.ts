@@ -14,6 +14,7 @@ import { IDownloadSchedule } from "../../interfaces/utils";
  */
 export const fetchDownloadSchedule = (
   params: IDownloadSchedule,
+  filename?: string,
 ): ThunkResult<Promise<void>> => {
   return async (dispatch) => {
     dispatch(setLoading(true));
@@ -40,20 +41,20 @@ export const fetchDownloadSchedule = (
       const blob = new Blob([res.data], { type: contentType });
 
       // Intenta extraer el filename del header Content-Disposition
-      let filename = "cuadro-turnos.pdf";
+      let downloadName = filename || "cuadro-turnos.pdf";
       const dispo = res.headers["content-disposition"];
-      if (dispo) {
+      if (!filename && dispo) {
         const match = /filename\*?=(?:UTF-8'')?["']?([^"';]+)["']?/i.exec(
           dispo,
         );
-        if (match?.[1]) filename = decodeURIComponent(match[1]);
+        if (match?.[1]) downloadName = decodeURIComponent(match[1]);
       }
 
       // Descarga
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = filename;
+      a.download = downloadName;
       document.body.appendChild(a);
       a.click();
       a.remove();
