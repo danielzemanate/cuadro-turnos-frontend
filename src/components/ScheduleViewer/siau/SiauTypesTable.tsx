@@ -1,18 +1,20 @@
 import React, { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { useDelayedLoading } from "../../../hooks/useDelayedLoading";
 import { getDayAbbreviation } from "../../../helpers/ScheduleHelper";
 import LoadingSpinner from "../../Shared/LoadingSpinner/LoadingSpinner";
 import {
-  DataCell,
   DataTable,
   HeaderCell,
   LoadingOverlay,
-  StaffNameCell,
   TableBody,
-  TableContainer,
   TableHead,
-  InputField,
+  SiauTableContainer,
+  SiauHeaderCell,
   SiauNameCell,
+  SiauNameText,
+  SiauValueCell,
+  SiauInputField,
   SiauCalculatedRow,
   SiauCalculatedNameCell,
   SiauCalculatedCell,
@@ -68,6 +70,7 @@ export const SiauTypesTable: React.FC<{
   onBlurCell,
   ceDoctorsByDay = {},
 }) => {
+  const { t } = useTranslation();
   const showLoading = useDelayedLoading(loading);
   // Obtiene el valor “actual” de una celda: si puede editar toma input, si no persisted
   const getValue = (tipoId: number, day: number): number => {
@@ -77,7 +80,8 @@ export const SiauTypesTable: React.FC<{
   };
 
   const visibleSiauTypes = useMemo(
-    () => (siauTypes || []).filter((t) => !HIDDEN_SIAU_IDS.includes(t.id)),
+    () =>
+      (siauTypes || []).filter((tipo) => !HIDDEN_SIAU_IDS.includes(tipo.id)),
     [siauTypes],
   );
 
@@ -138,7 +142,9 @@ export const SiauTypesTable: React.FC<{
     getCell: (_day: number) => React.ReactNode,
   ) => (
     <SiauCalculatedRow>
-      <SiauCalculatedNameCell title={label}>{label}</SiauCalculatedNameCell>
+      <SiauCalculatedNameCell title={label}>
+        <SiauNameText>{label}</SiauNameText>
+      </SiauCalculatedNameCell>
       {days.map((d) => (
         <SiauCalculatedCell key={`calc-${label}-${d}`} $center>
           {getCell(d)}
@@ -148,7 +154,7 @@ export const SiauTypesTable: React.FC<{
   );
 
   return (
-    <TableContainer>
+    <SiauTableContainer>
       {showLoading && (
         <LoadingOverlay>
           <LoadingSpinner />
@@ -158,7 +164,7 @@ export const SiauTypesTable: React.FC<{
       <DataTable aria-busy={loading}>
         <TableHead>
           <tr>
-            <HeaderCell $sticky>{year}</HeaderCell>
+            <SiauHeaderCell $sticky>{year}</SiauHeaderCell>
             {days.map((day) => (
               <HeaderCell key={`siau-h-${day}`}>
                 <div>{day}</div>
@@ -171,26 +177,31 @@ export const SiauTypesTable: React.FC<{
         <TableBody>
           {/* Separador con el nombre del mes */}
           <tr>
-            <StaffNameCell>{monthLabel}</StaffNameCell>
+            <SiauNameCell title={monthLabel}>
+              <SiauNameText>{monthLabel}</SiauNameText>
+            </SiauNameCell>
             {days.map((day) => (
-              <DataCell key={`siau-m-${day}`} />
+              <SiauValueCell key={`siau-m-${day}`} />
             ))}
           </tr>
 
           {/* Filas SIAU normales (persistidas/editables) */}
           {visibleSiauTypes.map((tipo) => (
             <tr key={`siau-row-${tipo.id}`}>
-              <SiauNameCell title={tipo.nombre}>{tipo.nombre}</SiauNameCell>
+              <SiauNameCell title={tipo.nombre}>
+                <SiauNameText>{tipo.nombre}</SiauNameText>
+              </SiauNameCell>
               {days.map((d) => {
                 const key = `${tipo.id}-${d}`;
                 const persisted = valuesByKey[key] ?? 0;
                 const inputVal = inputsByKey[key] ?? String(persisted);
 
                 return (
-                  <DataCell key={`siau-${tipo.id}-${d}`} $center>
+                  <SiauValueCell key={`siau-${tipo.id}-${d}`} $center>
                     {canEdit ? (
-                      <InputField
+                      <SiauInputField
                         type="text"
+                        size={1}
                         value={inputVal}
                         onChange={(e) =>
                           onChangeCell?.(tipo.id, d, e.target.value)
@@ -201,7 +212,7 @@ export const SiauTypesTable: React.FC<{
                     ) : (
                       persisted
                     )}
-                  </DataCell>
+                  </SiauValueCell>
                 );
               })}
             </tr>
@@ -209,32 +220,32 @@ export const SiauTypesTable: React.FC<{
 
           {/* === FILAS CALCULADAS === */}
           {renderCalculatedRow(
-            "N° TOTAL DE TURNOS",
+            t("scheduleViewer.siau.totalTurnos"),
             (d) => calculatedByDay[d]?.totalTurnos ?? 0,
           )}
 
           {renderCalculatedRow(
-            "N° TOTAL DE MÉDICO GENERAL ASIGNADOS A C.E",
+            t("scheduleViewer.siau.medicosCe"),
             (d) => calculatedByDay[d]?.medicosCE ?? 0,
           )}
 
           {renderCalculatedRow(
-            "N° DE CITAS OFERTADAS SEGÚN MÉDICOS ASIGNADOS A C.E EN EL DÍA",
+            t("scheduleViewer.siau.citasOfertadas"),
             (d) => calculatedByDay[d]?.citasOfertadas ?? 0,
           )}
 
           {renderCalculatedRow(
-            "TASA DE EFICIENCIA DE LA UTILIZACIÓN DE CITAS (%)",
+            t("scheduleViewer.siau.tasaEficiencia"),
             (d) => `${calculatedByDay[d]?.tasaEficienciaPct ?? 0}%`,
           )}
 
           {renderCalculatedRow(
-            "INDICADOR DEMANDA INSATISFECHA (%)",
+            t("scheduleViewer.siau.indicadorDemanda"),
             (d) =>
               `${calculatedByDay[d]?.indicadorDemandaInsatisfechaPct ?? 0}%`,
           )}
         </TableBody>
       </DataTable>
-    </TableContainer>
+    </SiauTableContainer>
   );
 };
