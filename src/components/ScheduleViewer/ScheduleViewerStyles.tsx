@@ -905,14 +905,92 @@ export const SupportStaffButton = styled(ActionButton)`
   }
 `;
 
-export const SiauNameCell = styled(StaffNameCell)`
-  min-width: 320px;
-  max-width: 420px;
+const siauLabelColumn = css`
+  box-sizing: border-box;
+  width: 300px;
+  min-width: 260px;
+  max-width: 340px;
 
+  ${media.md} {
+    width: 220px;
+    min-width: 200px;
+    max-width: 240px;
+  }
+
+  ${media.sm} {
+    width: 160px;
+    min-width: 150px;
+    max-width: 176px;
+  }
+`;
+
+export const SiauTableContainer = styled(TableContainer)`
+  ${media.md} {
+    && {
+      padding-left: 0;
+      padding-right: 0;
+    }
+  }
+`;
+
+export const SiauHeaderCell = styled(HeaderCell)`
+  && {
+    ${siauLabelColumn}
+  }
+`;
+
+export const SiauNameCell = styled(StaffNameCell)`
+  && {
+    ${siauLabelColumn}
+    white-space: normal;
+    overflow: hidden;
+    text-overflow: clip;
+    line-height: 1.2;
+    vertical-align: middle;
+  }
+`;
+
+export const SiauNameText = styled.span`
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
   white-space: normal;
-  overflow: visible;
-  text-overflow: unset;
+  overflow-wrap: anywhere;
   line-height: 1.2;
+  width: calc(300px - ${theme.spacing.sm} * 2);
+
+  ${media.md} {
+    width: calc(220px - ${theme.spacing.xs} * 2);
+  }
+
+  ${media.sm} {
+    width: calc(160px - ${theme.spacing.xs} * 2);
+  }
+`;
+
+export const SiauValueCell = styled(DataCell)`
+  z-index: 1;
+  overflow: hidden;
+  white-space: nowrap;
+`;
+
+export const SiauInputField = styled(InputField)`
+  && {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    padding: ${theme.spacing.xs};
+  }
+
+  ${media.md} {
+    && {
+      width: 100%;
+      min-width: 0;
+      max-width: 100%;
+    }
+  }
 `;
 
 export const SiauCalculatedRow = styled.tr`
@@ -925,7 +1003,7 @@ export const SiauCalculatedNameCell = styled(SiauNameCell)`
   background: #e0f2fe; /* un poco más fuerte */
 `;
 
-export const SiauCalculatedCell = styled(DataCell)`
+export const SiauCalculatedCell = styled(SiauValueCell)`
   font-weight: ${theme.fontWeights.bold};
   background: #f0f9ff;
 

@@ -590,7 +590,7 @@ Al **quitar** UI, borra también su clave en `es.json`: no dejes texto muerto. V
 - Textos de UI vía `t(...)` y `es.json`.
 - Escribir comentarios en texto plano, sin emojis ni decoraciones (`// ✅`, `// 🚫`, banners de `====`).
 - Borrar la clave de `es.json` cuando se elimina la UI que la usaba.
-- Commits con Conventional Commits (husky + commitlint).
+- Commits con Conventional Commits (husky + commitlint). Ramas y redacción en Convenciones de Git.
 
 ### No hacer
 
@@ -631,6 +631,83 @@ Al **quitar** UI, borra también su clave en `es.json`: no dejes texto muerto. V
 | Búsqueda de médicos para citas | `administration.service.ts` (`searchUsers`) + `administrationActions.searchUsers` + `Appointments.tsx` |
 | Estilos / colores | `constants/theme.tsx` + `*Styles.tsx` de la feature |
 | Textos | `language/es.json` |
+
+---
+
+## Convenciones de Git
+
+Ramas y commits en español. Husky y commitlint exigen Conventional Commits; el detalle de redacción está aquí.
+
+### Convenciones de ramas
+
+- Todos los nombres de ramas deben estar en español.
+- Utilizar letras minúsculas, sin tildes, espacios ni caracteres especiales.
+- Separar las palabras mediante guiones (`kebab-case`).
+- Utilizar los siguientes prefijos:
+  - `feat/`: nuevas funcionalidades.
+  - `fix/`: corrección de errores.
+  - `chore/`: mantenimiento, configuración y actualización de dependencias.
+  - `refactor/`: reestructuración del código sin alterar su funcionalidad.
+  - `docs/`: cambios en documentación.
+  - `test/`: incorporación o modificación de pruebas.
+  - `perf/`: mejoras de rendimiento.
+
+Ejemplos:
+
+- `feat/asignar-bono-a-jugador`
+- `fix/validacion-vencimiento-bono`
+- `chore/actualizar-dependencias`
+
+### Convenciones de commits
+
+Todos los commits deben seguir Conventional Commits:
+
+`<tipo>(alcance-opcional): <descripcion>`
+
+Tipos permitidos:
+
+- `feat`: nuevas funcionalidades.
+- `fix`: correcciones de errores.
+- `chore`: mantenimiento y configuraciones.
+- `refactor`: reestructuración del código.
+- `docs`: documentación.
+- `test`: pruebas.
+- `perf`: mejoras de rendimiento.
+- `style`: cambios de formato sin afectar la lógica.
+- `build`: cambios en compilación y dependencias.
+- `ci`: cambios en integración continua.
+- `revert`: reversión de cambios anteriores.
+
+### Reglas de redacción
+
+- Todos los mensajes de commit deben estar en español.
+- Utilizar minúsculas en las descripciones.
+- No utilizar tildes, emojis ni caracteres especiales.
+- Redactar los mensajes de forma breve, clara y descriptiva.
+- Utilizar verbos en infinitivo: implementar, corregir, actualizar, agregar, eliminar, optimizar, etc.
+- No finalizar los mensajes con punto.
+- Evitar mensajes genéricos como "actualizar", "cambios" o "correcciones".
+- Incluir un alcance opcional cuando permita identificar mejor el módulo afectado.
+
+Ejemplos:
+
+- `feat: implementar asignacion de bonos a jugadores`
+- `fix: corregir validacion de vencimiento de bonos`
+- `chore: actualizar dependencias del proyecto`
+- `refactor(bonos): simplificar logica de calculo`
+- `docs: actualizar documentacion de endpoints`
+
+### Comportamiento del agente
+
+Cuando el usuario solicite crear una rama o realizar un commit:
+
+1. Analizar los cambios para determinar su naturaleza.
+2. Seleccionar el prefijo y tipo correspondiente.
+3. Generar nombres de ramas y mensajes de commit en español.
+4. Mantener coherencia entre la rama y el tipo de commit.
+5. Revisar los cambios preparados antes de proponer el mensaje.
+6. No ejecutar `git commit`, `git push` ni crear ramas sin autorización explícita del usuario.
+7. No utilizar convenciones ni referencias específicas de Azure DevOps, Work Items u otras plataformas de gestión de tareas.
 
 ---
 

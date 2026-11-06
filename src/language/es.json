@@ -71,6 +71,13 @@
     "totalPatientsTreated": "Total pacientes atendidos",
     "siauTypes": "Tipos de SIAU",
     "siauSectionTitle": "SIAU – Tipos",
+    "siau": {
+      "totalTurnos": "N° TOTAL DE TURNOS",
+      "medicosCe": "N° TOTAL DE MÉDICO GENERAL ASIGNADOS A C.E",
+      "citasOfertadas": "N° DE CITAS OFERTADAS SEGÚN MÉDICOS ASIGNADOS A C.E EN EL DÍA",
+      "tasaEficiencia": "TASA DE EFICIENCIA DE LA UTILIZACIÓN DE CITAS (%)",
+      "indicadorDemanda": "INDICADOR DEMANDA INSATISFECHA (%)"
+    },
     "healthPersonnelType": "Tipo personal de salud",
     "closeSupportStaff": "Cerrar personal de apoyo",
     "supportStaffTitle": "Personal de apoyo",
